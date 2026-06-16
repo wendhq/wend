@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="Wend.Api/Wend.Api.csproj" />
+  <Project Path="Wend.Core/Wend.Core.csproj" />
+  <Project Path="Wend.Tests/Wend.Tests.csproj" />
+</Solution>

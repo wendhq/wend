@@ -1,0 +1,20 @@
+## .NET build output
+bin/
+obj/
+
+## IDE / editor
+.vs/
+.idea/
+*.user
+*.suo
+*.DotSettings.user
+
+## OS cruft
+.DS_Store
+Thumbs.db
+
+## Local SQLite — the real database lives in %LOCALAPPDATA%\Wend,
+## this just guards against any stray copies inside the repo.
+*.db
+*.db-shm
+*.db-wal
