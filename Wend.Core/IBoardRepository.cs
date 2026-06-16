@@ -2,13 +2,13 @@ namespace Wend.Core;
 
 /// <summary>
 /// Persistence seam for the board domain. Slice 1 implements this with EF Core → SQLite;
-/// the API and services depend only on this interface, so storage can be swapped without
-/// touching board logic.
-/// <para>
-/// Members are added per feature, test-first, as Slice 1 is built (boards, lists, cards,
-/// move, checklist, labels, soft-delete/restore).
-/// </para>
+/// the API depends only on this interface, so storage can be swapped without touching board logic.
 /// </summary>
 public interface IBoardRepository
 {
+    Task<IReadOnlyList<Board>> GetBoardsAsync();
+    Task<Board?> GetBoardAsync(int id);
+    Task<Board> CreateBoardAsync(string title);
+    Task<bool> RenameBoardAsync(int id, string newTitle);
+    Task<bool> DeleteBoardAsync(int id);
 }

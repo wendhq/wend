@@ -8,6 +8,7 @@ public class BoardRepositoryTests
 {
     private SqliteConnection _connection = null!;
     private WendDbContext _db = null!;
+    private EfBoardRepository _repo = null!;
 
     [SetUp]
     public void SetUp()
@@ -20,6 +21,7 @@ public class BoardRepositoryTests
             .Options;
         _db = new WendDbContext(options);
         _db.Database.EnsureCreated();
+        _repo = new EfBoardRepository(_db);
     }
 
     [TearDown]
@@ -39,5 +41,16 @@ public class BoardRepositoryTests
 
         Assert.That(board.Id, Is.GreaterThan(0));
         Assert.That(board.Title, Is.EqualTo("Sprint 1"));
+    }
+    
+    [Test]
+    public async Task Create_adds_a_board_and_list_returns_it()
+    {
+        var created = await _repo.CreateBoardAsync("Sprint 1");
+
+        var all = await _repo.GetBoardsAsync();
+
+        Assert.That(created.Id, Is.GreaterThan(0));
+        Assert.That(all.Select(b => b.Title), Is.EqualTo(new[] { "Sprint 1" }));
     }
 }
