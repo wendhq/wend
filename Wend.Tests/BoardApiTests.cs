@@ -56,4 +56,42 @@ public class BoardApiTests
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
     }
+    [Test]
+    public async Task Get_one_returns_the_board_or_404()
+    {
+        var created = await (await _client.PostAsJsonAsync("/api/boards", new { title = "A" }))
+            .Content.ReadFromJsonAsync<Board>();
+
+        var found = await _client.GetAsync($"/api/boards/{created!.Id}");
+        Assert.That(found.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+
+        var missing = await _client.GetAsync("/api/boards/9999");
+        Assert.That(missing.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+    }
+
+    [Test]
+    public async Task Put_renames_the_board()
+    {
+        var created = await (await _client.PostAsJsonAsync("/api/boards", new { title = "Old" }))
+            .Content.ReadFromJsonAsync<Board>();
+
+        var put = await _client.PutAsJsonAsync($"/api/boards/{created!.Id}", new { title = "New" });
+        Assert.That(put.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
+
+        var board = await _client.GetFromJsonAsync<Board>($"/api/boards/{created.Id}");
+        Assert.That(board!.Title, Is.EqualTo("New"));
+    }
+
+    [Test]
+    public async Task Delete_removes_the_board()
+    {
+        var created = await (await _client.PostAsJsonAsync("/api/boards", new { title = "Temp" }))
+            .Content.ReadFromJsonAsync<Board>();
+
+        var deleted = await _client.DeleteAsync($"/api/boards/{created!.Id}");
+        Assert.That(deleted.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
+
+        var boards = await _client.GetFromJsonAsync<List<Board>>("/api/boards");
+        Assert.That(boards, Is.Empty);
+    }
 }

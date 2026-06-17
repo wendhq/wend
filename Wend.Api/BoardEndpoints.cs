@@ -18,9 +18,23 @@ public static class BoardEndpoints
             var board = await repo.CreateBoardAsync(title);
             return Results.Created($"/api/boards/{board.Id}", board);
         });
+        group.MapGet("/{id:int}", async (int id, IBoardRepository repo) =>
+            await repo.GetBoardAsync(id) is { } board ? Results.Ok(board) : Results.NotFound());
+
+        group.MapPut("/{id:int}", async (int id, RenameBoardRequest req, IBoardRepository repo) =>
+        {
+            var title = req.Title?.Trim() ?? "";
+            if (title.Length is 0 or > MaxTitleLength) return Results.BadRequest();
+            return await repo.RenameBoardAsync(id, title)
+                ? Results.NoContent() : Results.NotFound();
+        });
+
+        group.MapDelete("/{id:int}", async (int id, IBoardRepository repo) =>
+            await repo.DeleteBoardAsync(id) ? Results.NoContent() : Results.NotFound());
         
         return group;
     }
 }
 
 public record CreateBoardRequest(string Title);
+public record RenameBoardRequest(string Title);
