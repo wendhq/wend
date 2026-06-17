@@ -53,4 +53,33 @@ public class BoardRepositoryTests
         Assert.That(created.Id, Is.GreaterThan(0));
         Assert.That(all.Select(b => b.Title), Is.EqualTo(new[] { "Sprint 1" }));
     }
+
+    [Test]
+    public async Task Get_returns_the_board_or_null()
+    {
+        var created = await _repo.CreateBoardAsync("Sprint 1");
+
+        Assert.That((await _repo.GetBoardAsync(created.Id))?.Title, Is.EqualTo("Sprint 1"));
+        Assert.That(await _repo.GetBoardAsync(9999), Is.Null);
+    }
+
+    [Test]
+    public async Task Rename_changes_the_title_and_reports_missing()
+    {
+        var created = await _repo.CreateBoardAsync("Old");
+
+        Assert.That(await _repo.RenameBoardAsync(created.Id, "New"), Is.True);
+        Assert.That((await _repo.GetBoardAsync(created.Id))!.Title, Is.EqualTo("New"));
+        Assert.That(await _repo.RenameBoardAsync(9999, "X"), Is.False);
+    }
+
+    [Test]
+    public async Task Delete_removes_the_board_and_reports_missing()
+    {
+        var created = await _repo.CreateBoardAsync("Temp");
+
+        Assert.That(await _repo.DeleteBoardAsync(created.Id), Is.True);
+        Assert.That(await _repo.GetBoardsAsync(), Is.Empty);
+        Assert.That(await _repo.DeleteBoardAsync(9999), Is.False);
+    }
 }

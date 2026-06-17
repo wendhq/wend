@@ -15,8 +15,24 @@ public class EfBoardRepository(WendDbContext db) : IBoardRepository
         return board;
     }
 
-    // GetBoardAsync / RenameBoardAsync / DeleteBoardAsync arrive in Task 3.
-    public Task<Board?> GetBoardAsync(int id) => throw new NotImplementedException();
-    public Task<bool> RenameBoardAsync(int id, string newTitle) => throw new NotImplementedException();
-    public Task<bool> DeleteBoardAsync(int id) => throw new NotImplementedException();
+    public async Task<Board?> GetBoardAsync(int id) =>
+        await db.Boards.FindAsync(id);
+
+    public async Task<bool> RenameBoardAsync(int id, string newTitle)
+    {
+        var board = await db.Boards.FindAsync(id);
+        if (board is null) return false;
+        board.Title = newTitle;
+        await db.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<bool> DeleteBoardAsync(int id)
+    {
+        var board = await db.Boards.FindAsync(id);
+        if (board is null) return false;
+        db.Boards.Remove(board);
+        await db.SaveChangesAsync();
+        return true;
+    }
 }
