@@ -30,4 +30,30 @@ public class BoardApiTests
 
         Assert.That(boards, Is.Empty);
     }
+    
+    [Test]
+    public async Task Posting_a_board_creates_it()
+    {
+        var response = await _client.PostAsJsonAsync("/api/boards", new { title = "Sprint 1" });
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Created));
+
+        var boards = await _client.GetFromJsonAsync<List<Board>>("/api/boards");
+        Assert.That(boards!.Single().Title, Is.EqualTo("Sprint 1"));
+    }
+
+    [Test]
+    public async Task Posting_a_blank_title_is_rejected()
+    {
+        var response = await _client.PostAsJsonAsync("/api/boards", new { title = "   " });
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+    }
+
+    [Test]
+    public async Task Posting_an_over_long_title_is_rejected()
+    {
+        var response = await _client.PostAsJsonAsync("/api/boards", new { title = new string('x', 201) });
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+    }
 }
