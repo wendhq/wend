@@ -1,32 +1,45 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark" data-palette="wend">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="color-scheme" content="dark light" />
   <title>Wend</title>
-  <style>
-    :root { color-scheme: dark; }
-    body {
-      margin: 0;
-      min-height: 100dvh;
-      display: grid;
-      place-items: center;
-      padding: 2rem;
-      text-align: center;
-      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-      background: #14141a;
-      color: #e7e7ea;
-    }
-    h1 { margin: 0 0 .5rem; font-size: 2rem; letter-spacing: .02em; }
-    p  { margin: .25rem 0; color: #a8a8b3; }
-  </style>
+
+  <!-- Inline theme init BEFORE stylesheets — prevents a flash of light theme.
+       Sets data-theme from a saved choice (defaults to dark). The palette is fixed
+       to Wend's brand on <html> above; a palette switcher is a later slice. -->
+  <script>
+    (function () {
+      var saved = localStorage.getItem("theme");
+      document.documentElement.dataset.theme = saved || "dark";
+    })();
+  </script>
+
+  <link rel="stylesheet" href="/design-system/tokens/index.css" />
+  <link rel="stylesheet" href="/design-system/base/reset.css" />
+  <link rel="stylesheet" href="/design-system/base/base.css" />
+  <link rel="stylesheet" href="/design-system/primitives/index.css" />
+  <link rel="stylesheet" href="/design-system/components/index.css" />
+  <link rel="stylesheet" href="/design-system/compositions/index.css" />
+  <link rel="stylesheet" href="/design-system/utilities/index.css" />
+  <link rel="stylesheet" href="/css/app.css" />
 </head>
 <body>
-  <main>
-    <h1>Wend</h1>
-    <p>A free, accessible, dark-mode-first kanban board.</p>
-    <p>Slice&nbsp;1 scaffold is up. The board comes next. 🌱</p>
-  </main>
+  <!-- First focusable element: lets keyboard / screen-reader users jump past the header
+       straight to the boards. Hidden until focused; the design-system styles .skip-link. -->
+  <a class="skip-link" href="#app">Skip to content</a>
+
+  <header class="app-header"><h1>Wend</h1></header>
+
+  <!-- tabindex="-1" so the skip link can move focus here (otherwise <main> isn't focusable).
+       Task 9's view renders the boards UI into this container. -->
+  <main id="app" tabindex="-1"></main>
+
+  <!-- Screen-reader announcements (create/rename/delete now; move/undo later). Lives OUTSIDE
+       #app so the view's re-render never wipes it. -->
+  <div id="status" class="visually-hidden" role="status" aria-live="polite"></div>
+
+  <!-- Task 9 adds: <script type="module" src="/js/main.js"></script>
+       Held back until main.js exists so this shell's console stays clean. -->
 </body>
 </html>

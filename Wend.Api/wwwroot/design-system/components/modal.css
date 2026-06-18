@@ -1,0 +1,9 @@
+.modal {
+	width: min(100%, 36rem);
+	margin-inline: auto;
+	background: var(--surface-2);
+	border: 1px solid var(--border-strong);
+	border-radius: var(--radius-xl);
+	padding: var(--space-6);
+	box-shadow: var(--shadow-md);
+}

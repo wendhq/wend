@@ -1,0 +1,41 @@
+.input,
+.textarea,
+.select {
+	width: 100%;
+	min-height: 2.75rem;
+	padding: 0.75rem 0.875rem;
+	border-radius: var(--radius-md);
+	border: 1px solid var(--border);
+	background: var(--surface-2);
+	color: var(--text);
+	transition:
+		border-color var(--duration-base) var(--ease-standard),
+		box-shadow var(--duration-base) var(--ease-standard),
+		background-color var(--duration-base) var(--ease-standard);
+}
+.textarea {
+	min-height: 8rem;
+	resize: vertical;
+}
+.input::placeholder,
+.textarea::placeholder {
+	color: var(--text-faint);
+}
+.input:hover,
+.textarea:hover,
+.select:hover {
+	border-color: var(--border-strong);
+}
+.field {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2);
+}
+.label {
+	color: var(--text);
+	font-size: var(--text-sm);
+}
+.help {
+	color: var(--text-faint);
+	font-size: var(--text-sm);
+}

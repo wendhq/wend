@@ -1,0 +1,20 @@
+.alert {
+	display: grid;
+	gap: var(--space-2);
+	padding: var(--space-4);
+	border-radius: var(--radius-lg);
+	border: 1px solid var(--border);
+	background: var(--surface-3);
+}
+.alert-info {
+	background: var(--info-soft);
+}
+.alert-success {
+	background: var(--success-soft);
+}
+.alert-warning {
+	background: var(--warning-soft);
+}
+.alert-danger {
+	background: var(--danger-soft);
+}

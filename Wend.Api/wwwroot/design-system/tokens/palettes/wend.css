@@ -1,0 +1,34 @@
+/*
+ * Wend palette — the wendhq brand (cyan + mint, on its own dark ground).
+ * Full brand: remaps the accent + secondary channels and the surface ramp,
+ * and exposes the canonical brand constants + signature gradient. Text and
+ * borders reuse the base theme. Opt in with <html data-palette="wend">.
+ */
+[data-palette="wend"] {
+	/* Semantic channels — single source; soft / ghost / focus derive from these. */
+	--accent-rgb: 16 181 194;
+	--accent-strong-rgb: 52 198 210;
+	--secondary-rgb: 82 224 182;
+
+	/* Brand ground — Wend's own dark surface ramp. */
+	--surface-1: #0d1117;
+	--surface-2: #151b24;
+	--surface-3: #1b2330;
+	--surface-4: #222c3c;
+	--surface-5: #2a3648;
+
+	/* Canonical brand constants + signature gradient (mode-independent). */
+	--wend-bg: #0d1117;
+	--wend-surface: #151b24;
+	--wend-cyan: #10b5c2;
+	--wend-mint: #52e0b6;
+	--wend-mint-light: #b6f4d6;
+	--wend-gradient: linear-gradient(135deg, var(--wend-cyan) 0%, var(--wend-mint) 58%, var(--wend-mint-light) 100%);
+}
+
+/* Light mode keeps the base light surfaces; only the accents are tuned for contrast. */
+[data-theme="light"][data-palette="wend"] {
+	--accent-rgb: 14 142 153;
+	--accent-strong-rgb: 10 110 120;
+	--secondary-rgb: 43 158 124;
+}

@@ -1,0 +1,25 @@
+.skeleton {
+	background: var(--surface-4);
+	border-radius: var(--radius-sm);
+	position: relative;
+	overflow: hidden;
+}
+.skeleton::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	transform: translateX(-100%);
+	background: linear-gradient(90deg, transparent, rgb(var(--accent-rgb) / 8%), transparent);
+	animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}
+.skeleton-text { height: 0.75rem; }
+.skeleton-text + .skeleton-text { margin-top: var(--space-2); }
+.skeleton-circle { width: 2.75rem; height: 2.75rem; border-radius: 50%; }
+.skeleton-card { height: 8rem; border-radius: var(--radius-md); }
+
+@keyframes skeleton-shimmer {
+	to { transform: translateX(100%); }
+}
+@media (prefers-reduced-motion: reduce) {
+	.skeleton::after { animation: none; }
+}

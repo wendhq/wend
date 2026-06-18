@@ -1,0 +1,7 @@
+/*
+ * Brand palettes — each is opt-in via <html data-palette="NAME">.
+ * A palette overrides only the channels it needs; everything else derives
+ * from colors.css. Add a new brand = drop a file here + one @import line.
+ */
+@import url("./gold.css");
+@import url("./wend.css");

@@ -1,0 +1,10 @@
+.dashboard-grid {
+	display: grid;
+	gap: var(--space-5);
+	grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+}
+.kpi-row {
+	display: grid;
+	gap: var(--space-4);
+	grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+}

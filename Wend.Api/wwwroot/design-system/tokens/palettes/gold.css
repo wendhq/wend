@@ -1,0 +1,15 @@
+/*
+ * Gold palette — Tidsro's warm accent.
+ * Accent-only: overrides just the accent channels; the solid colour and every
+ * soft / ghost / focus / selection variant re-derive from them (see the
+ * single-source note in colors.css). Opt in with <html data-palette="gold">.
+ */
+[data-palette="gold"] {
+	--accent-rgb: 227 179 65;
+	--accent-strong-rgb: 236 194 90;
+}
+
+[data-theme="light"][data-palette="gold"] {
+	--accent-rgb: 168 124 26;
+	--accent-strong-rgb: 138 100 17;
+}

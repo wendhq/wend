@@ -1,0 +1,26 @@
+.card,
+.panel {
+	background: var(--card-bg);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-lg);
+	padding: var(--space-5);
+	box-shadow: var(--shadow-xs);
+}
+.card-hover,
+.panel-hover {
+	transition:
+		background-color var(--duration-base) var(--ease-standard),
+		border-color var(--duration-base) var(--ease-standard),
+		box-shadow var(--duration-base) var(--ease-standard);
+}
+.card-hover:hover,
+.panel-hover:hover {
+	background: var(--elevated-bg);
+	border-color: var(--border-strong);
+	box-shadow: var(--shadow-sm);
+}
+.surface {
+	background: var(--panel-bg);
+	border: 1px solid var(--border-soft);
+	border-radius: var(--radius-lg);
+}
