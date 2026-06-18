@@ -10,8 +10,10 @@ A free, open-source, accessible, dark-mode-first kanban board — a calm alterna
 
 **Slice 1 — local single-user board (in progress).**
 
-- **Done:** the board backend — full board CRUD (create, list, rename, delete) as a JSON API behind an `IBoardRepository` seam, backed by EF Core and SQLite, with 14 NUnit tests and a localhost-only host.
-- **Next:** the vanilla-JS web frontend, then lists and cards.
+Boards work end to end — create, rename, and delete from the browser, saved to SQLite — accessible and dark-mode-first.
+
+- **Done:** the board backend (full CRUD as a JSON API behind an `IBoardRepository` seam, EF Core + SQLite, 14 NUnit tests, localhost-only) and the vanilla-JS MVC frontend (labelled controls, screen-reader announcements, keyboard focus management).
+- **Next:** lists and cards.
 
 Design spec: [`docs/2026-06-15-wend-slice1-design.md`](docs/2026-06-15-wend-slice1-design.md) · Build plan: [`docs/plans/2026-06-16-slice1-foundation-boards.md`](docs/plans/2026-06-16-slice1-foundation-boards.md)
 
@@ -36,7 +38,7 @@ Design spec: [`docs/2026-06-15-wend-slice1-design.md`](docs/2026-06-15-wend-slic
 dotnet run --project Wend.Api
 ```
 
-Then open http://127.0.0.1:5174. The web UI is still a placeholder while the frontend is built; the board API lives under `/api/boards`. On first run the SQLite database is created at `%LOCALAPPDATA%\Wend\data.db`.
+Then open http://127.0.0.1:5174 to create, rename, and delete boards. The board API lives under `/api/boards`. On first run the SQLite database is created at `%LOCALAPPDATA%\Wend\data.db`.
 
 ## Tests
 
