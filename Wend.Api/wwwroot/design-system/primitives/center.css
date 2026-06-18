@@ -1,0 +1,9 @@
+.center {
+	display: grid;
+	place-items: center;
+	text-align: center;
+}
+.center-content {
+	width: min(100%, 40rem);
+	margin-inline: auto;
+}

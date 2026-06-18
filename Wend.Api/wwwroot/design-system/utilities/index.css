@@ -1,0 +1,32 @@
+.sr-only {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	white-space: nowrap;
+	border: 0;
+}
+.text-muted {
+	color: var(--text-muted);
+}
+.text-faint {
+	color: var(--text-faint);
+}
+.text-strong {
+	color: var(--text);
+}
+.border-top {
+	border-top: 1px solid var(--line);
+}
+.pad-5 {
+	padding: var(--space-5);
+}
+.mt-6 {
+	margin-top: var(--space-6);
+}
+.mb-6 {
+	margin-bottom: var(--space-6);
+}

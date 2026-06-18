@@ -1,7 +1,15 @@
+using Microsoft.EntityFrameworkCore;
+using Wend.Api;
+using Wend.Core;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Config seam — port is overridable by tests and manual runs.
+// Config seam — DB path and port are overridable by tests and manual runs.
+var dbPath = builder.Configuration["Wend:DbPath"] ?? WendPaths.DefaultDbPath();
 var port = int.TryParse(builder.Configuration["Wend:Port"], out var p) ? p : 5174;
+
+builder.Services.AddDbContext<WendDbContext>(options => options.UseSqlite($"Data Source={dbPath}"));
+builder.Services.AddScoped<IBoardRepository, EfBoardRepository>();
 
 // Keep request paths and bodies out of the framework logs; quiet the startup banner.
 builder.Logging.AddFilter("Microsoft.AspNetCore", LogLevel.Warning);
@@ -10,11 +18,13 @@ builder.Logging.AddFilter("Microsoft.Hosting.Lifetime", LogLevel.Warning);
 // Local-first: listen on 127.0.0.1 + [::1] only, never the public network.
 builder.WebHost.ConfigureKestrel(k => k.ListenLocalhost(port));
 
-// Storage (EF Core → SQLite at WendPaths.DefaultDbPath(), behind IBoardRepository) is wired
-// here as the first data-backed feature lands. Slice 1 endpoints join the /api group below,
-// test-first, one feature at a time.
-
 var app = builder.Build();
+
+// Create the SQLite schema on first run. NOTE: EnsureCreated does NOT migrate an existing
+// database when later plans add tables — see "Schema & migrations" in the notes. Slice 1
+// adopts EF Core migrations at the Slice 1 -> 2 boundary.
+using (var scope = app.Services.CreateScope())
+    scope.ServiceProvider.GetRequiredService<WendDbContext>().Database.EnsureCreated();
 
 // Unhandled failures → bodyless 500 (no developer exception page over the wire).
 app.UseExceptionHandler(b => b.Run(ctx => { ctx.Response.StatusCode = 500; return Task.CompletedTask; }));
@@ -25,6 +35,7 @@ app.UseStaticFiles();
 
 var api = app.MapGroup("/api");
 api.MapGet("/health", () => Results.Ok(new { status = "ok" }));
+app.MapGroup("/api/boards").MapBoardEndpoints();
 
 // Any non-API path renders the SPA shell; the client handles routing from there.
 app.MapFallbackToFile("index.html");

@@ -1,0 +1,23 @@
+.table-wrap {
+	overflow-x: auto;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-lg);
+	background: var(--card-bg);
+}
+.table {
+	width: 100%;
+	border-collapse: collapse;
+}
+.table th,
+.table td {
+	padding: 0.875rem 1rem;
+	text-align: left;
+	border-bottom: 1px solid var(--line);
+}
+.table th {
+	color: var(--text);
+	font-size: var(--text-sm);
+}
+.table tr:hover td {
+	background: var(--accent-ghost);
+}

@@ -1,0 +1,19 @@
+.hero {
+	padding-block: clamp(4rem, 8vw, 7rem);
+}
+.hero-copy {
+	display: grid;
+	gap: var(--space-5);
+	max-width: 40rem;
+}
+.eyebrow {
+	color: var(--text-faint);
+	font-size: var(--text-sm);
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+}
+.hero-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-3);
+}

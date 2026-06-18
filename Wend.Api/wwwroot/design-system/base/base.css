@@ -1,0 +1,111 @@
+html {
+	font-family: var(--font-sans);
+}
+body {
+	background: var(--page-bg);
+	color: var(--text);
+	line-height: var(--leading-normal);
+	font-size: var(--text-md);
+}
+::selection {
+	background: var(--selection);
+}
+h1,
+h2,
+h3,
+h4 {
+	line-height: var(--leading-snug);
+	letter-spacing: -0.02em;
+}
+h1 {
+	font-size: var(--text-4xl);
+}
+h2 {
+	font-size: var(--text-2xl);
+}
+h3 {
+	font-size: var(--text-xl);
+}
+p,
+li {
+	color: var(--text-muted);
+}
+small,
+.text-faint {
+	color: var(--text-faint);
+}
+code,
+pre {
+	font-family: var(--font-mono);
+}
+hr {
+	border: 0;
+	border-top: 1px solid var(--line);
+}
+
+/* Links — distinguishable by color, underlined on hover/focus for clarity */
+a {
+	color: var(--accent-strong);
+}
+a:hover,
+a:focus-visible {
+	color: var(--text);
+	text-decoration: underline;
+	text-underline-offset: 0.2em;
+}
+
+/* Disabled controls — visible distinction */
+button:disabled,
+input:disabled,
+select:disabled,
+textarea:disabled,
+[aria-disabled="true"] {
+	cursor: not-allowed;
+	opacity: 0.55;
+}
+
+/* Visible focus ring */
+:focus-visible {
+	outline: 2px solid var(--accent-strong);
+	outline-offset: 2px;
+	box-shadow: var(--shadow-focus);
+}
+
+/* Skip link — visually hidden until focused (keyboard users jump to main) */
+.skip-link {
+	position: absolute;
+	top: 0;
+	left: 0;
+	padding: var(--space-2) var(--space-3);
+	background: var(--surface-3);
+	color: var(--text);
+	border-radius: 0 0 var(--radius-md) 0;
+	transform: translateY(-100%);
+	transition: transform var(--motion-base) var(--ease-out);
+	z-index: 1000;
+}
+.skip-link:focus-visible {
+	transform: translateY(0);
+}
+
+/* Reduced motion — kill animations and instant scroll */
+@media (prefers-reduced-motion: reduce) {
+	html:focus-within {
+		scroll-behavior: auto;
+	}
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0ms !important;
+	}
+}
+
+/* Forced-colors mode (Windows high contrast) — keep focus rings visible */
+@media (forced-colors: active) {
+	:focus-visible {
+		outline: 2px solid CanvasText;
+		box-shadow: none;
+	}
+}

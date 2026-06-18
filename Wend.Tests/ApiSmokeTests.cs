@@ -1,5 +1,5 @@
 using System.Net;
-using Microsoft.AspNetCore.Mvc.Testing;
+
 
 namespace Wend.Tests;
 
@@ -12,7 +12,7 @@ public class ApiSmokeTests
     [Test]
     public async Task Health_endpoint_returns_ok()
     {
-        await using var factory = new WebApplicationFactory<Program>();
+        await using var factory = new WendApiFactory();
         using var client = factory.CreateClient();
 
         var response = await client.GetAsync("/api/health");
@@ -23,7 +23,7 @@ public class ApiSmokeTests
     [Test]
     public async Task Root_serves_the_frontend_shell()
     {
-        await using var factory = new WebApplicationFactory<Program>();
+        await using var factory = new WendApiFactory();
         using var client = factory.CreateClient();
 
         var response = await client.GetAsync("/");
