@@ -1466,11 +1466,15 @@ Change the **Status** section to:
 **Slice 1 — local single-user board** (in progress). Boards and lists work end to end: create, rename, delete, and reorder lists inside a board, saved to SQLite, accessible and dark-mode-first. Cards come next.
 ```
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 4: Swap in the new hero banner** — `docs/brand/wend-readme-header.png`
+
+Replace the README hero with the new cyan→mint brand banner ("wend · calm kanban · A calm alternative to chaotic boards."). Save it **over** the existing file at `docs/brand/wend-readme-header.png` — same filename, so the README `<img src>` needs no change (it still displays at `width="640"`). Open the README preview to confirm it renders.
+
+- [ ] **Step 5: Commit**
 
 ```bash
-git add README.md
-git commit -m "Lists working end to end; update README status"
+git add README.md docs/brand/wend-readme-header.png
+git commit -m "Lists working end to end; update README status and hero banner"
 ```
 
 ---
