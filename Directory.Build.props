@@ -1,0 +1,18 @@
+<Project>
+
+  <!--
+    Solution-wide NuGet audit suppressions.
+
+    NU1903 / CVE-2025-6965 — High-severity SQLite memory-corruption advisory in the transitive
+    native package SQLitePCLRaw.lib.e_sqlite3 2.1.11, pulled in by Microsoft.EntityFrameworkCore.Sqlite.
+    There is no fix to take: 2.1.11 is the last 2.1.x build (the advisory lists "Patched versions: None"),
+    and the only newer build, 3.0.x, is a major release EF Core 10 was not built against.
+    Not reachable in Wend: the app is localhost-only and single-user, and every query is EF-generated
+    from typed LINQ, so there is no way to run the attacker-controlled aggregate SQL the CVE requires.
+    Tracked in docs/backlog.md. Revisit when EF Core ships on a patched SQLitePCLRaw and remove this.
+  -->
+  <ItemGroup>
+    <NuGetAuditSuppress Include="https://github.com/advisories/GHSA-2m69-gcr7-jv3q" />
+  </ItemGroup>
+
+</Project>
