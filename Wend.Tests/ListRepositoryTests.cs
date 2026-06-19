@@ -104,4 +104,36 @@ public class ListRepositoryTests
 
         Assert.That(await _db.Lists.AnyAsync(), Is.False);
     }
+    [Test]
+    public async Task Rename_changes_the_title_and_reports_missing()
+    {
+        var boardId = await NewBoardAsync();
+        var list = await _repo.CreateListAsync(boardId, "Old");
+
+        Assert.That(await _repo.RenameListAsync(list.Id, "New"), Is.True);
+        var lists = await _repo.GetListsForBoardAsync(boardId);
+        Assert.That(lists.Single().Title, Is.EqualTo("New"));
+        Assert.That(await _repo.RenameListAsync(9999, "X"), Is.False);
+    }
+
+    [Test]
+    public async Task Delete_removes_the_list_and_resequences_the_rest()
+    {
+        var boardId = await NewBoardAsync();
+        await _repo.CreateListAsync(boardId, "A");           // 0
+        var b = await _repo.CreateListAsync(boardId, "B");   // 1
+        await _repo.CreateListAsync(boardId, "C");           // 2
+
+        Assert.That(await _repo.DeleteListAsync(b.Id), Is.True);
+
+        var lists = await _repo.GetListsForBoardAsync(boardId);
+        Assert.That(lists.Select(l => l.Title), Is.EqualTo(new[] { "A", "C" }));
+        Assert.That(lists.Select(l => l.Position), Is.EqualTo(new[] { 0, 1 })); // gapless
+    }
+
+    [Test]
+    public async Task Delete_reports_missing()
+    {
+        Assert.That(await _repo.DeleteListAsync(9999), Is.False);
+    }
 }
