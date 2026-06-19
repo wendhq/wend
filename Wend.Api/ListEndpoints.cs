@@ -27,9 +27,14 @@ public static class ListEndpoints
 
         app.MapDelete("/api/lists/{id:int}", async (int id, IListRepository lists) =>
             await lists.DeleteListAsync(id) ? Results.NoContent() : Results.NotFound());
+        
+        app.MapPut("/api/lists/{id:int}/move", async (int id, MoveListRequest req, IListRepository lists) =>
+            await lists.MoveListAsync(id, req.Position) ? Results.NoContent() : Results.NotFound());
+        
         return app;
     }
 }
 
 public record CreateListRequest(string Title);
 public record RenameListRequest(string Title);
+public record MoveListRequest(int Position);

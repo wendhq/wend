@@ -145,4 +145,41 @@ public class ListApiTests
         var del = await _client.DeleteAsync("/api/lists/9999");
         Assert.That(del.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
     }
+    
+    [Test]
+    public async Task Moving_a_list_reorders_and_resequences()
+    {
+        var board = await CreateBoardAsync("Sprint");
+        var todo = await CreateListAsync(board.Id, "To do"); // 0
+        await CreateListAsync(board.Id, "Doing");            // 1
+        await CreateListAsync(board.Id, "Done");             // 2
+
+        var move = await _client.PutAsJsonAsync($"/api/lists/{todo.Id}/move", new { position = 2 });
+        Assert.That(move.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
+
+        var detail = await _client.GetFromJsonAsync<BoardDetailDto>($"/api/boards/{board.Id}");
+        Assert.That(detail!.Lists.Select(l => l.Title), Is.EqualTo(new[] { "Doing", "Done", "To do" }));
+        Assert.That(detail.Lists.Select(l => l.Position), Is.EqualTo(new[] { 0, 1, 2 }));
+    }
+
+    [Test]
+    public async Task Moving_past_the_end_clamps_to_the_last_position()
+    {
+        var board = await CreateBoardAsync("Sprint");
+        var a = await CreateListAsync(board.Id, "A");
+        await CreateListAsync(board.Id, "B");
+
+        var move = await _client.PutAsJsonAsync($"/api/lists/{a.Id}/move", new { position = 99 });
+        Assert.That(move.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
+
+        var detail = await _client.GetFromJsonAsync<BoardDetailDto>($"/api/boards/{board.Id}");
+        Assert.That(detail!.Lists.Select(l => l.Title), Is.EqualTo(new[] { "B", "A" }));
+    }
+
+    [Test]
+    public async Task Moving_a_missing_list_is_404()
+    {
+        var move = await _client.PutAsJsonAsync("/api/lists/9999/move", new { position = 0 });
+        Assert.That(move.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+    }
 }
