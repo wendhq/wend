@@ -6,4 +6,5 @@ namespace Wend.Core;
 public class WendDbContext(DbContextOptions<WendDbContext> options) : DbContext(options)
 {
     public DbSet<Board> Boards => Set<Board>();
+    public DbSet<List> Lists => Set<List>();
 }
