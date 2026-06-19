@@ -96,4 +96,53 @@ public class ListApiTests
         var res = await _client.GetAsync("/api/boards/9999");
         Assert.That(res.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
     }
+    [Test]
+    public async Task Put_renames_a_list()
+    {
+        var board = await CreateBoardAsync("B");
+        var list = await CreateListAsync(board.Id, "Old");
+
+        var put = await _client.PutAsJsonAsync($"/api/lists/{list.Id}", new { title = "New" });
+        Assert.That(put.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
+
+        var detail = await _client.GetFromJsonAsync<BoardDetailDto>($"/api/boards/{board.Id}");
+        Assert.That(detail!.Lists.Single().Title, Is.EqualTo("New"));
+    }
+
+    [Test]
+    public async Task Put_rejects_a_blank_list_title()
+    {
+        var board = await CreateBoardAsync("B");
+        var list = await CreateListAsync(board.Id, "Old");
+
+        var put = await _client.PutAsJsonAsync($"/api/lists/{list.Id}", new { title = "  " });
+        Assert.That(put.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+    }
+
+    [Test]
+    public async Task Put_to_a_missing_list_is_404()
+    {
+        var put = await _client.PutAsJsonAsync("/api/lists/9999", new { title = "X" });
+        Assert.That(put.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+    }
+
+    [Test]
+    public async Task Delete_removes_a_list()
+    {
+        var board = await CreateBoardAsync("B");
+        var list = await CreateListAsync(board.Id, "Temp");
+
+        var del = await _client.DeleteAsync($"/api/lists/{list.Id}");
+        Assert.That(del.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
+
+        var detail = await _client.GetFromJsonAsync<BoardDetailDto>($"/api/boards/{board.Id}");
+        Assert.That(detail!.Lists, Is.Empty);
+    }
+
+    [Test]
+    public async Task Delete_a_missing_list_is_404()
+    {
+        var del = await _client.DeleteAsync("/api/lists/9999");
+        Assert.That(del.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+    }
 }

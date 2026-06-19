@@ -18,9 +18,18 @@ public static class ListEndpoints
                 return Results.Created($"/api/lists/{list.Id}", list);
             });
 
-        // PUT (rename), DELETE and move arrive in Tasks 7-8.
+        app.MapPut("/api/lists/{id:int}", async (int id, RenameListRequest req, IListRepository lists) =>
+        {
+            var title = req.Title?.Trim() ?? "";
+            if (title.Length is 0 or > MaxTitleLength) return Results.BadRequest();
+            return await lists.RenameListAsync(id, title) ? Results.NoContent() : Results.NotFound();
+        });
+
+        app.MapDelete("/api/lists/{id:int}", async (int id, IListRepository lists) =>
+            await lists.DeleteListAsync(id) ? Results.NoContent() : Results.NotFound());
         return app;
     }
 }
 
 public record CreateListRequest(string Title);
+public record RenameListRequest(string Title);
