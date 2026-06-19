@@ -1,0 +1,78 @@
+using System.Net;
+using System.Net.Http.Json;
+
+namespace Wend.Tests;
+
+public class ListApiTests
+{
+    private WendApiFactory _factory = null!;
+    private HttpClient _client = null!;
+
+    [SetUp]
+    public void SetUp()
+    {
+        _factory = new WendApiFactory();
+        _client = _factory.CreateClient();
+    }
+
+    [TearDown]
+    public void TearDown()
+    {
+        _client.Dispose();
+        _factory.Dispose();
+    }
+
+    // Test-only shapes for the JSON the API returns.
+    private record BoardDto(int Id, string Title);
+    private record ListDto(int Id, string Title, int Position);
+    private record BoardDetailDto(int Id, string Title, List<ListDto> Lists);
+
+    private async Task<BoardDto> CreateBoardAsync(string title)
+    {
+        var res = await _client.PostAsJsonAsync("/api/boards", new { title });
+        return (await res.Content.ReadFromJsonAsync<BoardDto>())!;
+    }
+
+    private async Task<ListDto> CreateListAsync(int boardId, string title)
+    {
+        var res = await _client.PostAsJsonAsync($"/api/boards/{boardId}/lists", new { title });
+        return (await res.Content.ReadFromJsonAsync<ListDto>())!;
+    }
+
+    [Test]
+    public async Task Posting_a_list_creates_it_at_the_next_position()
+    {
+        var board = await CreateBoardAsync("Sprint 1");
+
+        var response = await _client.PostAsJsonAsync($"/api/boards/{board.Id}/lists", new { title = "To do" });
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Created));
+
+        var created = await response.Content.ReadFromJsonAsync<ListDto>();
+        Assert.That(created!.Title, Is.EqualTo("To do"));
+        Assert.That(created.Position, Is.EqualTo(0));
+    }
+
+    [Test]
+    public async Task Posting_a_blank_list_title_is_rejected()
+    {
+        var board = await CreateBoardAsync("Sprint 1");
+        var response = await _client.PostAsJsonAsync($"/api/boards/{board.Id}/lists", new { title = "   " });
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+    }
+
+    [Test]
+    public async Task Posting_an_over_long_list_title_is_rejected()
+    {
+        var board = await CreateBoardAsync("Sprint 1");
+        var response = await _client.PostAsJsonAsync(
+            $"/api/boards/{board.Id}/lists", new { title = new string('x', 201) });
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+    }
+
+    [Test]
+    public async Task Posting_a_list_to_a_missing_board_is_404()
+    {
+        var response = await _client.PostAsJsonAsync("/api/boards/9999/lists", new { title = "X" });
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+    }
+}
