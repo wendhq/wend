@@ -136,4 +136,38 @@ public class ListRepositoryTests
     {
         Assert.That(await _repo.DeleteListAsync(9999), Is.False);
     }
+    
+    [Test]
+    public async Task Move_reorders_within_the_board_and_resequences()
+    {
+        var boardId = await NewBoardAsync();
+        var a = await _repo.CreateListAsync(boardId, "A"); // 0
+        await _repo.CreateListAsync(boardId, "B");          // 1
+        await _repo.CreateListAsync(boardId, "C");          // 2
+
+        Assert.That(await _repo.MoveListAsync(a.Id, 2), Is.True);
+
+        var lists = await _repo.GetListsForBoardAsync(boardId);
+        Assert.That(lists.Select(l => l.Title), Is.EqualTo(new[] { "B", "C", "A" }));
+        Assert.That(lists.Select(l => l.Position), Is.EqualTo(new[] { 0, 1, 2 }));
+    }
+
+    [Test]
+    public async Task Move_clamps_an_out_of_range_position()
+    {
+        var boardId = await NewBoardAsync();
+        var a = await _repo.CreateListAsync(boardId, "A");
+        await _repo.CreateListAsync(boardId, "B");
+
+        Assert.That(await _repo.MoveListAsync(a.Id, 99), Is.True);
+
+        var lists = await _repo.GetListsForBoardAsync(boardId);
+        Assert.That(lists.Select(l => l.Title), Is.EqualTo(new[] { "B", "A" }));
+    }
+
+    [Test]
+    public async Task Move_reports_missing_list()
+    {
+        Assert.That(await _repo.MoveListAsync(9999, 0), Is.False);
+    }
 }

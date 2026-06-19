@@ -48,5 +48,21 @@ public class EfListRepository(WendDbContext db) : IListRepository
         for (var i = 0; i < lists.Count; i++) lists[i].Position = i;
         await db.SaveChangesAsync();
     }
-    public Task<bool> MoveListAsync(int id, int position) => throw new NotImplementedException();
+    public async Task<bool> MoveListAsync(int id, int position)
+    {
+        var list = await db.Lists.FindAsync(id);
+        if (list is null) return false;
+
+        // Pull the board's lists in order, lift this one out, drop it back at the
+        // clamped target index, then renumber so positions stay gapless.
+        var siblings = await db.Lists.Where(l => l.BoardId == list.BoardId)
+            .OrderBy(l => l.Position)
+            .ToListAsync();
+        siblings.Remove(siblings.First(l => l.Id == id));
+        var target = Math.Clamp(position, 0, siblings.Count);
+        siblings.Insert(target, list);
+        for (var i = 0; i < siblings.Count; i++) siblings[i].Position = i;
+        await db.SaveChangesAsync();
+        return true;
+    }
 }
