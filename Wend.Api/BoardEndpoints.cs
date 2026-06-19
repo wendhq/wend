@@ -29,8 +29,14 @@ public static class BoardEndpoints
                 ? Results.NoContent() : Results.NotFound();
         });
 
-        group.MapDelete("/{id:int}", async (int id, IBoardRepository repo) =>
-            await repo.DeleteBoardAsync(id) ? Results.NoContent() : Results.NotFound());
+        group.MapGet("/{id:int}", async (int id, IBoardRepository boards, IListRepository lists) =>
+        {
+            if (await boards.GetBoardAsync(id) is not { } board) return Results.NotFound();
+            var summaries = (await lists.GetListsForBoardAsync(id))
+                .Select(l => new ListSummary(l.Id, l.Title, l.Position))
+                .ToList();
+            return Results.Ok(new BoardDetail(board.Id, board.Title, summaries));
+        });
         
         return group;
     }
@@ -38,3 +44,5 @@ public static class BoardEndpoints
 
 public record CreateBoardRequest(string Title);
 public record RenameBoardRequest(string Title);
+public record BoardDetail(int Id, string Title, IReadOnlyList<ListSummary> Lists);
+public record ListSummary(int Id, string Title, int Position);

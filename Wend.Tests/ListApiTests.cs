@@ -75,4 +75,25 @@ public class ListApiTests
         var response = await _client.PostAsJsonAsync("/api/boards/9999/lists", new { title = "X" });
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
     }
+    
+    [Test]
+    public async Task Board_detail_includes_its_lists_in_order()
+    {
+        var board = await CreateBoardAsync("Sprint");
+        await CreateListAsync(board.Id, "To do");
+        await CreateListAsync(board.Id, "Doing");
+
+        var detail = await _client.GetFromJsonAsync<BoardDetailDto>($"/api/boards/{board.Id}");
+
+        Assert.That(detail!.Title, Is.EqualTo("Sprint"));
+        Assert.That(detail.Lists.Select(l => l.Title), Is.EqualTo(new[] { "To do", "Doing" }));
+        Assert.That(detail.Lists.Select(l => l.Position), Is.EqualTo(new[] { 0, 1 }));
+    }
+
+    [Test]
+    public async Task Board_detail_for_a_missing_board_is_404()
+    {
+        var res = await _client.GetAsync("/api/boards/9999");
+        Assert.That(res.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+    }
 }
