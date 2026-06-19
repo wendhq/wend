@@ -8,6 +8,8 @@ public class ListRepositoryTests
 {
     private SqliteConnection _connection = null!;
     private WendDbContext _db = null!;
+    private EfListRepository _repo = null!;
+    private EfBoardRepository _boards = null!;
 
     [SetUp]
     public void SetUp()
@@ -20,6 +22,48 @@ public class ListRepositoryTests
             .Options;
         _db = new WendDbContext(options);
         _db.Database.EnsureCreated();
+        _repo = new EfListRepository(_db);
+        _boards = new EfBoardRepository(_db);
+    }
+    
+    private async Task<int> NewBoardAsync(string title = "Board") =>
+        (await _boards.CreateBoardAsync(title)).Id;
+
+    [Test]
+    public async Task Create_appends_each_list_at_the_next_position()
+    {
+        var boardId = await NewBoardAsync();
+
+        var first = await _repo.CreateListAsync(boardId, "To do");
+        var second = await _repo.CreateListAsync(boardId, "Doing");
+
+        Assert.That(first.Position, Is.EqualTo(0));
+        Assert.That(second.Position, Is.EqualTo(1));
+    }
+
+    [Test]
+    public async Task Get_lists_for_board_returns_them_in_position_order()
+    {
+        var boardId = await NewBoardAsync();
+        await _repo.CreateListAsync(boardId, "To do");
+        await _repo.CreateListAsync(boardId, "Doing");
+
+        var lists = await _repo.GetListsForBoardAsync(boardId);
+
+        Assert.That(lists.Select(l => l.Title), Is.EqualTo(new[] { "To do", "Doing" }));
+    }
+
+    [Test]
+    public async Task Positions_count_from_zero_per_board()
+    {
+        var boardA = await NewBoardAsync("A");
+        var boardB = await NewBoardAsync("B");
+
+        var a1 = await _repo.CreateListAsync(boardA, "A1");
+        var b1 = await _repo.CreateListAsync(boardB, "B1");
+
+        Assert.That(a1.Position, Is.EqualTo(0));
+        Assert.That(b1.Position, Is.EqualTo(0));
     }
 
     [TearDown]
