@@ -1,3 +1,4 @@
+// Renders boards (labelled controls) and forwards events via data-action. No fetch, no logic.
 export function createBoardsView(root) {
   function render(boards) {
     const items = boards.length
@@ -5,7 +6,8 @@ export function createBoardsView(root) {
           .map(
             (b) => `
         <li>
-          <span class="board-title">${escapeHtml(b.title)}</span>
+          <button class="board-open" data-action="open" data-id="${b.id}"
+            aria-label="Open board: ${escapeHtml(b.title)}">${escapeHtml(b.title)}</button>
           <button data-action="rename" data-id="${b.id}"
             aria-label="Rename board: ${escapeHtml(b.title)}">Rename</button>
           <button data-action="delete" data-id="${b.id}"
@@ -27,6 +29,11 @@ export function createBoardsView(root) {
     root.querySelector(".board-form input")?.focus();
   }
 
+  // Send focus to a specific board's Open button (used when returning from its view).
+  function focusOpen(id) {
+    root.querySelector(`[data-action="open"][data-id="${id}"]`)?.focus();
+  }
+
   function bindActions(handlers) {
     root.addEventListener("submit", async (e) => {
       if (e.target.dataset.action !== "create") return;
@@ -42,14 +49,15 @@ export function createBoardsView(root) {
     });
     root.addEventListener("click", (e) => {
       const btn = e.target.closest("button[data-action]");
-      if (!btn) return;
+      if (!btn || btn.dataset.action === "create") return;
       const id = Number(btn.dataset.id);
-      if (btn.dataset.action === "rename") handlers.rename(id);
-      if (btn.dataset.action === "delete") handlers.delete(id);
+      if (btn.dataset.action === "open") handlers.open(id);
+      else if (btn.dataset.action === "rename") handlers.rename(id);
+      else if (btn.dataset.action === "delete") handlers.delete(id);
     });
   }
 
-  return { render, focusNewBoardInput, bindActions };
+  return { render, focusNewBoardInput, focusOpen, bindActions };
 }
 
 function escapeHtml(s) {
