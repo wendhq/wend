@@ -1,4 +1,5 @@
 // Renders boards (labelled controls) and forwards events via data-action. No fetch, no logic.
+import { escapeHtml } from "../escape.js";
 export function createBoardsView(root) {
   function render(boards) {
     const items = boards.length
@@ -58,10 +59,4 @@ export function createBoardsView(root) {
   }
 
   return { render, focusNewBoardInput, focusOpen, bindActions };
-}
-
-function escapeHtml(s) {
-  return s.replace(/[&<>"']/g, (c) =>
-    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]
-  );
 }

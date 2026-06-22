@@ -2,7 +2,7 @@ import { api } from "../api.js";
 
 // State + data for a single board's lists. Re-fetches the board detail after each change
 // so positions always come straight from the server. No DOM. Subscribers notified on change.
-export function createListsModel(boardId) {
+export function createBoardModel(boardId) {
     let board = { id: boardId, title: "", lists: [] };
     const subscribers = [];
     const notify = () => subscribers.forEach((fn) => fn(board));
@@ -30,6 +30,10 @@ export function createListsModel(boardId) {
         },
         async move(id, position) {
             await api(`/api/lists/${id}/move`, { method: "PUT", body: JSON.stringify({ position }) });
+            await this.load();
+        },
+        async createCard(listId, title) {
+            await api(`/api/lists/${listId}/cards`, { method: "POST", body: JSON.stringify({ title }) });
             await this.load();
         },
     };

@@ -1,10 +1,12 @@
-// Wires the board view to the model: announces results, manages focus, confirms deletes,
-// and turns move-left/right into a target position. onBack() returns to the overview.
-export function createListsController(model, view, announce, { onBack } = {}) {
+// Wires the board view to the model: announces results, manages focus, confirms list deletes,
+// turns move-left/right into a target position, and forwards card actions.
+// onBack() returns to the overview; onOpenCard(cardId) opens a card's task view.
+export function createBoardController(model, view, announce, { onBack, onOpenCard } = {}) {
     let lists = [];
 
     view.bindActions({
         back: () => onBack?.(),
+        openCard: (cardId) => onOpenCard?.(cardId),
         create: async (title) => {
             if (!title) return;
             try {
@@ -13,6 +15,16 @@ export function createListsController(model, view, announce, { onBack } = {}) {
                 view.focusNewListInput();
             } catch {
                 announce("Couldn't add the list — please try again.");
+            }
+        },
+        createCard: async (listId, title) => {
+            if (!title) return;
+            try {
+                await model.createCard(listId, title);
+                announce("Card added.");
+                view.focusNewCardInput(listId);
+            } catch {
+                announce("Couldn't add the card — please try again.");
             }
         },
         rename: async (id) => {

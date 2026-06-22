@@ -125,3 +125,65 @@
   margin: 0 0 1rem;
   font-size: 1.25rem;
 }
+
+/* Cards inside a list. */
+.card-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.card-chip {
+  width: 100%;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid;
+  border-color: color-mix(in srgb, currentColor 18%, transparent);
+  border-radius: 0.5rem;
+}
+
+.card-due {
+  align-self: flex-start;
+  font-size: 0.7rem;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, currentColor 20%, transparent);
+}
+
+.card-form {
+  display: flex;
+  gap: 0.4rem;
+}
+.card-form input { flex: 1; }
+
+/* Task view (one card). */
+.card-view { display: flex; flex-direction: column; }
+
+.card-list-name { margin: 0 0 1rem; }
+
+.card-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.card-detail .field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.card-detail textarea {
+  min-height: 6rem;
+  resize: vertical;
+  font: inherit;
+}
+
+.card-delete { align-self: flex-start; }

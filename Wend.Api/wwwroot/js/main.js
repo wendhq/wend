@@ -2,9 +2,12 @@ import { createBoardsModel } from "./boards/model.js";
 import { createBoardsView } from "./boards/view.js";
 import { createBoardsController } from "./boards/controller.js";
 import { createAnnouncer } from "./announce.js";
-import { createListsModel } from "./lists/model.js";
-import { createListsView } from "./lists/view.js";
-import { createListsController } from "./lists/controller.js";
+import { createBoardModel } from "./board/model.js";
+import { createBoardView } from "./board/view.js";
+import { createBoardController } from "./board/controller.js";
+import { createCardModel } from "./card/model.js";
+import { createCardView } from "./card/view.js";
+import { createCardController } from "./card/controller.js";
 
 const announce = createAnnouncer(document.getElementById("status"));
 const app = document.getElementById("app");
@@ -30,11 +33,29 @@ function showOverview(focusBoardId) {
   });
 }
 
-function showBoard(boardId) {
+function showBoard(boardId, focusCardId) {
   mount((root) => {
-    const model = createListsModel(boardId);
-    const view = createListsView(root);
-    createListsController(model, view, announce, { onBack: () => showOverview(boardId) });
+    const model = createBoardModel(boardId);
+    const view = createBoardView(root);
+    createBoardController(model, view, announce, {
+      onBack: () => showOverview(boardId),
+      onOpenCard: (cardId) => showCard(cardId, boardId),
+    });
+    model.load().then(() => {
+      if (focusCardId) view.focusCard(focusCardId);
+      else view.focusHeading();
+    });
+  });
+}
+
+function showCard(cardId, boardId) {
+  mount((root) => {
+    const model = createCardModel(cardId);
+    const view = createCardView(root);
+    createCardController(model, view, announce, {
+      onBack: () => showBoard(boardId, cardId), // return → focus the card we opened
+      onDeleted: () => showBoard(boardId),      // deleted → card is gone, focus the heading
+    });
     model.load().then(() => view.focusHeading());
   });
 }
