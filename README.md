@@ -12,12 +12,12 @@ A free, open-source, accessible, dark-mode-first kanban board — a calm alterna
 
 **Slice 1 — local single-user board (in progress).**
 
-Boards work end to end — create, rename, and delete from the browser, saved to SQLite — accessible and dark-mode-first.
+Boards and lists work end to end — create, rename, delete, and reorder lists inside a board, saved to SQLite — accessible and dark-mode-first.
 
-- **Done:** the board backend (full CRUD as a JSON API behind an `IBoardRepository` seam, EF Core + SQLite, 14 NUnit tests, localhost-only) and the vanilla-JS MVC frontend (labelled controls, screen-reader announcements, keyboard focus management).
-- **Next:** lists and cards.
+- **Done:** the board and list backend (JSON APIs behind `IBoardRepository` and `IListRepository` seams, EF Core + SQLite, 39 NUnit tests, localhost-only) and the vanilla-JS MVC frontend (board-view navigation, accessible list reordering, screen-reader announcements, keyboard focus management).
+- **Next:** cards.
 
-Design spec: [`docs/2026-06-15-wend-slice1-design.md`](docs/2026-06-15-wend-slice1-design.md) · Build plan: [`docs/plans/2026-06-16-slice1-foundation-boards.md`](docs/plans/2026-06-16-slice1-foundation-boards.md)
+Design specs: [`docs/2026-06-15-wend-slice1-design.md`](docs/2026-06-15-wend-slice1-design.md), [`docs/2026-06-19-wend-lists-design.md`](docs/2026-06-19-wend-lists-design.md) · Build plans: [`docs/plans/2026-06-16-slice1-foundation-boards.md`](docs/plans/2026-06-16-slice1-foundation-boards.md), [`docs/plans/2026-06-19-slice1-lists.md`](docs/plans/2026-06-19-slice1-lists.md)
 
 ## Stack
 
@@ -40,7 +40,7 @@ Design spec: [`docs/2026-06-15-wend-slice1-design.md`](docs/2026-06-15-wend-slic
 dotnet run --project Wend.Api
 ```
 
-Then open http://127.0.0.1:5174 to create, rename, and delete boards. The board API lives under `/api/boards`. On first run the SQLite database is created at `%LOCALAPPDATA%\Wend\data.db`.
+Then open http://127.0.0.1:5174 to create boards and open one to manage its lists (create, rename, delete, reorder). The API lives under `/api/boards` and `/api/lists`. On first run the SQLite database is created at `%LOCALAPPDATA%\Wend\data.db`.
 
 ## Tests
 
