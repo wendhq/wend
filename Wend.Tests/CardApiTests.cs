@@ -130,4 +130,58 @@ public class CardApiTests
         var res = await _client.GetAsync("/api/cards/9999");
         Assert.That(res.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
     }
+
+        [Test]
+    public async Task Put_edits_a_cards_title_notes_and_due_date()
+    {
+        var listId = await NewListAsync();
+        var card = await CreateCardAsync(listId, "Old");
+
+        var put = await _client.PutAsJsonAsync($"/api/cards/{card.Id}",
+            new { title = "New", description = "Some notes", dueDate = "2026-06-25" });
+        Assert.That(put.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
+
+        var detail = await _client.GetFromJsonAsync<CardDetailDto>($"/api/cards/{card.Id}");
+        Assert.That(detail!.Title, Is.EqualTo("New"));
+        Assert.That(detail.Description, Is.EqualTo("Some notes"));
+        Assert.That(detail.DueDate, Is.EqualTo("2026-06-25"));
+    }
+
+    [Test]
+    public async Task Put_rejects_a_blank_card_title()
+    {
+        var listId = await NewListAsync();
+        var card = await CreateCardAsync(listId, "Old");
+
+        var put = await _client.PutAsJsonAsync($"/api/cards/{card.Id}", new { title = "  ", description = (string?)null, dueDate = (string?)null });
+        Assert.That(put.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+    }
+
+    [Test]
+    public async Task Put_to_a_missing_card_is_404()
+    {
+        var put = await _client.PutAsJsonAsync("/api/cards/9999", new { title = "X", description = (string?)null, dueDate = (string?)null });
+        Assert.That(put.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+    }
+
+    [Test]
+    public async Task Delete_removes_a_card()
+    {
+        var board = await CreateBoardAsync("B");
+        var list = await CreateListAsync(board.Id, "L");
+        var card = await CreateCardAsync(list.Id, "Temp");
+
+        var del = await _client.DeleteAsync($"/api/cards/{card.Id}");
+        Assert.That(del.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
+
+        var detail = await _client.GetFromJsonAsync<BoardWithCardsDto>($"/api/boards/{board.Id}");
+        Assert.That(detail!.Lists.Single().Cards, Is.Empty);
+    }
+
+    [Test]
+    public async Task Delete_a_missing_card_is_404()
+    {
+        var del = await _client.DeleteAsync("/api/cards/9999");
+        Assert.That(del.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+    }
 }
