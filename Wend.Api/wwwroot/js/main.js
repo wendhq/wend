@@ -5,6 +5,9 @@ import { createAnnouncer } from "./announce.js";
 import { createBoardModel } from "./board/model.js";
 import { createBoardView } from "./board/view.js";
 import { createBoardController } from "./board/controller.js";
+import { createCardModel } from "./card/model.js";
+import { createCardView } from "./card/view.js";
+import { createCardController } from "./card/controller.js";
 
 const announce = createAnnouncer(document.getElementById("status"));
 const app = document.getElementById("app");
@@ -30,7 +33,7 @@ function showOverview(focusBoardId) {
   });
 }
 
-function showBoard(boardId) {
+function showBoard(boardId, focusCardId) {
   mount((root) => {
     const model = createBoardModel(boardId);
     const view = createBoardView(root);
@@ -38,21 +41,22 @@ function showBoard(boardId) {
       onBack: () => showOverview(boardId),
       onOpenCard: (cardId) => showCard(cardId, boardId),
     });
-    model.load().then(() => view.focusHeading());
+    model.load().then(() => {
+      if (focusCardId) view.focusCard(focusCardId);
+      else view.focusHeading();
+    });
   });
 }
 
-// Placeholder task view — Task 10 swaps in the real card module.
 function showCard(cardId, boardId) {
   mount((root) => {
-    root.innerHTML = `
-      <div class="card-view">
-        <button class="back-link" data-action="back">← Board</button>
-        <h2 class="card-heading" tabindex="-1">Card #${cardId}</h2>
-        <p class="empty">Task view coming in the next step…</p>
-      </div>`;
-    root.querySelector('[data-action="back"]').addEventListener("click", () => showBoard(boardId));
-    root.querySelector(".card-heading").focus();
+    const model = createCardModel(cardId);
+    const view = createCardView(root);
+    createCardController(model, view, announce, {
+      onBack: () => showBoard(boardId, cardId), // return → focus the card we opened
+      onDeleted: () => showBoard(boardId),      // deleted → card is gone, focus the heading
+    });
+    model.load().then(() => view.focusHeading());
   });
 }
 

@@ -161,3 +161,29 @@
   gap: 0.4rem;
 }
 .card-form input { flex: 1; }
+
+/* Task view (one card). */
+.card-view { display: flex; flex-direction: column; }
+
+.card-list-name { margin: 0 0 1rem; }
+
+.card-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.card-detail .field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.card-detail textarea {
+  min-height: 6rem;
+  resize: vertical;
+  font: inherit;
+}
+
+.card-delete { align-self: flex-start; }
