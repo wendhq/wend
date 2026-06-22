@@ -107,4 +107,27 @@ public class CardApiTests
         Assert.That(cards.Select(c => c.Title), Is.EqualTo(new[] { "First", "Second" }));
         Assert.That(cards.Select(c => c.Position), Is.EqualTo(new[] { 0, 1 }));
     }
+    
+    [Test]
+    public async Task Get_card_returns_its_detail_with_the_list_name()
+    {
+        var board = await CreateBoardAsync("Sprint");
+        var list = await CreateListAsync(board.Id, "To do");
+        var card = await CreateCardAsync(list.Id, "Email Rebecka");
+
+        var detail = await _client.GetFromJsonAsync<CardDetailDto>($"/api/cards/{card.Id}");
+
+        Assert.That(detail!.Title, Is.EqualTo("Email Rebecka"));
+        Assert.That(detail.ListId, Is.EqualTo(list.Id));
+        Assert.That(detail.ListTitle, Is.EqualTo("To do"));
+        Assert.That(detail.Description, Is.Null);
+        Assert.That(detail.DueDate, Is.Null);
+    }
+
+    [Test]
+    public async Task Get_a_missing_card_is_404()
+    {
+        var res = await _client.GetAsync("/api/cards/9999");
+        Assert.That(res.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+    }
 }
