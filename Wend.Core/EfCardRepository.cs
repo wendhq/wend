@@ -27,8 +27,34 @@ public class EfCardRepository(WendDbContext db) : ICardRepository
         return card;
     }
 
-    // Edit / Delete arrive in Task 3.
-    public Task<bool> EditCardAsync(int id, string title, string? description, DateOnly? dueDate) =>
-        throw new NotImplementedException();
-    public Task<bool> DeleteCardAsync(int id) => throw new NotImplementedException();
+    public async Task<bool> EditCardAsync(int id, string title, string? description, DateOnly? dueDate)
+    {
+        var card = await db.Cards.FindAsync(id);
+        if (card is null) return false;
+        card.Title = title;
+        card.Description = description;
+        card.DueDate = dueDate;
+        await db.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<bool> DeleteCardAsync(int id)
+    {
+        var card = await db.Cards.FindAsync(id);
+        if (card is null) return false;
+        db.Cards.Remove(card);
+        await db.SaveChangesAsync();
+        await ResequenceAsync(card.ListId); // keep the survivors gapless (0,1,2,…)
+        return true;
+    }
+
+    // Rewrites a list's card positions to a gapless 0-based sequence in current order.
+    private async Task ResequenceAsync(int listId)
+    {
+        var cards = await db.Cards.Where(c => c.ListId == listId)
+            .OrderBy(c => c.Position)
+            .ToListAsync();
+        for (var i = 0; i < cards.Count; i++) cards[i].Position = i;
+        await db.SaveChangesAsync();
+    }
 }

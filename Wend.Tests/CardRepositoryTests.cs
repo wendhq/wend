@@ -90,4 +90,41 @@ public class CardRepositoryTests
         Assert.That((await _repo.GetCardAsync(created.Id))!.Title, Is.EqualTo("Find me"));
         Assert.That(await _repo.GetCardAsync(9999), Is.Null);
     }
+    [Test]
+    public async Task Edit_updates_the_fields_and_reports_missing()
+    {
+        var listId = await NewListAsync();
+        var card = await _repo.CreateCardAsync(listId, "Old");
+
+        var due = new DateOnly(2026, 6, 25);
+        Assert.That(await _repo.EditCardAsync(card.Id, "New", "Some notes", due), Is.True);
+
+        var saved = (await _repo.GetCardAsync(card.Id))!;
+        Assert.That(saved.Title, Is.EqualTo("New"));
+        Assert.That(saved.Description, Is.EqualTo("Some notes"));
+        Assert.That(saved.DueDate, Is.EqualTo(due));
+
+        Assert.That(await _repo.EditCardAsync(9999, "X", null, null), Is.False);
+    }
+
+    [Test]
+    public async Task Delete_removes_the_card_and_resequences_the_rest()
+    {
+        var listId = await NewListAsync();
+        await _repo.CreateCardAsync(listId, "A");           // 0
+        var b = await _repo.CreateCardAsync(listId, "B");   // 1
+        await _repo.CreateCardAsync(listId, "C");           // 2
+
+        Assert.That(await _repo.DeleteCardAsync(b.Id), Is.True);
+
+        var cards = await _repo.GetCardsForListAsync(listId);
+        Assert.That(cards.Select(c => c.Title), Is.EqualTo(new[] { "A", "C" }));
+        Assert.That(cards.Select(c => c.Position), Is.EqualTo(new[] { 0, 1 })); // gapless
+    }
+
+    [Test]
+    public async Task Delete_reports_missing()
+    {
+        Assert.That(await _repo.DeleteCardAsync(9999), Is.False);
+    }
 }
