@@ -92,4 +92,19 @@ public class CardApiTests
         var response = await _client.PostAsJsonAsync("/api/lists/9999/cards", new { title = "X" });
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
     }
+
+    [Test]
+    public async Task Board_detail_nests_each_lists_cards_in_order()
+    {
+        var board = await CreateBoardAsync("Sprint");
+        var list = await CreateListAsync(board.Id, "To do");
+        await CreateCardAsync(list.Id, "First");
+        await CreateCardAsync(list.Id, "Second");
+
+        var detail = await _client.GetFromJsonAsync<BoardWithCardsDto>($"/api/boards/{board.Id}");
+
+        var cards = detail!.Lists.Single().Cards;
+        Assert.That(cards.Select(c => c.Title), Is.EqualTo(new[] { "First", "Second" }));
+        Assert.That(cards.Select(c => c.Position), Is.EqualTo(new[] { 0, 1 }));
+    }
 }
