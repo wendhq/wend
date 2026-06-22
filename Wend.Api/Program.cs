@@ -10,6 +10,8 @@ var port = int.TryParse(builder.Configuration["Wend:Port"], out var p) ? p : 517
 
 builder.Services.AddDbContext<WendDbContext>(options => options.UseSqlite($"Data Source={dbPath}"));
 builder.Services.AddScoped<IBoardRepository, EfBoardRepository>();builder.Services.AddScoped<IListRepository, EfListRepository>();
+builder.Services.AddScoped<ICardRepository, EfCardRepository>();
+
 
 // Keep request paths and bodies out of the framework logs; quiet the startup banner.
 builder.Logging.AddFilter("Microsoft.AspNetCore", LogLevel.Warning);
@@ -36,6 +38,7 @@ app.UseStaticFiles();
 var api = app.MapGroup("/api");
 api.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 app.MapGroup("/api/boards").MapBoardEndpoints();app.MapListEndpoints();
+app.MapCardEndpoints();
 
 // Any non-API path renders the SPA shell; the client handles routing from there.
 app.MapFallbackToFile("index.html");
