@@ -1,5 +1,8 @@
-export function createBoardsController(model, view, announce) {
+// Wires board actions to the model, announces results, returns focus, surfaces failures.
+// onOpen(boardId) is called when a board is opened — main.js navigates to its view.
+export function createBoardsController(model, view, announce, { onOpen } = {}) {
   view.bindActions({
+    open: (id) => onOpen?.(id),
     create: async (title) => {
       if (!title) return;
       try {
@@ -22,6 +25,7 @@ export function createBoardsController(model, view, announce) {
       }
     },
     delete: async (id) => {
+      // Deleting a whole board is a big destructive action → confirm (per spec).
       if (!confirm("Delete this board and everything in it?")) return;
       try {
         await model.remove(id);
