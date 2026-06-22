@@ -1,6 +1,6 @@
 // Wires the board view to the model: announces results, manages focus, confirms deletes,
 // and turns move-left/right into a target position. onBack() returns to the overview.
-export function createListsController(model, view, announce, { onBack } = {}) {
+export function createBoardController(model, view, announce, { onBack } = {}) {
     let lists = [];
 
     view.bindActions({

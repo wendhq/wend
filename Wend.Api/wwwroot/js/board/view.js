@@ -1,6 +1,6 @@
 // Renders one board's view: back link, title, add-list form, and the lists with
 // move/rename/delete controls. Forwards events via data-action. No fetch, no logic.
-export function createListsView(root) {
+export function createBoardView(root) {
   function render(board) {
     const lists = board.lists;
     const items = lists.length

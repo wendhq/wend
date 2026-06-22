@@ -2,7 +2,7 @@ import { api } from "../api.js";
 
 // State + data for a single board's lists. Re-fetches the board detail after each change
 // so positions always come straight from the server. No DOM. Subscribers notified on change.
-export function createListsModel(boardId) {
+export function createBoardModel(boardId) {
     let board = { id: boardId, title: "", lists: [] };
     const subscribers = [];
     const notify = () => subscribers.forEach((fn) => fn(board));
