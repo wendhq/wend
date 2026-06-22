@@ -4,7 +4,7 @@ namespace Wend.Core;
 
 public class EfListRepository(WendDbContext db) : IListRepository
 {
-    public async Task<List> GetListAsync(int id) => await db.Lists.FindAsync(id);
+    public async Task<List?> GetListAsync(int id) => await db.Lists.FindAsync(id);
     public async Task<IReadOnlyList<List>> GetListsForBoardAsync(int boardId) =>
         await db.Lists.Where(l => l.BoardId == boardId)
             .OrderBy(l => l.Position)
