@@ -34,8 +34,25 @@ function showBoard(boardId) {
   mount((root) => {
     const model = createBoardModel(boardId);
     const view = createBoardView(root);
-    createBoardController(model, view, announce, { onBack: () => showOverview(boardId) });
+    createBoardController(model, view, announce, {
+      onBack: () => showOverview(boardId),
+      onOpenCard: (cardId) => showCard(cardId, boardId),
+    });
     model.load().then(() => view.focusHeading());
+  });
+}
+
+// Placeholder task view — Task 10 swaps in the real card module.
+function showCard(cardId, boardId) {
+  mount((root) => {
+    root.innerHTML = `
+      <div class="card-view">
+        <button class="back-link" data-action="back">← Board</button>
+        <h2 class="card-heading" tabindex="-1">Card #${cardId}</h2>
+        <p class="empty">Task view coming in the next step…</p>
+      </div>`;
+    root.querySelector('[data-action="back"]').addEventListener("click", () => showBoard(boardId));
+    root.querySelector(".card-heading").focus();
   });
 }
 

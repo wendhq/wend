@@ -32,5 +32,9 @@ export function createBoardModel(boardId) {
             await api(`/api/lists/${id}/move`, { method: "PUT", body: JSON.stringify({ position }) });
             await this.load();
         },
+        async createCard(listId, title) {
+            await api(`/api/lists/${listId}/cards`, { method: "POST", body: JSON.stringify({ title }) });
+            await this.load();
+        },
     };
 }
