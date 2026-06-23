@@ -1,14 +1,30 @@
 import { escapeHtml } from "../escape.js";
+import { renderLabels } from "./labels.js";
 
-// Renders the task view for one card: back link, heading, an edit form (title, due date, notes),
-// Save, and Delete. Forwards events via data-action. No fetch, no logic.
+// Task view for one card: back link, heading, the Labels section + picker, the edit form, and
+// delete. Holds only transient picker UI state; all data comes from the model. The view owns the
+// purely-visual picker transitions (open / create / edit); the controller owns anything that
+// touches the server. Events via data-action.
 export function createCardView(root) {
-    function render(card) {
-        root.innerHTML = `
+  let lastCard = null;
+  let lastPalette = [];
+  const ui = { pickerOpen: false, mode: "list", editingId: null };
+  let h = {};
+
+  function render(card, palette) {
+    lastCard = card;
+    lastPalette = palette ?? [];
+    paint();
+  }
+
+  function paint() {
+    const card = lastCard;
+    root.innerHTML = `
       <div class="card-view">
         <button class="back-link" data-action="back">← Board</button>
         <h2 class="card-heading" tabindex="-1">${escapeHtml(card.title)}</h2>
         <p class="card-list-name">In list: <strong>${escapeHtml(card.listTitle)}</strong></p>
+        ${renderLabels(card, lastPalette, ui)}
         <form class="card-detail" data-action="save">
           <label class="field">
             <span>Title</span>
@@ -26,35 +42,88 @@ export function createCardView(root) {
         </form>
         <button class="card-delete" data-action="delete">Delete card</button>
       </div>`;
-    }
+  }
 
-    function focusHeading() {
-        root.querySelector(".card-heading")?.focus();
-    }
+  // Focus helpers.
+  function focusHeading() { root.querySelector(".card-heading")?.focus(); }
+  function focusPickerTrigger() { root.querySelector(".labels-toggle")?.focus(); }
+  function focusToggle(labelId) {
+    root.querySelector(`input[data-action="toggle-label"][data-label-id="${labelId}"]`)?.focus();
+  }
+  function focusPicker() { root.querySelector(".label-picker input, .label-picker button")?.focus(); }
+  function focusLabelName() { root.querySelector(".label-form input[name=name]")?.focus(); }
 
-    function bindActions(handlers) {
-        root.addEventListener("submit", async (e) => {
-            if (e.target.dataset.action !== "save") return;
-            e.preventDefault();
-            const form = e.target;
-            const title = form.title.value.trim();
-            const description = form.description.value;
-            const dueDate = form.dueDate.value || null; // "" → null
-            const submit = form.querySelector("button[type=submit]");
-            submit.disabled = true;
-            try {
-                await handlers.save({ title, description, dueDate });
-            } finally {
-                submit.disabled = false;
-            }
-        });
-        root.addEventListener("click", (e) => {
-            const btn = e.target.closest("button[data-action]");
-            if (!btn || btn.dataset.action === "save") return;
-            if (btn.dataset.action === "back") return handlers.back();
-            if (btn.dataset.action === "delete") return handlers.delete();
-        });
-    }
+  // Purely-visual picker transitions (no server): flip ui + repaint + place focus.
+  function openPicker() { ui.pickerOpen = true; ui.mode = "list"; paint(); focusPicker(); }
+  function closePicker() { ui.pickerOpen = false; ui.mode = "list"; ui.editingId = null; paint(); focusPickerTrigger(); }
+  function toCreate() { ui.mode = "create"; paint(); focusLabelName(); }
+  function toEdit(id) { ui.mode = "edit"; ui.editingId = id; paint(); focusLabelName(); }
+  function toList() { ui.mode = "list"; ui.editingId = null; paint(); focusPicker(); }
 
-    return { render, focusHeading, bindActions };
+  function labelName(id) { return (lastPalette.find((l) => l.id === id) || {}).name || ""; }
+
+  function bindActions(handlers) {
+    h = handlers;
+
+    root.addEventListener("submit", async (e) => {
+      const action = e.target.dataset.action;
+      if (action === "save") {
+        e.preventDefault();
+        const f = e.target;
+        const submit = f.querySelector("button[type=submit]");
+        submit.disabled = true;
+        try {
+          await h.save({ title: f.title.value.trim(), description: f.description.value, dueDate: f.dueDate.value || null });
+        } finally {
+          submit.disabled = false;
+        }
+      } else if (action === "add-label" || action === "save-label") {
+        e.preventDefault();
+        const f = e.target;
+        const name = f.elements["name"].value.trim(); // f.name would be the form's name attr
+        const colour = f.elements["colour"].value;
+        if (!name) return;
+        const submit = f.querySelector("button[type=submit]");
+        submit.disabled = true;
+        try {
+          if (action === "add-label") await h.createLabel(name, colour);
+          else await h.editLabel(Number(f.dataset.labelId), name, colour);
+          toList();
+        } finally {
+          submit.disabled = false;
+        }
+      }
+    });
+
+    root.addEventListener("change", async (e) => {
+      const cb = e.target.closest('input[data-action="toggle-label"]');
+      if (!cb) return;
+      const id = Number(cb.dataset.labelId);
+      if (cb.checked) await h.attachLabel(id);
+      else await h.detachLabel(id);
+    });
+
+    root.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && ui.pickerOpen) { e.stopPropagation(); closePicker(); }
+    });
+
+    root.addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-action]");
+      if (!btn) return;
+      const a = btn.dataset.action;
+      if (["save", "add-label", "save-label", "toggle-label"].includes(a)) return; // handled by submit/change
+      if (a === "back") return h.back();
+      if (a === "delete") return h.delete();
+      if (a === "toggle-picker") return ui.pickerOpen ? closePicker() : openPicker();
+      if (a === "create-label-open") return toCreate();
+      if (a === "cancel-label") return toList();
+      if (a === "edit-label") return toEdit(Number(btn.dataset.labelId));
+      if (a === "delete-label") {
+        const id = Number(btn.dataset.labelId);
+        return h.deleteLabel(id, labelName(id));
+      }
+    });
+  }
+
+  return { render, focusHeading, focusPickerTrigger, focusToggle, focusPicker, bindActions };
 }
