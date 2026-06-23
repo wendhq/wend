@@ -29,6 +29,7 @@ public class LabelApiTests
     private record ListDto(int Id, string Title, int Position);
     private record CardDto(int Id, string Title, int Position);
     private record LabelDto(int Id, string Name, string Colour);
+    private record CardDetailDto(int Id, int ListId, string ListTitle, int BoardId, string Title, string? Description, string? DueDate, int Position, List<LabelDto> Labels);
 
     private async Task<BoardDto> CreateBoardAsync(string title) =>
         (await (await _client.PostAsJsonAsync("/api/boards", new { title })).Content.ReadFromJsonAsync<BoardDto>())!;
@@ -42,6 +43,21 @@ public class LabelApiTests
     private async Task<LabelDto> CreateLabelAsync(int boardId, string name, string colour) =>
         (await (await _client.PostAsJsonAsync($"/api/boards/{boardId}/labels", new { name, colour })).Content.ReadFromJsonAsync<LabelDto>())!;
 
+    [Test]
+    public async Task Card_detail_includes_board_id_and_attached_labels()
+    {
+        var board = await CreateBoardAsync("Board");
+        var list = await CreateListAsync(board.Id, "List");
+        var card = await CreateCardAsync(list.Id, "Card");
+        var label = await CreateLabelAsync(board.Id, "Urgent", "rose");
+        await _client.PostAsJsonAsync($"/api/cards/{card.Id}/labels", new { labelId = label.Id });
+
+        var detail = (await _client.GetFromJsonAsync<CardDetailDto>($"/api/cards/{card.Id}"))!;
+
+        Assert.That(detail.BoardId, Is.EqualTo(board.Id));
+        Assert.That(detail.Labels.Select(l => l.Name), Is.EqualTo(new[] { "Urgent" }));
+    } 
+    
     [Test]
     public async Task Posting_a_label_creates_it_on_the_board()
     {

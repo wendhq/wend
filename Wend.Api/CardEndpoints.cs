@@ -19,11 +19,14 @@ public static class CardEndpoints
                 return Results.Created($"/api/cards/{card.Id}", card);
             });
         
-        app.MapGet("/api/cards/{id:int}", async (int id, ICardRepository cards, IListRepository lists) =>
+        app.MapGet("/api/cards/{id:int}", async (int id, ICardRepository cards, IListRepository lists, ILabelRepository labels) =>
         {
             if (await cards.GetCardAsync(id) is not { } c) return Results.NotFound();
             var list = await lists.GetListAsync(c.ListId);
-            return Results.Ok(new CardDetail(c.Id, c.ListId, list?.Title ?? "", c.Title, c.Description, c.DueDate, c.Position));
+            var attached = (await labels.GetCardLabelsAsync(c.Id))
+                .Select(l => new LabelDto(l.Id, l.Name, l.Colour)).ToList();
+            return Results.Ok(new CardDetail(c.Id, c.ListId, list?.Title ?? "", list?.BoardId ?? 0,
+                c.Title, c.Description, c.DueDate, c.Position, attached));
         });
 
         app.MapPut("/api/cards/{id:int}", async (int id, EditCardRequest req, ICardRepository cards) =>
@@ -43,5 +46,5 @@ public static class CardEndpoints
 }
 
 public record CreateCardRequest(string Title);
-public record CardDetail(int Id, int ListId, string ListTitle, string Title, string? Description, DateOnly? DueDate, int Position);
+public record CardDetail(int Id, int ListId, string ListTitle, int BoardId, string Title, string? Description, DateOnly? DueDate, int Position, IReadOnlyList<LabelDto> Labels);
 public record EditCardRequest(string Title, string? Description, DateOnly? DueDate);
