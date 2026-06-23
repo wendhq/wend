@@ -97,7 +97,8 @@ public class LabelApiTests
         var post = await _client.PostAsJsonAsync("/api/boards/9999/labels", new { name = "X", colour = "mint" });
         Assert.That(post.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
     }
-        [Test]
+    
+    [Test]
     public async Task Put_edits_a_labels_name_and_colour()
     {
         var board = await CreateBoardAsync("Board");
@@ -149,5 +150,64 @@ public class LabelApiTests
     {
         var del = await _client.DeleteAsync("/api/labels/9999");
         Assert.That(del.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+    }
+    
+    [Test]
+    public async Task Attaching_a_label_to_a_card_succeeds_and_is_idempotent()
+    {
+        var board = await CreateBoardAsync("Board");
+        var list = await CreateListAsync(board.Id, "List");
+        var card = await CreateCardAsync(list.Id, "Card");
+        var label = await CreateLabelAsync(board.Id, "Urgent", "rose");
+
+        var first = await _client.PostAsJsonAsync($"/api/cards/{card.Id}/labels", new { labelId = label.Id });
+        Assert.That(first.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
+
+        var again = await _client.PostAsJsonAsync($"/api/cards/{card.Id}/labels", new { labelId = label.Id });
+        Assert.That(again.StatusCode, Is.EqualTo(HttpStatusCode.NoContent)); // idempotent
+    }
+
+    [Test]
+    public async Task Attaching_a_label_from_another_board_is_rejected()
+    {
+        var board = await CreateBoardAsync("Board");
+        var list = await CreateListAsync(board.Id, "List");
+        var card = await CreateCardAsync(list.Id, "Card");
+        var other = await CreateBoardAsync("Other");
+        var foreign = await CreateLabelAsync(other.Id, "Foreign", "mint");
+
+        var res = await _client.PostAsJsonAsync($"/api/cards/{card.Id}/labels", new { labelId = foreign.Id });
+        Assert.That(res.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+    }
+
+    [Test]
+    public async Task Attaching_to_a_missing_card_or_label_is_404()
+    {
+        var board = await CreateBoardAsync("Board");
+        var list = await CreateListAsync(board.Id, "List");
+        var card = await CreateCardAsync(list.Id, "Card");
+        var label = await CreateLabelAsync(board.Id, "Urgent", "rose");
+
+        var missingCard = await _client.PostAsJsonAsync("/api/cards/9999/labels", new { labelId = label.Id });
+        Assert.That(missingCard.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+
+        var missingLabel = await _client.PostAsJsonAsync($"/api/cards/{card.Id}/labels", new { labelId = 9999 });
+        Assert.That(missingLabel.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+    }
+
+    [Test]
+    public async Task Detaching_is_always_204_including_when_not_attached()
+    {
+        var board = await CreateBoardAsync("Board");
+        var list = await CreateListAsync(board.Id, "List");
+        var card = await CreateCardAsync(list.Id, "Card");
+        var label = await CreateLabelAsync(board.Id, "Urgent", "rose");
+
+        var notAttached = await _client.DeleteAsync($"/api/cards/{card.Id}/labels/{label.Id}");
+        Assert.That(notAttached.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
+
+        await _client.PostAsJsonAsync($"/api/cards/{card.Id}/labels", new { labelId = label.Id });
+        var attachedThenRemoved = await _client.DeleteAsync($"/api/cards/{card.Id}/labels/{label.Id}");
+        Assert.That(attachedThenRemoved.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
     }
 }

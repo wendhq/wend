@@ -39,6 +39,25 @@ public static class LabelEndpoints
 
         app.MapDelete("/api/labels/{id:int}", async (int id, ILabelRepository labels) =>
             await labels.DeleteLabelAsync(id) ? Results.NoContent() : Results.NotFound());
+        
+        app.MapPost("/api/cards/{cardId:int}/labels",
+            async (int cardId, AttachLabelRequest req, ICardRepository cards, IListRepository lists, ILabelRepository labels) =>
+            {
+                if (await cards.GetCardAsync(cardId) is not { } card) return Results.NotFound();
+                if (await labels.GetLabelAsync(req.LabelId) is not { } label) return Results.NotFound();
+                var list = await lists.GetListAsync(card.ListId);
+                if (list is null || list.BoardId != label.BoardId) return Results.BadRequest(); // cross-board
+                await labels.AttachAsync(cardId, req.LabelId); // idempotent
+                return Results.NoContent();
+            });
+
+        app.MapDelete("/api/cards/{cardId:int}/labels/{labelId:int}",
+            async (int cardId, int labelId, ILabelRepository labels) =>
+            {
+                await labels.DetachAsync(cardId, labelId); // idempotent — always 204
+                return Results.NoContent();
+            });
+        
         return app;
     }
 }
@@ -46,3 +65,4 @@ public static class LabelEndpoints
 public record LabelDto(int Id, string Name, string Colour);
 public record CreateLabelRequest(string Name, string Colour);
 public record EditLabelRequest(string Name, string Colour);
+public record AttachLabelRequest(int LabelId);
