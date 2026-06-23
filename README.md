@@ -12,12 +12,12 @@ A free, open-source, accessible, dark-mode-first kanban board — a calm alterna
 
 **Slice 1 — local single-user board (in progress).**
 
-Boards, lists, and cards work end to end — create, rename, delete, and reorder lists inside a board, add cards to a list, and open a card into a focused task view to edit its title, notes, and due date — saved to SQLite, accessible and dark-mode-first.
+Boards, lists, and cards work end to end — create, rename, delete, and reorder lists inside a board, add cards to a list, label them, and open a card into a focused task view to edit its title, notes, due date, and labels — saved to SQLite, accessible and dark-mode-first.
 
-- **Done:** the board, list, and card backend (JSON APIs behind `IBoardRepository`, `IListRepository`, and `ICardRepository` seams, EF Core + SQLite, 61 NUnit tests, localhost-only) and the vanilla-JS MVC frontend (board-view navigation, accessible list reordering, card chips with a focused task view, screen-reader announcements, keyboard focus management).
-- **Next:** card moving, the Done checkmark, labels, and a checklist.
+- **Done:** the board, list, card, and label backend (JSON APIs behind `IBoardRepository`, `IListRepository`, `ICardRepository`, and `ILabelRepository` seams, EF Core + SQLite, 94 NUnit tests, localhost-only) and the vanilla-JS MVC frontend (board-view navigation, accessible list reordering, card chips with a focused task view, an inline label picker with soft-tint chips on cards and the board, screen-reader announcements, keyboard focus management).
+- **Next:** card moving, the Done checkmark, and a checklist.
 
-Design specs: [`docs/2026-06-15-wend-slice1-design.md`](docs/2026-06-15-wend-slice1-design.md), [`docs/2026-06-19-wend-lists-design.md`](docs/2026-06-19-wend-lists-design.md), [`docs/2026-06-22-wend-cards-design.md`](docs/2026-06-22-wend-cards-design.md) · Build plans: [`docs/plans/2026-06-16-slice1-foundation-boards.md`](docs/plans/2026-06-16-slice1-foundation-boards.md), [`docs/plans/2026-06-19-slice1-lists.md`](docs/plans/2026-06-19-slice1-lists.md), [`docs/plans/2026-06-22-slice1-cards.md`](docs/plans/2026-06-22-slice1-cards.md)
+Design specs: [`docs/2026-06-15-wend-slice1-design.md`](docs/2026-06-15-wend-slice1-design.md), [`docs/2026-06-19-wend-lists-design.md`](docs/2026-06-19-wend-lists-design.md), [`docs/2026-06-22-wend-cards-design.md`](docs/2026-06-22-wend-cards-design.md), [`docs/2026-06-23-wend-labels-design.md`](docs/2026-06-23-wend-labels-design.md) · Build plans: [`docs/plans/2026-06-16-slice1-foundation-boards.md`](docs/plans/2026-06-16-slice1-foundation-boards.md), [`docs/plans/2026-06-19-slice1-lists.md`](docs/plans/2026-06-19-slice1-lists.md), [`docs/plans/2026-06-22-slice1-cards.md`](docs/plans/2026-06-22-slice1-cards.md), [`docs/plans/2026-06-23-slice1-labels.md`](docs/plans/2026-06-23-slice1-labels.md)
 
 ## Stack
 
@@ -40,7 +40,7 @@ Design specs: [`docs/2026-06-15-wend-slice1-design.md`](docs/2026-06-15-wend-sli
 dotnet run --project Wend.Api
 ```
 
-Then open http://127.0.0.1:5174 to create boards, open one to manage its lists (create, rename, delete, reorder), and add cards — open a card for its task view to edit the title, notes, and due date. The API lives under `/api/boards`, `/api/lists`, and `/api/cards`. On first run the SQLite database is created at `%LOCALAPPDATA%\Wend\data.db`.
+Then open http://127.0.0.1:5174 to create boards, open one to manage its lists (create, rename, delete, reorder), and add cards — open a card for its task view to edit the title, notes, due date, and labels. The API lives under `/api/boards`, `/api/lists`, `/api/cards`, and `/api/labels`. On first run the SQLite database is created at `%LOCALAPPDATA%\Wend\data.db`.
 
 ## Tests
 
