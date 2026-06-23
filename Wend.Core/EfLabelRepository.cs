@@ -36,9 +36,40 @@ public class EfLabelRepository(WendDbContext db) : ILabelRepository
         return true;
     }
 
-    // Attach / detach / reads arrive in Task 3.
-    public Task AttachAsync(int cardId, int labelId) => throw new NotImplementedException();
-    public Task DetachAsync(int cardId, int labelId) => throw new NotImplementedException();
-    public Task<IReadOnlyList<Label>> GetCardLabelsAsync(int cardId) => throw new NotImplementedException();
-    public Task<Dictionary<int, List<int>>> GetLabelIdsByCardAsync(int boardId) => throw new NotImplementedException();
+    public async Task AttachAsync(int cardId, int labelId)
+    {
+        var exists = await db.CardLabels.AnyAsync(cl => cl.CardId == cardId && cl.LabelId == labelId);
+        if (exists) return; // idempotent — already attached
+        db.CardLabels.Add(new CardLabel { CardId = cardId, LabelId = labelId });
+        await db.SaveChangesAsync();
+    }
+
+    public async Task DetachAsync(int cardId, int labelId)
+    {
+        var row = await db.CardLabels.FirstOrDefaultAsync(cl => cl.CardId == cardId && cl.LabelId == labelId);
+        if (row is null) return; // idempotent — nothing to remove
+        db.CardLabels.Remove(row);
+        await db.SaveChangesAsync();
+    }
+
+    public async Task<IReadOnlyList<Label>> GetCardLabelsAsync(int cardId) =>
+        await (from cl in db.CardLabels
+            where cl.CardId == cardId
+            join l in db.Labels on cl.LabelId equals l.Id
+            orderby l.Id
+            select l).ToListAsync();
+
+    public async Task<Dictionary<int, List<int>>> GetLabelIdsByCardAsync(int boardId)
+    {
+        // All (cardId, labelId) pairs for visible cards on this board, grouped per card.
+        var pairs = await (
+            from cl in db.CardLabels
+            join card in db.Cards on cl.CardId equals card.Id
+            join list in db.Lists on card.ListId equals list.Id
+            where list.BoardId == boardId
+            select new { cl.CardId, cl.LabelId }).ToListAsync();
+
+        return pairs.GroupBy(p => p.CardId)
+            .ToDictionary(g => g.Key, g => g.Select(p => p.LabelId).ToList());
+    }
 }
