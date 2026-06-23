@@ -187,3 +187,60 @@
 }
 
 .card-delete { align-self: flex-start; }
+
+/* ---- Labels ----------------------------------------------------------- */
+
+/* Curated palette. Each key sets a bright text colour (`--chip`) used for the
+   label text, a faint same-hue wash behind it, and a matching border. The name
+   is always rendered, so colour is never the only signal. */
+.label-chip {
+  --chip: #aab6c6;
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--chip);
+  background: color-mix(in srgb, var(--chip) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--chip) 38%, transparent);
+}
+.label-chip--mint  { --chip: #6fe9c6; }
+.label-chip--cyan  { --chip: #3fd0dc; }
+.label-chip--amber { --chip: #f2b84b; }
+.label-chip--rose  { --chip: #ff8fa3; }
+.label-chip--lilac { --chip: #c3acff; }
+.label-chip--slate { --chip: #aab6c6; }
+
+/* Card-front label row (board view). */
+.card-chip-labels { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+
+/* Task-view labels section + non-modal picker. */
+.labels-section { margin: 0.25rem 0 1rem; }
+.labels-attached { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-bottom: 0.5rem; }
+.labels-empty { font-size: 0.8rem; opacity: 0.6; }
+
+.label-picker {
+  margin-top: 0.6rem;
+  padding: 0.6rem;
+  border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+  border-radius: 0.6rem;
+}
+.label-list { list-style: none; margin: 0 0 0.5rem; padding: 0; display: flex; flex-direction: column; gap: 0.3rem; }
+.label-row { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+.label-toggle { display: inline-flex; align-items: center; gap: 0.5rem; cursor: pointer; min-height: 44px; }
+.label-row-actions { display: flex; gap: 0.25rem; }
+.labels-toggle, .label-create-open, .label-row-actions button { min-height: 44px; }
+
+/* Create / edit form (name + colour swatches). */
+.label-form .field { display: flex; flex-direction: column; gap: 0.25rem; margin-bottom: 0.5rem; }
+.swatches { display: flex; flex-wrap: wrap; gap: 0.5rem; border: 0; padding: 0; margin: 0 0 0.6rem; }
+.swatches legend { font-size: 0.8rem; opacity: 0.7; padding: 0; }
+.swatch { display: inline-flex; flex-direction: column; align-items: center; gap: 0.2rem; cursor: pointer; min-width: 44px; }
+.swatch-dot { width: 1.4rem; height: 1.4rem; border-radius: 50%; display: inline-block; background: var(--chip); }
+.swatch-name { font-size: 0.65rem; opacity: 0.75; }
+.label-form-actions { display: flex; gap: 0.5rem; }

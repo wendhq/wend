@@ -8,4 +8,7 @@ public class Board
 
     // A board's lists. Required FK on List.BoardId → deleting a board cascades to them.
     public ICollection<List> Lists { get; set; } = [];
+
+    // A board's labels. Required FK on Label.BoardId → deleting a board cascades to them.
+    public ICollection<Label> Labels { get; set; } = [];
 }

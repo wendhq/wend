@@ -18,3 +18,6 @@ Thumbs.db
 *.db
 *.db-shm
 *.db-wal
+
+## Brainstorming visual companion — local mockup scratch files
+.superpowers/

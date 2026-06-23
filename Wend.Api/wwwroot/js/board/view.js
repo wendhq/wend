@@ -1,26 +1,43 @@
 import { escapeHtml } from "../escape.js";
 
 // Renders one board's view: back link, title, add-list form, and each list with its
-// move/rename/delete controls, its cards, and an add-card form. Events via data-action.
+// move/rename/delete controls, its cards (with label chips), and an add-card form.
 export function createBoardView(root) {
   function render(board) {
     const lists = board.lists;
+    const labelsById = new Map((board.labels ?? []).map((l) => [l.id, l]));
+
+    // Soft-tint chips for a card's labels (skips ids missing from the palette).
+    const labelChips = (ids) =>
+        (ids ?? [])
+            .map((id) => labelsById.get(id))
+            .filter(Boolean)
+            .map((l) => `<span class="label-chip label-chip--${l.colour}">${escapeHtml(l.name)}</span>`)
+            .join("");
+
+    const cardAria = (c) => {
+      const names = (c.labelIds ?? []).map((id) => labelsById.get(id)).filter(Boolean).map((l) => l.name);
+      return `Open card: ${c.title}${names.length ? `, labels: ${names.join(", ")}` : ""}`;
+    };
+
     const items = lists.length
         ? lists
             .map((l, i) => {
               const first = i === 0;
               const last = i === lists.length - 1;
               const cards = (l.cards ?? [])
-                  .map(
-                      (c) => `
+                  .map((c) => {
+                    const chips = labelChips(c.labelIds);
+                    return `
             <li>
               <button class="card-chip" data-action="open-card" data-card-id="${c.id}"
-                aria-label="Open card: ${escapeHtml(c.title)}">
+                aria-label="${escapeHtml(cardAria(c))}">
+                ${chips ? `<span class="card-chip-labels">${chips}</span>` : ""}
                 <span class="card-title">${escapeHtml(c.title)}</span>
                 ${c.dueDate ? `<span class="card-due">${escapeHtml(c.dueDate)}</span>` : ""}
               </button>
-            </li>`
-                  )
+            </li>`;
+                  })
                   .join("");
               return `
         <li class="list-card" data-list-id="${l.id}">
@@ -66,12 +83,10 @@ export function createBoardView(root) {
   function focusNewCardInput(listId) {
     root.querySelector(`.card-form[data-list-id="${listId}"] input`)?.focus();
   }
-  // Return focus to a specific card's chip (used when coming back from its task view).
   function focusCard(cardId) {
     root.querySelector(`.card-chip[data-card-id="${cardId}"]`)?.focus();
   }
 
-  // After a move, land focus on a sensible enabled control in the moved list.
   function focusListAction(id, preferred) {
     const card = root.querySelector(`.list-card[data-list-id="${id}"]`);
     if (!card) return;
