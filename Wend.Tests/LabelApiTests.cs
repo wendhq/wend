@@ -7,6 +7,9 @@ public class LabelApiTests
 {
     private WendApiFactory _factory = null!;
     private HttpClient _client = null!;
+    private record CardSummaryDto(int Id, string Title, string? DueDate, int Position, List<int> LabelIds);
+    private record ListWithCardsDto(int Id, string Title, int Position, List<CardSummaryDto> Cards);
+    private record BoardDetailDto(int Id, string Title, List<LabelDto> Labels, List<ListWithCardsDto> Lists);
 
     [SetUp]
     public void SetUp()
@@ -210,5 +213,19 @@ public class LabelApiTests
         await _client.PostAsJsonAsync($"/api/cards/{card.Id}/labels", new { labelId = label.Id });
         var attachedThenRemoved = await _client.DeleteAsync($"/api/cards/{card.Id}/labels/{label.Id}");
         Assert.That(attachedThenRemoved.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
+    }
+    [Test]
+    public async Task Board_detail_includes_the_palette_and_each_cards_label_ids()
+    {
+        var board = await CreateBoardAsync("Board");
+        var list = await CreateListAsync(board.Id, "List");
+        var card = await CreateCardAsync(list.Id, "Card");
+        var label = await CreateLabelAsync(board.Id, "Urgent", "rose");
+        await _client.PostAsJsonAsync($"/api/cards/{card.Id}/labels", new { labelId = label.Id });
+
+        var detail = (await _client.GetFromJsonAsync<BoardDetailDto>($"/api/boards/{board.Id}"))!;
+
+        Assert.That(detail.Labels.Select(l => l.Name), Is.EqualTo(new[] { "Urgent" }));
+        Assert.That(detail.Lists.Single().Cards.Single().LabelIds, Is.EqualTo(new[] { label.Id }));
     }
 }
