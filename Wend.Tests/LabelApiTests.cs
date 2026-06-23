@@ -97,4 +97,57 @@ public class LabelApiTests
         var post = await _client.PostAsJsonAsync("/api/boards/9999/labels", new { name = "X", colour = "mint" });
         Assert.That(post.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
     }
+        [Test]
+    public async Task Put_edits_a_labels_name_and_colour()
+    {
+        var board = await CreateBoardAsync("Board");
+        var label = await CreateLabelAsync(board.Id, "Old", "mint");
+
+        var put = await _client.PutAsJsonAsync($"/api/labels/{label.Id}", new { name = "New", colour = "lilac" });
+        Assert.That(put.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
+
+        var palette = await _client.GetFromJsonAsync<List<LabelDto>>($"/api/boards/{board.Id}/labels");
+        Assert.That(palette!.Single().Name, Is.EqualTo("New"));
+        Assert.That(palette.Single().Colour, Is.EqualTo("lilac"));
+    }
+
+    [Test]
+    public async Task Put_rejects_a_bad_name_or_colour()
+    {
+        var board = await CreateBoardAsync("Board");
+        var label = await CreateLabelAsync(board.Id, "Old", "mint");
+
+        var blank = await _client.PutAsJsonAsync($"/api/labels/{label.Id}", new { name = " ", colour = "mint" });
+        Assert.That(blank.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+
+        var badColour = await _client.PutAsJsonAsync($"/api/labels/{label.Id}", new { name = "Ok", colour = "scarlet" });
+        Assert.That(badColour.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+    }
+
+    [Test]
+    public async Task Put_to_a_missing_label_is_404()
+    {
+        var put = await _client.PutAsJsonAsync("/api/labels/9999", new { name = "X", colour = "mint" });
+        Assert.That(put.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+    }
+
+    [Test]
+    public async Task Delete_removes_a_label()
+    {
+        var board = await CreateBoardAsync("Board");
+        var label = await CreateLabelAsync(board.Id, "Temp", "slate");
+
+        var del = await _client.DeleteAsync($"/api/labels/{label.Id}");
+        Assert.That(del.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
+
+        var palette = await _client.GetFromJsonAsync<List<LabelDto>>($"/api/boards/{board.Id}/labels");
+        Assert.That(palette, Is.Empty);
+    }
+
+    [Test]
+    public async Task Delete_a_missing_label_is_404()
+    {
+        var del = await _client.DeleteAsync("/api/labels/9999");
+        Assert.That(del.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+    }
 }

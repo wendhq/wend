@@ -28,10 +28,21 @@ public static class LabelEndpoints
                 return Results.Created($"/api/labels/{label.Id}", new LabelDto(label.Id, label.Name, label.Colour));
             });
 
-        // PUT / DELETE / attach / detach arrive in Tasks 5-6.
+        app.MapPut("/api/labels/{id:int}", async (int id, EditLabelRequest req, ILabelRepository labels) =>
+        {
+            var name = req.Name?.Trim() ?? "";
+            if (name.Length is 0 or > MaxNameLength) return Results.BadRequest();
+            if (!LabelColours.IsValid(req.Colour)) return Results.BadRequest();
+            return await labels.EditLabelAsync(id, name, req.Colour)
+                ? Results.NoContent() : Results.NotFound();
+        });
+
+        app.MapDelete("/api/labels/{id:int}", async (int id, ILabelRepository labels) =>
+            await labels.DeleteLabelAsync(id) ? Results.NoContent() : Results.NotFound());
         return app;
     }
 }
 
 public record LabelDto(int Id, string Name, string Colour);
 public record CreateLabelRequest(string Name, string Colour);
+public record EditLabelRequest(string Name, string Colour);
