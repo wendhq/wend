@@ -108,8 +108,9 @@ public class LabelApiTests
         Assert.That(put.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
 
         var palette = await _client.GetFromJsonAsync<List<LabelDto>>($"/api/boards/{board.Id}/labels");
-        Assert.That(palette!.Single().Name, Is.EqualTo("New"));
-        Assert.That(palette.Single().Colour, Is.EqualTo("lilac"));
+        var saved = palette!.Single();
+        Assert.That(saved.Name, Is.EqualTo("New"));
+        Assert.That(saved.Colour, Is.EqualTo("lilac"));
     }
 
     [Test]
