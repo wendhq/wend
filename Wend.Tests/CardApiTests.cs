@@ -184,4 +184,61 @@ public class CardApiTests
         var del = await _client.DeleteAsync("/api/cards/9999");
         Assert.That(del.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
     }
+    
+    [Test]
+    public async Task Moving_a_card_within_its_list_reorders_it()
+    {
+        var board = await CreateBoardAsync("Sprint");
+        var list = await CreateListAsync(board.Id, "To do");
+        var a = await CreateCardAsync(list.Id, "A");  // 0
+        await CreateCardAsync(list.Id, "B");          // 1
+        await CreateCardAsync(list.Id, "C");          // 2
+
+        var move = await _client.PutAsJsonAsync($"/api/cards/{a.Id}/move", new { listId = list.Id, position = 2 });
+        Assert.That(move.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
+
+        var detail = await _client.GetFromJsonAsync<BoardWithCardsDto>($"/api/boards/{board.Id}");
+        Assert.That(detail!.Lists.Single().Cards.Select(c => c.Title), Is.EqualTo(new[] { "B", "C", "A" }));
+    }
+
+    [Test]
+    public async Task Moving_a_card_to_another_list_appends_it_there()
+    {
+        var board = await CreateBoardAsync("Sprint");
+        var todo = await CreateListAsync(board.Id, "To do");
+        var doing = await CreateListAsync(board.Id, "Doing");
+        var a = await CreateCardAsync(todo.Id, "A");
+        await CreateCardAsync(doing.Id, "X");
+
+        var move = await _client.PutAsJsonAsync($"/api/cards/{a.Id}/move", new { listId = doing.Id, position = 99 });
+        Assert.That(move.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
+
+        var detail = await _client.GetFromJsonAsync<BoardWithCardsDto>($"/api/boards/{board.Id}");
+        Assert.That(detail!.Lists.Single(l => l.Title == "To do").Cards, Is.Empty);
+        Assert.That(detail.Lists.Single(l => l.Title == "Doing").Cards.Select(c => c.Title),
+            Is.EqualTo(new[] { "X", "A" }));
+    }
+
+    [Test]
+    public async Task Moving_a_missing_card_is_404()
+    {
+        var board = await CreateBoardAsync("Sprint");
+        var list = await CreateListAsync(board.Id, "To do");
+
+        var move = await _client.PutAsJsonAsync("/api/cards/9999/move", new { listId = list.Id, position = 0 });
+        Assert.That(move.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+    }
+
+    [Test]
+    public async Task Moving_a_card_to_another_board_is_400()
+    {
+        var boardA = await CreateBoardAsync("A");
+        var listA = await CreateListAsync(boardA.Id, "A-list");
+        var card = await CreateCardAsync(listA.Id, "Card");
+        var boardB = await CreateBoardAsync("B");
+        var listB = await CreateListAsync(boardB.Id, "B-list");
+
+        var move = await _client.PutAsJsonAsync($"/api/cards/{card.Id}/move", new { listId = listB.Id, position = 0 });
+        Assert.That(move.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+    }
 }
