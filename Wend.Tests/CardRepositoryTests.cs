@@ -168,4 +168,41 @@ public class CardRepositoryTests
     {
         Assert.That(await _repo.DeleteCardAsync(9999), Is.False);
     }
+
+    [Test]
+    public async Task Move_reorders_a_card_up_within_its_list()
+    {
+        var listId = await NewListAsync();
+        await _repo.CreateCardAsync(listId, "A");          // 0
+        await _repo.CreateCardAsync(listId, "B");          // 1
+        var c = await _repo.CreateCardAsync(listId, "C");  // 2
+
+        Assert.That(await _repo.MoveCardAsync(c.Id, listId, 0), Is.EqualTo(CardMoveResult.Moved));
+
+        var cards = await _repo.GetCardsForListAsync(listId);
+        Assert.That(cards.Select(x => x.Title), Is.EqualTo(new[] { "C", "A", "B" }));
+        Assert.That(cards.Select(x => x.Position), Is.EqualTo(new[] { 0, 1, 2 })); // gapless
+    }
+
+    [Test]
+    public async Task Move_reorders_a_card_down_within_its_list()
+    {
+        var listId = await NewListAsync();
+        var a = await _repo.CreateCardAsync(listId, "A");  // 0
+        await _repo.CreateCardAsync(listId, "B");          // 1
+        await _repo.CreateCardAsync(listId, "C");          // 2
+
+        Assert.That(await _repo.MoveCardAsync(a.Id, listId, 2), Is.EqualTo(CardMoveResult.Moved));
+
+        var cards = await _repo.GetCardsForListAsync(listId);
+        Assert.That(cards.Select(x => x.Title), Is.EqualTo(new[] { "B", "C", "A" }));
+        Assert.That(cards.Select(x => x.Position), Is.EqualTo(new[] { 0, 1, 2 }));
+    }
+
+    [Test]
+    public async Task Move_reports_a_missing_card()
+    {
+        var listId = await NewListAsync();
+        Assert.That(await _repo.MoveCardAsync(9999, listId, 0), Is.EqualTo(CardMoveResult.NotFound));
+    }
 }

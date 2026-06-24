@@ -48,6 +48,28 @@ public class EfCardRepository(WendDbContext db) : ICardRepository
         return true;
     }
 
+    public async Task<CardMoveResult> MoveCardAsync(int id, int targetListId, int position)
+    {
+        var card = await db.Cards.FindAsync(id);
+        if (card is null) return CardMoveResult.NotFound;
+
+        if (targetListId == card.ListId)
+        {
+            // Reorder within the list: lift out of the ordered cards, clamp, re-insert, renumber.
+            var cards = await db.Cards.Where(c => c.ListId == card.ListId)
+                .OrderBy(c => c.Position)
+                .ToListAsync();
+            cards.Remove(cards.First(c => c.Id == id));
+            var index = Math.Clamp(position, 0, cards.Count);
+            cards.Insert(index, card);
+            for (var i = 0; i < cards.Count; i++) cards[i].Position = i;
+            await db.SaveChangesAsync();
+            return CardMoveResult.Moved;
+        }
+
+        return CardMoveResult.NotFound; // cross-list move arrives in Task 2
+    }
+
     // Rewrites a list's card positions to a gapless 0-based sequence in current order.
     private async Task ResequenceAsync(int listId)
     {
