@@ -148,6 +148,28 @@
   border-radius: 0.5rem;
 }
 
+/* A card = its open button (title) plus a row of move controls. */
+.card-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.card-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+}
+
+/* ≥44px touch targets, matching the label controls. */
+.card-actions button,
+.card-actions .card-move-to {
+  min-height: 44px;
+}
+
+.card-move-to { max-width: 100%; }
+
 .card-due {
   align-self: flex-start;
   font-size: 0.7rem;
