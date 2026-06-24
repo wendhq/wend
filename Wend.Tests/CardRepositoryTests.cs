@@ -168,4 +168,103 @@ public class CardRepositoryTests
     {
         Assert.That(await _repo.DeleteCardAsync(9999), Is.False);
     }
+
+    [Test]
+    public async Task Move_reorders_a_card_up_within_its_list()
+    {
+        var listId = await NewListAsync();
+        await _repo.CreateCardAsync(listId, "A");          // 0
+        await _repo.CreateCardAsync(listId, "B");          // 1
+        var c = await _repo.CreateCardAsync(listId, "C");  // 2
+
+        Assert.That(await _repo.MoveCardAsync(c.Id, listId, 0), Is.EqualTo(CardMoveResult.Moved));
+
+        var cards = await _repo.GetCardsForListAsync(listId);
+        Assert.That(cards.Select(x => x.Title), Is.EqualTo(new[] { "C", "A", "B" }));
+        Assert.That(cards.Select(x => x.Position), Is.EqualTo(new[] { 0, 1, 2 })); // gapless
+    }
+
+    [Test]
+    public async Task Move_reorders_a_card_down_within_its_list()
+    {
+        var listId = await NewListAsync();
+        var a = await _repo.CreateCardAsync(listId, "A");  // 0
+        await _repo.CreateCardAsync(listId, "B");          // 1
+        await _repo.CreateCardAsync(listId, "C");          // 2
+
+        Assert.That(await _repo.MoveCardAsync(a.Id, listId, 2), Is.EqualTo(CardMoveResult.Moved));
+
+        var cards = await _repo.GetCardsForListAsync(listId);
+        Assert.That(cards.Select(x => x.Title), Is.EqualTo(new[] { "B", "C", "A" }));
+        Assert.That(cards.Select(x => x.Position), Is.EqualTo(new[] { 0, 1, 2 }));
+    }
+
+    [Test]
+    public async Task Move_reports_a_missing_card()
+    {
+        var listId = await NewListAsync();
+        Assert.That(await _repo.MoveCardAsync(9999, listId, 0), Is.EqualTo(CardMoveResult.NotFound));
+    }
+    
+    [Test]
+    public async Task Move_to_another_list_appends_at_its_bottom_and_resequences_both()
+    {
+        var board = await _boards.CreateBoardAsync("Board");
+        var todo = await _lists.CreateListAsync(board.Id, "To do");
+        var doing = await _lists.CreateListAsync(board.Id, "Doing");
+        await _repo.CreateCardAsync(todo.Id, "A");          // todo 0
+        var b = await _repo.CreateCardAsync(todo.Id, "B");  // todo 1
+        await _repo.CreateCardAsync(todo.Id, "C");          // todo 2
+        await _repo.CreateCardAsync(doing.Id, "X");         // doing 0
+
+        // position 99 overshoots — it should clamp to the bottom.
+        Assert.That(await _repo.MoveCardAsync(b.Id, doing.Id, 99), Is.EqualTo(CardMoveResult.Moved));
+
+        var todoCards = await _repo.GetCardsForListAsync(todo.Id);
+        Assert.That(todoCards.Select(c => c.Title), Is.EqualTo(new[] { "A", "C" }));
+        Assert.That(todoCards.Select(c => c.Position), Is.EqualTo(new[] { 0, 1 }));  // source gapless
+
+        var doingCards = await _repo.GetCardsForListAsync(doing.Id);
+        Assert.That(doingCards.Select(c => c.Title), Is.EqualTo(new[] { "X", "B" }));
+        Assert.That(doingCards.Select(c => c.Position), Is.EqualTo(new[] { 0, 1 })); // target gapless
+    }
+
+    [Test]
+    public async Task Move_to_another_list_can_insert_at_the_top()
+    {
+        var board = await _boards.CreateBoardAsync("Board");
+        var todo = await _lists.CreateListAsync(board.Id, "To do");
+        var doing = await _lists.CreateListAsync(board.Id, "Doing");
+        var a = await _repo.CreateCardAsync(todo.Id, "A");
+        await _repo.CreateCardAsync(doing.Id, "X");  // 0
+        await _repo.CreateCardAsync(doing.Id, "Y");  // 1
+
+        Assert.That(await _repo.MoveCardAsync(a.Id, doing.Id, 0), Is.EqualTo(CardMoveResult.Moved));
+
+        var doingCards = await _repo.GetCardsForListAsync(doing.Id);
+        Assert.That(doingCards.Select(c => c.Title), Is.EqualTo(new[] { "A", "X", "Y" }));
+        Assert.That(doingCards.Select(c => c.Position), Is.EqualTo(new[] { 0, 1, 2 }));
+    }
+
+    [Test]
+    public async Task Move_reports_a_missing_target_list()
+    {
+        var listId = await NewListAsync();
+        var card = await _repo.CreateCardAsync(listId, "A");
+
+        Assert.That(await _repo.MoveCardAsync(card.Id, 9999, 0), Is.EqualTo(CardMoveResult.NotFound));
+    }
+
+    [Test]
+    public async Task Move_to_a_list_on_another_board_is_rejected()
+    {
+        var boardA = await _boards.CreateBoardAsync("A");
+        var listA = await _lists.CreateListAsync(boardA.Id, "A-list");
+        var card = await _repo.CreateCardAsync(listA.Id, "Card");
+
+        var boardB = await _boards.CreateBoardAsync("B");
+        var listB = await _lists.CreateListAsync(boardB.Id, "B-list");
+
+        Assert.That(await _repo.MoveCardAsync(card.Id, listB.Id, 0), Is.EqualTo(CardMoveResult.CrossBoard));
+    }
 }
