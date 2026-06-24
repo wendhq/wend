@@ -53,6 +53,11 @@ public class EfCardRepository(WendDbContext db) : ICardRepository
         var card = await db.Cards.FindAsync(id);
         if (card is null) return CardMoveResult.NotFound;
 
+        var targetList = await db.Lists.FindAsync(targetListId);
+        var sourceList = await db.Lists.FindAsync(card.ListId);
+        if (targetList is null || sourceList is null) return CardMoveResult.NotFound;
+        if (targetList.BoardId != sourceList.BoardId) return CardMoveResult.CrossBoard;
+
         if (targetListId == card.ListId)
         {
             // Reorder within the list: lift out of the ordered cards, clamp, re-insert, renumber.

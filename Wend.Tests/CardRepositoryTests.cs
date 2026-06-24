@@ -245,4 +245,26 @@ public class CardRepositoryTests
         Assert.That(doingCards.Select(c => c.Title), Is.EqualTo(new[] { "A", "X", "Y" }));
         Assert.That(doingCards.Select(c => c.Position), Is.EqualTo(new[] { 0, 1, 2 }));
     }
+
+    [Test]
+    public async Task Move_reports_a_missing_target_list()
+    {
+        var listId = await NewListAsync();
+        var card = await _repo.CreateCardAsync(listId, "A");
+
+        Assert.That(await _repo.MoveCardAsync(card.Id, 9999, 0), Is.EqualTo(CardMoveResult.NotFound));
+    }
+
+    [Test]
+    public async Task Move_to_a_list_on_another_board_is_rejected()
+    {
+        var boardA = await _boards.CreateBoardAsync("A");
+        var listA = await _lists.CreateListAsync(boardA.Id, "A-list");
+        var card = await _repo.CreateCardAsync(listA.Id, "Card");
+
+        var boardB = await _boards.CreateBoardAsync("B");
+        var listB = await _lists.CreateListAsync(boardB.Id, "B-list");
+
+        Assert.That(await _repo.MoveCardAsync(card.Id, listB.Id, 0), Is.EqualTo(CardMoveResult.CrossBoard));
+    }
 }
