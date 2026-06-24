@@ -67,7 +67,19 @@ public class EfCardRepository(WendDbContext db) : ICardRepository
             return CardMoveResult.Moved;
         }
 
-        return CardMoveResult.NotFound; // cross-list move arrives in Task 2
+        // Move to another list: re-home the card, insert into the target at the clamped
+        // position, renumber the target, then close the gap left behind in the source.
+        var sourceListId = card.ListId;
+        var targetCards = await db.Cards.Where(c => c.ListId == targetListId)
+            .OrderBy(c => c.Position)
+            .ToListAsync();
+        card.ListId = targetListId;
+        var pos = Math.Clamp(position, 0, targetCards.Count);
+        targetCards.Insert(pos, card);
+        for (var i = 0; i < targetCards.Count; i++) targetCards[i].Position = i;
+        await db.SaveChangesAsync();
+        await ResequenceAsync(sourceListId);
+        return CardMoveResult.Moved;
     }
 
     // Rewrites a list's card positions to a gapless 0-based sequence in current order.

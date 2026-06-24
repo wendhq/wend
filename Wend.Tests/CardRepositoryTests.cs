@@ -205,4 +205,44 @@ public class CardRepositoryTests
         var listId = await NewListAsync();
         Assert.That(await _repo.MoveCardAsync(9999, listId, 0), Is.EqualTo(CardMoveResult.NotFound));
     }
+    
+    [Test]
+    public async Task Move_to_another_list_appends_at_its_bottom_and_resequences_both()
+    {
+        var board = await _boards.CreateBoardAsync("Board");
+        var todo = await _lists.CreateListAsync(board.Id, "To do");
+        var doing = await _lists.CreateListAsync(board.Id, "Doing");
+        await _repo.CreateCardAsync(todo.Id, "A");          // todo 0
+        var b = await _repo.CreateCardAsync(todo.Id, "B");  // todo 1
+        await _repo.CreateCardAsync(todo.Id, "C");          // todo 2
+        await _repo.CreateCardAsync(doing.Id, "X");         // doing 0
+
+        // position 99 overshoots — it should clamp to the bottom.
+        Assert.That(await _repo.MoveCardAsync(b.Id, doing.Id, 99), Is.EqualTo(CardMoveResult.Moved));
+
+        var todoCards = await _repo.GetCardsForListAsync(todo.Id);
+        Assert.That(todoCards.Select(c => c.Title), Is.EqualTo(new[] { "A", "C" }));
+        Assert.That(todoCards.Select(c => c.Position), Is.EqualTo(new[] { 0, 1 }));  // source gapless
+
+        var doingCards = await _repo.GetCardsForListAsync(doing.Id);
+        Assert.That(doingCards.Select(c => c.Title), Is.EqualTo(new[] { "X", "B" }));
+        Assert.That(doingCards.Select(c => c.Position), Is.EqualTo(new[] { 0, 1 })); // target gapless
+    }
+
+    [Test]
+    public async Task Move_to_another_list_can_insert_at_the_top()
+    {
+        var board = await _boards.CreateBoardAsync("Board");
+        var todo = await _lists.CreateListAsync(board.Id, "To do");
+        var doing = await _lists.CreateListAsync(board.Id, "Doing");
+        var a = await _repo.CreateCardAsync(todo.Id, "A");
+        await _repo.CreateCardAsync(doing.Id, "X");  // 0
+        await _repo.CreateCardAsync(doing.Id, "Y");  // 1
+
+        Assert.That(await _repo.MoveCardAsync(a.Id, doing.Id, 0), Is.EqualTo(CardMoveResult.Moved));
+
+        var doingCards = await _repo.GetCardsForListAsync(doing.Id);
+        Assert.That(doingCards.Select(c => c.Title), Is.EqualTo(new[] { "A", "X", "Y" }));
+        Assert.That(doingCards.Select(c => c.Position), Is.EqualTo(new[] { 0, 1, 2 }));
+    }
 }
