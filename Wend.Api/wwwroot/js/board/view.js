@@ -1,7 +1,7 @@
 import { escapeHtml } from "../escape.js";
 
 // Renders one board's view: back link, title, add-list form, and each list with its
-// move/rename/delete controls, its cards (with label chips), and an add-card form.
+// move/rename/delete controls, its cards (with label chips + move controls), and an add-card form.
 export function createBoardView(root) {
   function render(board) {
     const lists = board.lists;
@@ -25,17 +25,35 @@ export function createBoardView(root) {
             .map((l, i) => {
               const first = i === 0;
               const last = i === lists.length - 1;
-              const cards = (l.cards ?? [])
-                  .map((c) => {
+              const listCards = l.cards ?? [];
+              const otherLists = lists.filter((t) => t.id !== l.id);
+              const moveOptions = otherLists
+                  .map((t) => `<option value="${t.id}">${escapeHtml(t.title)}</option>`)
+                  .join("");
+              const cards = listCards
+                  .map((c, ci) => {
                     const chips = labelChips(c.labelIds);
+                    const firstCard = ci === 0;
+                    const lastCard = ci === listCards.length - 1;
                     return `
-            <li>
+            <li class="card-item" data-card-id="${c.id}" data-list-id="${l.id}">
               <button class="card-chip" data-action="open-card" data-card-id="${c.id}"
                 aria-label="${escapeHtml(cardAria(c))}">
                 ${chips ? `<span class="card-chip-labels">${chips}</span>` : ""}
                 <span class="card-title">${escapeHtml(c.title)}</span>
                 ${c.dueDate ? `<span class="card-due">${escapeHtml(c.dueDate)}</span>` : ""}
               </button>
+              <div class="card-actions">
+                <button data-action="card-up" data-card-id="${c.id}" ${firstCard ? "disabled" : ""}
+                  aria-label="Move card up: ${escapeHtml(c.title)}">▲</button>
+                <button data-action="card-down" data-card-id="${c.id}" ${lastCard ? "disabled" : ""}
+                  aria-label="Move card down: ${escapeHtml(c.title)}">▼</button>
+                <select class="card-move-to" data-action="card-move-to" data-card-id="${c.id}"
+                  aria-label="Move card to another list: ${escapeHtml(c.title)}" ${otherLists.length ? "" : "disabled"}>
+                  <option value="" selected disabled>Move to…</option>
+                  ${moveOptions}
+                </select>
+              </div>
             </li>`;
                   })
                   .join("");
@@ -99,6 +117,20 @@ export function createBoardView(root) {
     }
   }
 
+  // After a card move, return focus to the moved card so a keyboard user can keep going.
+  function focusCardAction(cardId, preferred) {
+    const item = root.querySelector(`.card-item[data-card-id="${cardId}"]`);
+    if (!item) return;
+    const order = preferred === "card-up" ? ["card-up", "card-down"] : ["card-down", "card-up"];
+    for (const action of order) {
+      const btn = item.querySelector(`button[data-action="${action}"]`);
+      if (btn && !btn.disabled) { btn.focus(); return; }
+    }
+    const select = item.querySelector('select[data-action="card-move-to"]');
+    if (select && !select.disabled) { select.focus(); return; }
+    item.querySelector(".card-chip")?.focus();
+  }
+
   function bindActions(handlers) {
     root.addEventListener("submit", async (e) => {
       const action = e.target.dataset.action;
@@ -120,13 +152,22 @@ export function createBoardView(root) {
       const action = btn.dataset.action;
       if (action === "back") return handlers.back();
       if (action === "open-card") return handlers.openCard(Number(btn.dataset.cardId));
+      if (action === "card-up") return handlers.cardUp(Number(btn.dataset.cardId));
+      if (action === "card-down") return handlers.cardDown(Number(btn.dataset.cardId));
       const id = Number(btn.dataset.id);
       if (action === "rename") handlers.rename(id);
       else if (action === "delete") handlers.delete(id);
       else if (action === "move-left") handlers.moveLeft(id);
       else if (action === "move-right") handlers.moveRight(id);
     });
+    root.addEventListener("change", (e) => {
+      const sel = e.target.closest('select[data-action="card-move-to"]');
+      if (!sel) return;
+      const listId = Number(sel.value);
+      if (!listId) return;
+      handlers.moveCardTo(Number(sel.dataset.cardId), listId);
+    });
   }
 
-  return { render, focusHeading, focusNewListInput, focusNewCardInput, focusCard, focusListAction, bindActions };
+  return { render, focusHeading, focusNewListInput, focusNewCardInput, focusCard, focusListAction, focusCardAction, bindActions };
 }

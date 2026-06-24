@@ -41,6 +41,15 @@ public static class CardEndpoints
 
         app.MapDelete("/api/cards/{id:int}", async (int id, ICardRepository cards) =>
             await cards.DeleteCardAsync(id) ? Results.NoContent() : Results.NotFound());
+        
+        app.MapPut("/api/cards/{id:int}/move", async (int id, MoveCardRequest req, ICardRepository cards) =>
+            await cards.MoveCardAsync(id, req.ListId, req.Position) switch
+            {
+                CardMoveResult.Moved => Results.NoContent(),
+                CardMoveResult.CrossBoard => Results.BadRequest(),
+                _ => Results.NotFound(),
+            });
+        
         return app;
     }
 }
@@ -48,3 +57,4 @@ public static class CardEndpoints
 public record CreateCardRequest(string Title);
 public record CardDetail(int Id, int ListId, string ListTitle, int BoardId, string Title, string? Description, DateOnly? DueDate, int Position, IReadOnlyList<LabelDto> Labels);
 public record EditCardRequest(string Title, string? Description, DateOnly? DueDate);
+public record MoveCardRequest(int ListId, int Position);

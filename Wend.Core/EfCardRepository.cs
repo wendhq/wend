@@ -48,6 +48,45 @@ public class EfCardRepository(WendDbContext db) : ICardRepository
         return true;
     }
 
+    public async Task<CardMoveResult> MoveCardAsync(int id, int targetListId, int position)
+    {
+        var card = await db.Cards.FindAsync(id);
+        if (card is null) return CardMoveResult.NotFound;
+
+        var targetList = await db.Lists.FindAsync(targetListId);
+        var sourceList = await db.Lists.FindAsync(card.ListId);
+        if (targetList is null || sourceList is null) return CardMoveResult.NotFound;
+        if (targetList.BoardId != sourceList.BoardId) return CardMoveResult.CrossBoard;
+
+        if (targetListId == card.ListId)
+        {
+            // Reorder within the list: lift out of the ordered cards, clamp, re-insert, renumber.
+            var cards = await db.Cards.Where(c => c.ListId == card.ListId)
+                .OrderBy(c => c.Position)
+                .ToListAsync();
+            cards.Remove(cards.First(c => c.Id == id));
+            var index = Math.Clamp(position, 0, cards.Count);
+            cards.Insert(index, card);
+            for (var i = 0; i < cards.Count; i++) cards[i].Position = i;
+            await db.SaveChangesAsync();
+            return CardMoveResult.Moved;
+        }
+
+        // Move to another list: re-home the card, insert into the target at the clamped
+        // position, renumber the target, then close the gap left behind in the source.
+        var sourceListId = card.ListId;
+        var targetCards = await db.Cards.Where(c => c.ListId == targetListId)
+            .OrderBy(c => c.Position)
+            .ToListAsync();
+        card.ListId = targetListId;
+        var pos = Math.Clamp(position, 0, targetCards.Count);
+        targetCards.Insert(pos, card);
+        for (var i = 0; i < targetCards.Count; i++) targetCards[i].Position = i;
+        await db.SaveChangesAsync();
+        await ResequenceAsync(sourceListId);
+        return CardMoveResult.Moved;
+    }
+
     // Rewrites a list's card positions to a gapless 0-based sequence in current order.
     private async Task ResequenceAsync(int listId)
     {
