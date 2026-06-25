@@ -30,7 +30,7 @@ public static class BoardEndpoints
             foreach (var l in await lists.GetListsForBoardAsync(id))
             {
                 var cardSummaries = (await cards.GetCardsForListAsync(l.Id))
-                    .Select(c => new CardSummary(c.Id, c.Title, c.DueDate, c.Position,
+                    .Select(c => new CardSummary(c.Id, c.Title, c.DueDate, c.Position, c.CompletedAt,
                         labelIdsByCard.TryGetValue(c.Id, out var ids) ? ids : new List<int>()))
                     .ToList();
                 summaries.Add(new ListSummary(l.Id, l.Title, l.Position, cardSummaries));
@@ -57,4 +57,4 @@ public record CreateBoardRequest(string Title);
 public record RenameBoardRequest(string Title);
 public record BoardDetail(int Id, string Title, IReadOnlyList<LabelDto> Labels, IReadOnlyList<ListSummary> Lists);
 public record ListSummary(int Id, string Title, int Position, IReadOnlyList<CardSummary> Cards);
-public record CardSummary(int Id, string Title, DateOnly? DueDate, int Position, IReadOnlyList<int> LabelIds);
+public record CardSummary(int Id, string Title, DateOnly? DueDate, int Position, DateTime? CompletedAt, IReadOnlyList<int> LabelIds);

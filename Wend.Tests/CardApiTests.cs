@@ -26,7 +26,7 @@ public class CardApiTests
     private record BoardDto(int Id, string Title);
     private record ListDto(int Id, string Title, int Position);
     private record CardDto(int Id, string Title, int Position);
-    private record CardSummaryDto(int Id, string Title, string? DueDate, int Position);
+    private record CardSummaryDto(int Id, string Title, string? DueDate, int Position, DateTime? CompletedAt);
     private record ListWithCardsDto(int Id, string Title, int Position, List<CardSummaryDto> Cards);
     private record BoardWithCardsDto(int Id, string Title, List<ListWithCardsDto> Lists);
     private record CardDetailDto(int Id, int ListId, string ListTitle, string Title, string? Description, string? DueDate, int Position, DateTime? CompletedAt);
@@ -284,5 +284,17 @@ public class CardApiTests
     {
         var res = await _client.PutAsJsonAsync("/api/cards/9999/complete", new { completed = true });
         Assert.That(res.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+    }
+
+    [Test]
+    public async Task Board_nest_exposes_a_cards_completedAt()
+    {
+        var board = await CreateBoardAsync("Sprint");
+        var list = await CreateListAsync(board.Id, "To do");
+        var card = await CreateCardAsync(list.Id, "Ship it");
+        await _client.PutAsJsonAsync($"/api/cards/{card.Id}/complete", new { completed = true });
+
+        var detail = await _client.GetFromJsonAsync<BoardWithCardsDto>($"/api/boards/{board.Id}");
+        Assert.That(detail!.Lists.Single().Cards.Single().CompletedAt, Is.Not.Null);
     }
 }
