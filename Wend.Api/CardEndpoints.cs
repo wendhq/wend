@@ -26,7 +26,7 @@ public static class CardEndpoints
             var attached = (await labels.GetCardLabelsAsync(c.Id))
                 .Select(l => new LabelDto(l.Id, l.Name, l.Colour)).ToList();
             return Results.Ok(new CardDetail(c.Id, c.ListId, list?.Title ?? "", list?.BoardId ?? 0,
-                c.Title, c.Description, c.DueDate, c.Position, attached));
+                c.Title, c.Description, c.DueDate, c.Position, c.CompletedAt, attached));
         });
 
         app.MapPut("/api/cards/{id:int}", async (int id, EditCardRequest req, ICardRepository cards) =>
@@ -49,12 +49,17 @@ public static class CardEndpoints
                 CardMoveResult.CrossBoard => Results.BadRequest(),
                 _ => Results.NotFound(),
             });
-        
+
+        app.MapPut("/api/cards/{id:int}/complete", async (int id, CompleteCardRequest req, ICardRepository cards) =>
+            await cards.SetCardCompletedAsync(id, req.Completed)
+                ? Results.NoContent() : Results.NotFound());
+
         return app;
     }
 }
 
 public record CreateCardRequest(string Title);
-public record CardDetail(int Id, int ListId, string ListTitle, int BoardId, string Title, string? Description, DateOnly? DueDate, int Position, IReadOnlyList<LabelDto> Labels);
+public record CardDetail(int Id, int ListId, string ListTitle, int BoardId, string Title, string? Description, DateOnly? DueDate, int Position, DateTime? CompletedAt, IReadOnlyList<LabelDto> Labels);
 public record EditCardRequest(string Title, string? Description, DateOnly? DueDate);
 public record MoveCardRequest(int ListId, int Position);
+public record CompleteCardRequest(bool Completed);
