@@ -267,4 +267,31 @@ public class CardRepositoryTests
 
         Assert.That(await _repo.MoveCardAsync(card.Id, listB.Id, 0), Is.EqualTo(CardMoveResult.CrossBoard));
     }
+
+    [Test]
+    public async Task Set_completed_marks_a_card_done()
+    {
+        var listId = await NewListAsync();
+        var card = await _repo.CreateCardAsync(listId, "Ship Plan 6");
+
+        Assert.That(await _repo.SetCardCompletedAsync(card.Id, true), Is.True);
+        Assert.That((await _repo.GetCardAsync(card.Id))!.CompletedAt, Is.Not.Null);
+    }
+
+    [Test]
+    public async Task Set_completed_false_clears_the_done_mark()
+    {
+        var listId = await NewListAsync();
+        var card = await _repo.CreateCardAsync(listId, "Ship Plan 6");
+        await _repo.SetCardCompletedAsync(card.Id, true);
+
+        Assert.That(await _repo.SetCardCompletedAsync(card.Id, false), Is.True);
+        Assert.That((await _repo.GetCardAsync(card.Id))!.CompletedAt, Is.Null);
+    }
+
+    [Test]
+    public async Task Set_completed_reports_a_missing_card()
+    {
+        Assert.That(await _repo.SetCardCompletedAsync(9999, true), Is.False);
+    }
 }
