@@ -64,6 +64,22 @@ export function createBoardController(model, view, announce, { onBack, onOpenCar
                 announce("Couldn't move the card — please try again.");
             }
         },
+        toggleDone: async (cardId, completed) => {
+            const card = lists.flatMap((l) => l.cards ?? []).find((c) => c.id === cardId);
+            const title = card ? card.title : "the card";
+            try {
+                await model.setCardDone(cardId, completed);
+                if (completed) {
+                    announce(`Marked done: ${title}.`);
+                    view.focusDoneToggle();
+                } else {
+                    announce(`Restored: ${title}.`);
+                    view.focusCard(cardId);
+                }
+            } catch {
+                announce("Couldn't update the card — please try again.");
+            }
+        },
     });
 
     async function move(id, delta, action) {
@@ -83,12 +99,12 @@ export function createBoardController(model, view, announce, { onBack, onOpenCar
     async function moveCard(cardId, delta, action) {
         const list = lists.find((l) => (l.cards ?? []).some((c) => c.id === cardId));
         if (!list) return;
-        const cards = list.cards ?? [];
-        const index = cards.findIndex((c) => c.id === cardId);
+        const active = (list.cards ?? []).filter((c) => !c.completedAt);
+        const index = active.findIndex((c) => c.id === cardId);
         const target = index + delta;
-        if (target < 0 || target >= cards.length) return; // already at an end (button disabled)
+        if (target < 0 || target >= active.length) return; // already at an end among active cards
         try {
-            await model.moveCard(cardId, list.id, target);
+            await model.moveCard(cardId, list.id, active[target].position);
             announce(delta < 0 ? "Card moved up." : "Card moved down.");
             view.focusCardAction(cardId, action);
         } catch {
