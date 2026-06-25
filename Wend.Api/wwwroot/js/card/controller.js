@@ -25,6 +25,15 @@ export function createCardController(model, view, announce, { onBack, onDeleted 
         announce("Couldn't delete the card — please try again.");
       }
     },
+    toggleDone: async (completed) => {
+      try {
+        await model.setDone(completed);
+        announce(completed ? "Marked done." : "Restored.");
+        view.focusDoneToggle();
+      } catch {
+        announce("Couldn't update the card — please try again.");
+      }
+    },
     attachLabel: async (id) => {
       try {
         await model.attachLabel(id);
