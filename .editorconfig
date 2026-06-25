@@ -1,0 +1,13 @@
+# EditorConfig (https://editorconfig.org) — shared whitespace hygiene for the wend repo.
+# Scope is deliberately minimal: trailing-whitespace + final-newline only, so it
+# never fights Rider (C# formatting) or Biome (web formatting).
+root = true
+
+[*]
+charset = utf-8
+trim_trailing_whitespace = true
+insert_final_newline = true
+
+# Markdown: a line ending in two spaces is a hard line break — don't strip it.
+[*.md]
+trim_trailing_whitespace = false
