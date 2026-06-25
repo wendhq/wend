@@ -266,3 +266,40 @@
 .swatch-dot { width: 1.4rem; height: 1.4rem; border-radius: 50%; display: inline-block; background: var(--chip); }
 .swatch-name { font-size: 0.65rem; opacity: 0.75; }
 .label-form-actions { display: flex; gap: 0.5rem; }
+
+/* ---- Done -------------------------------------------------------------- */
+
+/* Active card: a leading done checkbox beside the open button, then the move row. */
+.card-row { display: flex; align-items: flex-start; gap: 0.4rem; }
+.card-row .card-chip { flex: 1; }
+.card-done-toggle { width: 1.15rem; height: 1.15rem; margin-top: 0.55rem; flex: none; }
+
+/* Card-detail done toggle. */
+.card-done { margin: 0 0 1rem; }
+.card-done-label { display: inline-flex; align-items: center; gap: 0.5rem; min-height: 44px; cursor: pointer; }
+
+/* Global Done area below the lists. */
+.done-area { margin-top: 1.5rem; }
+.done-toggle {
+  width: 100%;
+  text-align: left;
+  min-height: 44px;
+  font-weight: 600;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid;
+  border-color: color-mix(in srgb, currentColor 18%, transparent);
+  border-radius: 0.5rem;
+}
+.done-body { margin-top: 0.6rem; display: flex; flex-direction: column; gap: 0.75rem; }
+.done-group-title { margin: 0 0 0.3rem; font-size: 0.85rem; opacity: 0.75; }
+.done-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.3rem; }
+.done-row-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 44px;
+  cursor: pointer;
+  opacity: 0.7;
+}
+.done-row-title { text-decoration: line-through; }
+.done-row .card-done-toggle { margin-top: 0; }
