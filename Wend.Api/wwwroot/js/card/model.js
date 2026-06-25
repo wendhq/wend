@@ -22,6 +22,10 @@ export function createCardModel(cardId) {
       await api(`/api/cards/${cardId}`, { method: "PUT", body: JSON.stringify({ title, description, dueDate }) });
       await this.load();
     },
+    async setDone(completed) {
+      await api(`/api/cards/${cardId}/complete`, { method: "PUT", body: JSON.stringify({ completed }) });
+      await this.load();
+    },
     async remove() {
       await api(`/api/cards/${cardId}`, { method: "DELETE" });
     },

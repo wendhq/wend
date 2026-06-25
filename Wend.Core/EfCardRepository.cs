@@ -87,6 +87,15 @@ public class EfCardRepository(WendDbContext db) : ICardRepository
         return CardMoveResult.Moved;
     }
 
+    public async Task<bool> SetCardCompletedAsync(int id, bool completed)
+    {
+        var card = await db.Cards.FindAsync(id);
+        if (card is null) return false;
+        card.CompletedAt = completed ? DateTime.UtcNow : null;
+        await db.SaveChangesAsync();
+        return true;
+    }
+
     // Rewrites a list's card positions to a gapless 0-based sequence in current order.
     private async Task ResequenceAsync(int listId)
     {

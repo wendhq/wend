@@ -24,6 +24,12 @@ export function createCardView(root) {
         <button class="back-link" data-action="back">← Board</button>
         <h2 class="card-heading" tabindex="-1">${escapeHtml(card.title)}</h2>
         <p class="card-list-name">In list: <strong>${escapeHtml(card.listTitle)}</strong></p>
+        <div class="card-done">
+          <label class="card-done-label">
+            <input type="checkbox" data-action="toggle-done" ${card.completedAt ? "checked" : ""} />
+            <span>Done</span>
+          </label>
+        </div>
         ${renderLabels(card, lastPalette, ui)}
         <form class="card-detail" data-action="save">
           <label class="field">
@@ -46,6 +52,7 @@ export function createCardView(root) {
 
   // Focus helpers.
   function focusHeading() { root.querySelector(".card-heading")?.focus(); }
+  function focusDoneToggle() { root.querySelector('input[data-action="toggle-done"]')?.focus(); }
   function focusPickerTrigger() { root.querySelector(".labels-toggle")?.focus(); }
   function focusToggle(labelId) {
     root.querySelector(`input[data-action="toggle-label"][data-label-id="${labelId}"]`)?.focus();
@@ -96,6 +103,8 @@ export function createCardView(root) {
     });
 
     root.addEventListener("change", async (e) => {
+      const done = e.target.closest('input[data-action="toggle-done"]');
+      if (done) return h.toggleDone(done.checked);
       const cb = e.target.closest('input[data-action="toggle-label"]');
       if (!cb) return;
       const id = Number(cb.dataset.labelId);
