@@ -303,3 +303,10 @@
 }
 .done-row-title { text-decoration: line-through; }
 .done-row .card-done-toggle { margin-top: 0; }
+
+/* ---- Undo toast (uses the design-system .toast-region / .toast component) ---- */
+.toast { align-items: center; }
+.toast-message { flex: 1; }
+.toast-action,
+.toast-dismiss { min-height: 44px; }
+.toast-dismiss { min-width: 44px; }

@@ -31,6 +31,11 @@
 
   <header class="app-header"><h1>Wend</h1></header>
 
+  <!-- Transient "Deleted · Undo" toast. Fixed at the bottom via the design-system .toast-region,
+       but placed BEFORE #app in the DOM so its Undo button sits near the front of the tab order —
+       one Shift+Tab back from the board heading. Outside #app so a re-render never wipes it. -->
+  <div id="toast-region" class="toast-region"></div>
+
   <!-- tabindex="-1" so the skip link can move focus here (otherwise <main> isn't focusable).
        Task 9's view renders the boards UI into this container. -->
   <main id="app" tabindex="-1"></main>
