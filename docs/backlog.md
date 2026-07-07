@@ -26,3 +26,19 @@ Things we've consciously chosen to do *later*, each with the reason and the trig
 - **Why deferred:** colour-bars-only makes colour the sole *visible* signal, so it needs the label names carried in screen-reader text **and** a real settings surface to store the preference — neither exists in Slice 1, and chips are the safe default to ship first.
 - **Revisit when:** Slice 1 grows a settings / preferences home to hang it on (or users ask for a denser board).
 - **Decided:** 2026-06-23 (Malin).
+
+### Multi-card batch undo — restore several deleted cards at once
+
+- **Now:** deleting a card shows a transient "Deleted · Undo" toast that restores that one card (Plan 7). Deleting several in quick succession **replaces** the toast each time, so only the most recent delete is undoable from the toast; earlier cards stay soft-deleted (recoverable later via the Trash screen).
+- **Later:** let undo bring back **all** recently-deleted cards at once — e.g. a coalescing "Deleted N · Undo" toast whose Undo loops `POST /api/cards/{id}/restore` over the batch, each card returning to its original position (restore already clamps to the stored slot, so restoring in delete-order reconstructs the arrangement).
+- **Why deferred:** it reverses the Plan 7 "one toast, replaces" call (chosen for a11y simplicity) and wants its own brainstorm + a fresh accessibility pass on the multi-item toast; it also overlaps the planned **Trash** screen, which already covers multi-card recovery. No data is at risk meanwhile — every delete is a soft-delete row.
+- **Revisit when:** the Trash slice is scoped (fold it in there), or single-undo proves insufficient in daily use.
+- **Decided:** 2026-07-07 (Malin & Henry, Plan 7 acceptance).
+
+### Undo for checklist-item deletes
+
+- **Now:** the per-card checklist isn't built yet (it's the next increment); undo-first delete applies to cards only.
+- **Later:** when the checklist ships, deleting a checklist item ("task") should be undoable the same way a card is — soft-delete + a "Deleted · Undo" toast (or the batch mechanism above) — not an immediate hard delete.
+- **Why deferred:** there's nothing to undo until the checklist exists; this is a requirement to bake into the **checklist increment**, not a Plan 7 change.
+- **Revisit when:** building the per-card checklist — carry this into its spec.
+- **Decided:** 2026-07-07 (Malin & Henry, Plan 7 acceptance).
