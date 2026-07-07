@@ -403,3 +403,25 @@
 .done-item-row { opacity: 0.6; }
 .done-item-text { text-decoration: line-through; }
 .done-row-label { display: flex; gap: 0.5rem; align-items: center; flex: 1; }
+
+/* Task-view header row + edit toggle. */
+.card-view-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+.card-view-top .back-link { margin-bottom: 0; }
+.card-heading .rename-trigger {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+}
+.card-meta { margin: 0 0 0.5rem; }
+.card-notes {
+  margin: 0 0 1rem;
+  white-space: pre-wrap; /* keep the user's line breaks in read-only notes */
+}

@@ -6,6 +6,22 @@ export function createCardController(model, view, announce, {onBack, onDeleted} 
     let current = null;
     const nameOf = (id) => (palette.find((l) => l.id === id) || {}).name || "the label";
 
+    async function moveItem(id, delta, action) {
+        const unchecked = (current.items ?? []).filter((i) => !i.checkedAt);
+        const index = unchecked.findIndex((i) => i.id === id);
+        if (index < 0) return;
+        const target = index + delta;
+        if (target < 0 || target >= unchecked.length) return; // already at an end (button is disabled)
+        const text = unchecked[index].text;
+        try {
+            await model.moveItem(id, unchecked[target].position);
+            announce(`${delta < 0 ? "Moved up" : "Moved down"}: ${text}.`);
+            view.focusItemAction(id, action);
+        } catch {
+            announce("Couldn't move the item — please try again.");
+        }
+    }
+
     view.bindActions({
         back: () => onBack?.(),
         save: async ({title, description, dueDate}) => {
@@ -66,6 +82,21 @@ export function createCardController(model, view, announce, {onBack, onDeleted} 
                 announce("Couldn't rename the item — please try again.");
             }
         },
+        toggleEditMode: () => {
+            const on = view.toggleEditMode();
+            announce(on ? "Edit mode on." : "Edit mode off.");
+        },
+        saveTitle: async (text) => {
+            try {
+                await model.save({ title: text, description: current.description, dueDate: current.dueDate });
+                announce("Card renamed.");
+                view.focusTitleTrigger();
+            } catch {
+                announce("Couldn't rename the card — please try again.");
+            }
+        },
+        moveItemUp: (id) => moveItem(id, -1, "item-up"),
+        moveItemDown: (id) => moveItem(id, +1, "item-down"),
         attachLabel: async (id) => {
             try {
                 await model.attachLabel(id);
