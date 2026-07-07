@@ -11,6 +11,7 @@ public class ChecklistItemRepositoryTests
     private EfBoardRepository _boards = null!;
     private EfListRepository _lists = null!;
     private EfCardRepository _cards = null!;
+    private EfChecklistItemRepository _repo = null!;
 
     [SetUp]
     public void SetUp()
@@ -26,6 +27,7 @@ public class ChecklistItemRepositoryTests
         _boards = new EfBoardRepository(_db);
         _lists = new EfListRepository(_db);
         _cards = new EfCardRepository(_db);
+        _repo = new EfChecklistItemRepository(_db);
     }
 
     [TearDown]
@@ -84,5 +86,54 @@ public class ChecklistItemRepositoryTests
 
         var texts = await _db.ChecklistItems.Select(i => i.Text).ToListAsync();
         Assert.That(texts, Is.EqualTo(new[] { "Visible" }));
+    }
+
+    [Test]
+    public async Task Add_appends_each_item_at_the_next_position()
+    {
+        var cardId = await NewCardAsync();
+
+        var first = await _repo.AddItemAsync(cardId, "First");
+        var second = await _repo.AddItemAsync(cardId, "Second");
+
+        Assert.That(first.Position, Is.EqualTo(0));
+        Assert.That(second.Position, Is.EqualTo(1));
+    }
+
+    [Test]
+    public async Task Positions_count_from_zero_per_card()
+    {
+        var cardA = await NewCardAsync();
+        var cardB = await NewCardAsync();
+
+        var a1 = await _repo.AddItemAsync(cardA, "A1");
+        var b1 = await _repo.AddItemAsync(cardB, "B1");
+
+        Assert.That(a1.Position, Is.EqualTo(0));
+        Assert.That(b1.Position, Is.EqualTo(0));
+    }
+
+    [Test]
+    public async Task Get_items_for_card_returns_them_in_position_order()
+    {
+        var cardId = await NewCardAsync();
+        await _repo.AddItemAsync(cardId, "First");
+        await _repo.AddItemAsync(cardId, "Second");
+
+        var items = await _repo.GetItemsForCardAsync(cardId);
+
+        Assert.That(items.Select(i => i.Text), Is.EqualTo(new[] { "First", "Second" }));
+    }
+
+    [Test]
+    public async Task Rename_updates_the_text_and_reports_missing()
+    {
+        var cardId = await NewCardAsync();
+        var item = await _repo.AddItemAsync(cardId, "Old");
+
+        Assert.That(await _repo.RenameItemAsync(item.Id, "New"), Is.True);
+        Assert.That((await _repo.GetItemsForCardAsync(cardId)).Single().Text, Is.EqualTo("New"));
+
+        Assert.That(await _repo.RenameItemAsync(9999, "X"), Is.False);
     }
 }
