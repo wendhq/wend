@@ -41,10 +41,10 @@ public class EfCardRepository(WendDbContext db) : ICardRepository
     public async Task<bool> DeleteCardAsync(int id)
     {
         var card = await db.Cards.FindAsync(id);
-        if (card is null) return false;
-        db.Cards.Remove(card);
+        if (card is null || card.DeletedAt is not null) return false; // missing or already gone
+        card.DeletedAt = DateTime.UtcNow;   // soft delete — the row survives for undo
         await db.SaveChangesAsync();
-        await ResequenceAsync(card.ListId); // keep the survivors gapless (0,1,2,…)
+        await ResequenceAsync(card.ListId); // close the gap among the survivors (filter hides this card)
         return true;
     }
 

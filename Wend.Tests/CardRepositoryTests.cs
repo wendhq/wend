@@ -205,7 +205,7 @@ public class CardRepositoryTests
         var listId = await NewListAsync();
         Assert.That(await _repo.MoveCardAsync(9999, listId, 0), Is.EqualTo(CardMoveResult.NotFound));
     }
-    
+
     [Test]
     public async Task Move_to_another_list_appends_at_its_bottom_and_resequences_both()
     {
@@ -293,5 +293,30 @@ public class CardRepositoryTests
     public async Task Set_completed_reports_a_missing_card()
     {
         Assert.That(await _repo.SetCardCompletedAsync(9999, true), Is.False);
+    }
+
+    [Test]
+    public async Task Delete_soft_deletes_so_the_row_survives_for_undo()
+    {
+        var listId = await NewListAsync();
+        var card = await _repo.CreateCardAsync(listId, "Temp");
+
+        Assert.That(await _repo.DeleteCardAsync(card.Id), Is.True);
+
+        // Hidden from normal queries…
+        Assert.That(await _repo.GetCardsForListAsync(listId), Is.Empty);
+        // …but the row still exists with DeletedAt set, so undo can bring it back.
+        var row = await _db.Cards.IgnoreQueryFilters().SingleAsync(c => c.Id == card.Id);
+        Assert.That(row.DeletedAt, Is.Not.Null);
+    }
+
+    [Test]
+    public async Task Deleting_an_already_deleted_card_reports_missing()
+    {
+        var listId = await NewListAsync();
+        var card = await _repo.CreateCardAsync(listId, "Temp");
+        await _repo.DeleteCardAsync(card.Id);
+
+        Assert.That(await _repo.DeleteCardAsync(card.Id), Is.False);
     }
 }
