@@ -48,6 +48,23 @@ public class EfCardRepository(WendDbContext db) : ICardRepository
         return true;
     }
 
+    public async Task<bool> RestoreCardAsync(int id)
+    {
+        var card = await db.Cards.FindAsync(id);   // FindAsync bypasses the filter, so it sees the deleted row
+        if (card is null) return false;
+        if (card.DeletedAt is null) return true;   // already active — idempotent no-op
+
+        var siblings = await db.Cards.Where(c => c.ListId == card.ListId)
+            .OrderBy(c => c.Position)
+            .ToListAsync();                        // active siblings only (the card is still filtered out)
+        card.DeletedAt = null;
+        var index = Math.Clamp(card.Position, 0, siblings.Count); // its old spot, bounded to the list today
+        siblings.Insert(index, card);
+        for (var i = 0; i < siblings.Count; i++) siblings[i].Position = i;
+        await db.SaveChangesAsync();
+        return true;
+    }
+
     public async Task<CardMoveResult> MoveCardAsync(int id, int targetListId, int position)
     {
         var card = await db.Cards.FindAsync(id);

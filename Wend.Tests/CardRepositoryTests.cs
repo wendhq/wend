@@ -319,4 +319,50 @@ public class CardRepositoryTests
 
         Assert.That(await _repo.DeleteCardAsync(card.Id), Is.False);
     }
+
+    [Test]
+    public async Task Restore_brings_a_deleted_card_back_to_its_original_position()
+    {
+        var listId = await NewListAsync();
+        await _repo.CreateCardAsync(listId, "A");          // 0
+        var b = await _repo.CreateCardAsync(listId, "B");  // 1
+        await _repo.CreateCardAsync(listId, "C");          // 2
+
+        await _repo.DeleteCardAsync(b.Id);                 // survivors resequence to A(0), C(1)
+        Assert.That(await _repo.RestoreCardAsync(b.Id), Is.True);
+
+        var cards = await _repo.GetCardsForListAsync(listId);
+        Assert.That(cards.Select(c => c.Title), Is.EqualTo(new[] { "A", "B", "C" }));
+        Assert.That(cards.Select(c => c.Position), Is.EqualTo(new[] { 0, 1, 2 })); // gapless, B back in the middle
+    }
+
+    [Test]
+    public async Task Restore_is_idempotent_for_a_card_that_is_not_deleted()
+    {
+        var listId = await NewListAsync();
+        var card = await _repo.CreateCardAsync(listId, "Here");
+
+        Assert.That(await _repo.RestoreCardAsync(card.Id), Is.True); // no-op, still reports found
+        Assert.That((await _repo.GetCardsForListAsync(listId)).Single().Title, Is.EqualTo("Here"));
+    }
+
+    [Test]
+    public async Task Restore_reports_a_missing_card()
+    {
+        Assert.That(await _repo.RestoreCardAsync(9999), Is.False);
+    }
+
+    [Test]
+    public async Task Restoring_a_done_card_keeps_it_done()
+    {
+        var listId = await NewListAsync();
+        var card = await _repo.CreateCardAsync(listId, "Shipped");
+        await _repo.SetCardCompletedAsync(card.Id, true);
+        await _repo.DeleteCardAsync(card.Id);
+
+        Assert.That(await _repo.RestoreCardAsync(card.Id), Is.True);
+        var row = await _db.Cards.IgnoreQueryFilters().SingleAsync(c => c.Id == card.Id);
+        Assert.That(row.DeletedAt, Is.Null);
+        Assert.That(row.CompletedAt, Is.Not.Null); // still done after undo
+    }
 }

@@ -11,6 +11,7 @@ public interface ICardRepository
     Task<Card> CreateCardAsync(int listId, string title);
     Task<bool> EditCardAsync(int id, string title, string? description, DateOnly? dueDate);
     Task<bool> DeleteCardAsync(int id);
+    Task<bool> RestoreCardAsync(int id);
     Task<CardMoveResult> MoveCardAsync(int id, int targetListId, int position);
     Task<bool> SetCardCompletedAsync(int id, bool completed);
 }
