@@ -12,4 +12,6 @@ public interface IChecklistItemRepository
     Task<bool> RenameItemAsync(int id, string text);
     Task<bool> SetCheckedAsync(int id, bool isChecked);
     Task<bool> MoveItemAsync(int id, int position);
+    Task<bool> DeleteItemAsync(int id);
+    Task<bool> RestoreItemAsync(int id);
 }

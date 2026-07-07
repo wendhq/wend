@@ -54,4 +54,44 @@ public class EfChecklistItemRepository(WendDbContext db) : IChecklistItemReposit
         await db.SaveChangesAsync();
         return true;
     }
+
+    public async Task<bool> DeleteItemAsync(int id)
+    {
+        var item = await db.ChecklistItems.FindAsync(id);
+        if (item is null || item.DeletedAt is not null) return false; // missing or already gone
+        item.DeletedAt = DateTime.UtcNow;   // soft delete — the row survives for undo
+        await db.SaveChangesAsync();
+        await ResequenceAsync(item.CardId); // close the gap among the survivors (filter hides this item)
+        return true;
+    }
+
+    public async Task<bool> RestoreItemAsync(int id)
+    {
+        // IgnoreQueryFilters so the soft-deleted row is found from ANY context. FindAsync only
+        // returns it while it's still tracked in the same context — the API's per-request
+        // contexts read from the DB, where the filter hides it (Plan 7's restore-404 bug).
+        var item = await db.ChecklistItems.IgnoreQueryFilters().FirstOrDefaultAsync(i => i.Id == id);
+        if (item is null) return false;
+        if (item.DeletedAt is null) return true;   // already active — idempotent no-op
+
+        var siblings = await db.ChecklistItems.Where(i => i.CardId == item.CardId)
+            .OrderBy(i => i.Position)
+            .ToListAsync();                        // active siblings only (the item is still filtered out)
+        item.DeletedAt = null;
+        var index = Math.Clamp(item.Position, 0, siblings.Count); // its old spot, bounded to the list today
+        siblings.Insert(index, item);
+        for (var i = 0; i < siblings.Count; i++) siblings[i].Position = i;
+        await db.SaveChangesAsync();
+        return true;
+    }
+
+    // Rewrites a card's item positions to a gapless 0-based sequence in current order.
+    private async Task ResequenceAsync(int cardId)
+    {
+        var items = await db.ChecklistItems.Where(i => i.CardId == cardId)
+            .OrderBy(i => i.Position)
+            .ToListAsync();
+        for (var i = 0; i < items.Count; i++) items[i].Position = i;
+        await db.SaveChangesAsync();
+    }
 }

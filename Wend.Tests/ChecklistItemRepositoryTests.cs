@@ -180,4 +180,52 @@ public class ChecklistItemRepositoryTests
     {
         Assert.That(await _repo.MoveItemAsync(9999, 0), Is.False);
     }
+
+    [Test]
+    public async Task Delete_soft_deletes_and_resequences_the_rest()
+    {
+        var cardId = await NewCardAsync();
+        await _repo.AddItemAsync(cardId, "A");           // 0
+        var b = await _repo.AddItemAsync(cardId, "B");   // 1
+        await _repo.AddItemAsync(cardId, "C");           // 2
+
+        Assert.That(await _repo.DeleteItemAsync(b.Id), Is.True);
+
+        // Hidden from normal queries and the survivors close the gap…
+        var items = await _repo.GetItemsForCardAsync(cardId);
+        Assert.That(items.Select(i => i.Text), Is.EqualTo(new[] { "A", "C" }));
+        Assert.That(items.Select(i => i.Position), Is.EqualTo(new[] { 0, 1 }));
+        // …but the row still exists with DeletedAt set, so undo can bring it back.
+        var row = await _db.ChecklistItems.IgnoreQueryFilters().SingleAsync(i => i.Id == b.Id);
+        Assert.That(row.DeletedAt, Is.Not.Null);
+    }
+
+    [Test]
+    public async Task Restore_brings_an_item_back_to_its_original_position()
+    {
+        var cardId = await NewCardAsync();
+        await _repo.AddItemAsync(cardId, "A");           // 0
+        var b = await _repo.AddItemAsync(cardId, "B");   // 1
+        await _repo.AddItemAsync(cardId, "C");           // 2
+
+        await _repo.DeleteItemAsync(b.Id);               // survivors resequence to A(0), C(1)
+        Assert.That(await _repo.RestoreItemAsync(b.Id), Is.True);
+
+        var items = await _repo.GetItemsForCardAsync(cardId);
+        Assert.That(items.Select(i => i.Text), Is.EqualTo(new[] { "A", "B", "C" }));
+        Assert.That(items.Select(i => i.Position), Is.EqualTo(new[] { 0, 1, 2 })); // gapless, B back in the middle
+    }
+
+    [Test]
+    public async Task Restore_works_from_a_fresh_context_not_only_a_tracked_one()
+    {
+        var cardId = await NewCardAsync();
+        var item = await _repo.AddItemAsync(cardId, "Temp");
+        await _repo.DeleteItemAsync(item.Id);
+
+        _db.ChangeTracker.Clear(); // force a DB read, as a new HTTP request would — no tracked entity
+
+        Assert.That(await _repo.RestoreItemAsync(item.Id), Is.True);
+        Assert.That((await _repo.GetItemsForCardAsync(cardId)).Select(i => i.Text), Is.EqualTo(new[] { "Temp" }));
+    }
 }
