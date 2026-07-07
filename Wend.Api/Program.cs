@@ -12,6 +12,7 @@ builder.Services.AddDbContext<WendDbContext>(options => options.UseSqlite($"Data
 builder.Services.AddScoped<IBoardRepository, EfBoardRepository>();builder.Services.AddScoped<IListRepository, EfListRepository>();
 builder.Services.AddScoped<ICardRepository, EfCardRepository>();
 builder.Services.AddScoped<ILabelRepository, EfLabelRepository>();
+builder.Services.AddScoped<IChecklistItemRepository, EfChecklistItemRepository>();
 
 
 // Keep request paths and bodies out of the framework logs; quiet the startup banner.
@@ -41,6 +42,7 @@ api.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 app.MapGroup("/api/boards").MapBoardEndpoints();app.MapListEndpoints();
 app.MapCardEndpoints();
 app.MapLabelEndpoints();
+app.MapChecklistItemEndpoints();
 
 // Any non-API path renders the SPA shell; the client handles routing from there.
 app.MapFallbackToFile("index.html");
