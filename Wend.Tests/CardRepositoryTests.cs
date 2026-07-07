@@ -365,4 +365,14 @@ public class CardRepositoryTests
         Assert.That(row.DeletedAt, Is.Null);
         Assert.That(row.CompletedAt, Is.Not.Null); // still done after undo
     }
+
+    [Test]
+    public async Task Get_card_hides_a_soft_deleted_card()
+    {
+        var listId = await NewListAsync();
+        var card = await _repo.CreateCardAsync(listId, "Temp");
+        await _repo.DeleteCardAsync(card.Id);
+
+        Assert.That(await _repo.GetCardAsync(card.Id), Is.Null);
+    }
 }

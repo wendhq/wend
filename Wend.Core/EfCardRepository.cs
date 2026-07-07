@@ -9,7 +9,8 @@ public class EfCardRepository(WendDbContext db) : ICardRepository
             .OrderBy(c => c.Position)
             .ToListAsync();
 
-    public async Task<Card?> GetCardAsync(int id) => await db.Cards.FindAsync(id);
+    public async Task<Card?> GetCardAsync(int id) =>
+        await db.Cards.FirstOrDefaultAsync(c => c.Id == id); // goes through the filter → deleted cards read as gone
 
     public async Task<Card> CreateCardAsync(int listId, string title)
     {
