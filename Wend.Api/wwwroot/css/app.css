@@ -352,3 +352,54 @@
   .card-progress { border: 1px solid CanvasText; background: Canvas; }
   .card-progress-fill { background: CanvasText; }
 }
+
+/* Checklist section in the task view. */
+.checklist-section {
+  border: 1px solid;
+  border-color: color-mix(in srgb, currentColor 15%, transparent);
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.checklist-header { display: flex; gap: 0.5rem; align-items: baseline; }
+.checklist-title { font-weight: 600; }
+.checklist-items, .done-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.checklist-row, .done-item-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  min-height: 44px; /* touch target */
+}
+.checklist-row .rename-trigger {
+  flex: 1;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0.25rem 0;
+  font: inherit;
+  color: inherit;
+}
+.rename-form { flex: 1; display: flex; gap: 0.5rem; }
+.rename-form input { flex: 1; }
+.item-actions { display: flex; gap: 0.25rem; }
+.item-form { display: flex; gap: 0.5rem; }
+.item-form input { flex: 1; }
+/* Done strip: dimmed, struck-through rows behind a disclosure. */
+.done-strip {
+  border-top: 1px solid;
+  border-color: color-mix(in srgb, currentColor 15%, transparent);
+  padding-top: 0.5rem;
+}
+.done-item-row { opacity: 0.6; }
+.done-item-text { text-decoration: line-through; }
+.done-row-label { display: flex; gap: 0.5rem; align-items: center; flex: 1; }

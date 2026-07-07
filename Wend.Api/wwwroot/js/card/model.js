@@ -3,7 +3,7 @@ import { api } from "../api.js";
 // State for one card plus its board's label palette. Re-fetches after every change so the view
 // always shows server truth. No DOM. Subscribers get (card, palette).
 export function createCardModel(cardId) {
-  let card = { id: cardId, listId: 0, listTitle: "", boardId: 0, title: "", description: "", dueDate: null, position: 0, labels: [] };
+  let card = { id: cardId, listId: 0, listTitle: "", boardId: 0, title: "", description: "", dueDate: null, position: 0, labels: [], items: [] };
   let palette = [];
   const subscribers = [];
   const notify = () => subscribers.forEach((fn) => fn(card, palette));
@@ -24,6 +24,18 @@ export function createCardModel(cardId) {
     },
     async setDone(completed) {
       await api(`/api/cards/${cardId}/complete`, { method: "PUT", body: JSON.stringify({ completed }) });
+      await this.load();
+    },
+    async addItem(text) {
+      await api(`/api/cards/${cardId}/checklist-items`, { method: "POST", body: JSON.stringify({ text }) });
+      await this.load();
+    },
+    async checkItem(id, checked) {
+      await api(`/api/checklist-items/${id}/check`, { method: "PUT", body: JSON.stringify({ checked }) });
+      await this.load();
+    },
+    async renameItem(id, text) {
+      await api(`/api/checklist-items/${id}`, { method: "PUT", body: JSON.stringify({ text }) });
       await this.load();
     },
     async remove() {

@@ -1,5 +1,6 @@
 import { escapeHtml } from "../escape.js";
 import { renderLabels } from "./labels.js";
+import { renderChecklist } from "./checklist.js";
 
 // Task view for one card: back link, heading, the Labels section + picker, the edit form, and
 // delete. Holds only transient picker UI state; all data comes from the model. The view owns the
@@ -8,7 +9,7 @@ import { renderLabels } from "./labels.js";
 export function createCardView(root) {
   let lastCard = null;
   let lastPalette = [];
-  const ui = { pickerOpen: false, mode: "list", editingId: null };
+  const ui = { pickerOpen: false, mode: "list", editingId: null, editMode: false, doneOpen: false, renamingId: null };
   let h = {};
 
   function render(card, palette) {
@@ -31,6 +32,7 @@ export function createCardView(root) {
           </label>
         </div>
         ${renderLabels(card, lastPalette, ui)}
+        ${renderChecklist(card, ui)}
         <form class="card-detail" data-action="save">
           <label class="field">
             <span>Title</span>
@@ -59,6 +61,20 @@ export function createCardView(root) {
   }
   function focusPicker() { root.querySelector(".label-picker input, .label-picker button")?.focus(); }
   function focusLabelName() { root.querySelector(".label-form input[name=name]")?.focus(); }
+  function focusAddInput() { root.querySelector(".item-form input")?.focus(); }
+  function focusDoneStripToggle() { root.querySelector(".done-strip .done-toggle")?.focus(); }
+  function focusRenameTrigger(id) { root.querySelector(`[data-action="rename-item"][data-item-id="${id}"]`)?.focus(); }
+  function focusItem(id) { root.querySelector(`input[data-action="toggle-item"][data-item-id="${id}"]`)?.focus(); }
+
+  // Purely-visual rename transitions (no server): flip ui + repaint + place focus.
+  function startItemRename(id) { ui.renamingId = id; paint(); root.querySelector(".rename-form input")?.select(); }
+  function cancelRename() {
+    const id = ui.renamingId;
+    ui.renamingId = null;
+    paint();
+    if (id !== null && id !== "title") focusRenameTrigger(id);
+    else focusHeading();
+  }
 
   // Purely-visual picker transitions (no server): flip ui + repaint + place focus.
   function openPicker() { ui.pickerOpen = true; ui.mode = "list"; paint(); focusPicker(); }
@@ -99,12 +115,29 @@ export function createCardView(root) {
         } finally {
           submit.disabled = false;
         }
+      } else if (action === "add-item") {
+        e.preventDefault();
+        const f = e.target;
+        const text = f.elements["text"].value.trim(); // f.text would shadow the form's name attr
+        if (!text) return;
+        const submit = f.querySelector("button[type=submit]");
+        submit.disabled = true;
+        try { await h.addItem(text); } finally { submit.disabled = false; }
+      } else if (action === "save-item-rename") {
+        e.preventDefault();
+        const f = e.target;
+        const text = f.elements["text"].value.trim();
+        if (!text) return;
+        ui.renamingId = null;
+        await h.renameItem(Number(f.dataset.itemId), text);
       }
     });
 
     root.addEventListener("change", async (e) => {
       const done = e.target.closest('input[data-action="toggle-done"]');
       if (done) return h.toggleDone(done.checked);
+      const item = e.target.closest('input[data-action="toggle-item"]');
+      if (item) return h.toggleItem(Number(item.dataset.itemId), item.checked);
       const cb = e.target.closest('input[data-action="toggle-label"]');
       if (!cb) return;
       const id = Number(cb.dataset.labelId);
@@ -113,14 +146,18 @@ export function createCardView(root) {
     });
 
     root.addEventListener("keydown", (e) => {
-      if (e.key === "Escape" && ui.pickerOpen) { e.stopPropagation(); closePicker(); }
+      if (e.key !== "Escape") return;
+      if (ui.renamingId !== null) { e.stopPropagation(); cancelRename(); return; }
+      if (ui.pickerOpen) { e.stopPropagation(); closePicker(); }
     });
 
     root.addEventListener("click", (e) => {
       const btn = e.target.closest("[data-action]");
       if (!btn) return;
       const a = btn.dataset.action;
-      if (["save", "add-label", "save-label", "toggle-label"].includes(a)) return; // handled by submit/change
+      if (["save", "add-label", "save-label", "toggle-label", "add-item", "save-item-rename", "toggle-item"].includes(a)) return; // handled by submit/change
+      if (a === "rename-item") return startItemRename(Number(btn.dataset.itemId));
+      if (a === "toggle-item-done-section") { ui.doneOpen = !ui.doneOpen; paint(); focusDoneStripToggle(); return; }
       if (a === "back") return h.back();
       if (a === "delete") return h.delete();
       if (a === "toggle-picker") return ui.pickerOpen ? closePicker() : openPicker();
@@ -134,5 +171,6 @@ export function createCardView(root) {
     });
   }
 
-  return { render, focusHeading, focusPickerTrigger, focusToggle, focusPicker, bindActions };
+  return { render, focusHeading, focusPickerTrigger, focusToggle, focusPicker, bindActions,
+    focusAddInput, focusDoneStripToggle, focusRenameTrigger, focusItem };
 }

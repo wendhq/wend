@@ -34,6 +34,38 @@ export function createCardController(model, view, announce, {onBack, onDeleted} 
                 announce("Couldn't update the card — please try again.");
             }
         },
+        addItem: async (text) => {
+            try {
+                await model.addItem(text);
+                announce("Item added.");
+                view.focusAddInput(); // consecutive adds flow without re-tabbing
+            } catch {
+                announce("Couldn't add the item — please try again.");
+            }
+        },
+        toggleItem: async (id, checked) => {
+            const item = (current.items ?? []).find((i) => i.id === id);
+            const text = item ? item.text : "the item";
+            try {
+                await model.checkItem(id, checked);
+                const items = current.items ?? [];
+                const doneCount = items.filter((i) => i.checkedAt).length;
+                announce(`${checked ? "Checked" : "Un-checked"}: ${text} — ${doneCount} of ${items.length} done.`);
+                if (checked) view.focusDoneStripToggle(); // the row left for the (maybe collapsed) strip
+                else view.focusItem(id);                  // the row is back among the unchecked
+            } catch {
+                announce("Couldn't update the item — please try again.");
+            }
+        },
+        renameItem: async (id, text) => {
+            try {
+                await model.renameItem(id, text);
+                announce("Item renamed.");
+                view.focusRenameTrigger(id);
+            } catch {
+                announce("Couldn't rename the item — please try again.");
+            }
+        },
         attachLabel: async (id) => {
             try {
                 await model.attachLabel(id);
