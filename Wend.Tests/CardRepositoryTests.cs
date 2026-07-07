@@ -205,7 +205,7 @@ public class CardRepositoryTests
         var listId = await NewListAsync();
         Assert.That(await _repo.MoveCardAsync(9999, listId, 0), Is.EqualTo(CardMoveResult.NotFound));
     }
-    
+
     [Test]
     public async Task Move_to_another_list_appends_at_its_bottom_and_resequences_both()
     {
@@ -293,5 +293,99 @@ public class CardRepositoryTests
     public async Task Set_completed_reports_a_missing_card()
     {
         Assert.That(await _repo.SetCardCompletedAsync(9999, true), Is.False);
+    }
+
+    [Test]
+    public async Task Delete_soft_deletes_so_the_row_survives_for_undo()
+    {
+        var listId = await NewListAsync();
+        var card = await _repo.CreateCardAsync(listId, "Temp");
+
+        Assert.That(await _repo.DeleteCardAsync(card.Id), Is.True);
+
+        // Hidden from normal queries…
+        Assert.That(await _repo.GetCardsForListAsync(listId), Is.Empty);
+        // …but the row still exists with DeletedAt set, so undo can bring it back.
+        var row = await _db.Cards.IgnoreQueryFilters().SingleAsync(c => c.Id == card.Id);
+        Assert.That(row.DeletedAt, Is.Not.Null);
+    }
+
+    [Test]
+    public async Task Deleting_an_already_deleted_card_reports_missing()
+    {
+        var listId = await NewListAsync();
+        var card = await _repo.CreateCardAsync(listId, "Temp");
+        await _repo.DeleteCardAsync(card.Id);
+
+        Assert.That(await _repo.DeleteCardAsync(card.Id), Is.False);
+    }
+
+    [Test]
+    public async Task Restore_brings_a_deleted_card_back_to_its_original_position()
+    {
+        var listId = await NewListAsync();
+        await _repo.CreateCardAsync(listId, "A");          // 0
+        var b = await _repo.CreateCardAsync(listId, "B");  // 1
+        await _repo.CreateCardAsync(listId, "C");          // 2
+
+        await _repo.DeleteCardAsync(b.Id);                 // survivors resequence to A(0), C(1)
+        Assert.That(await _repo.RestoreCardAsync(b.Id), Is.True);
+
+        var cards = await _repo.GetCardsForListAsync(listId);
+        Assert.That(cards.Select(c => c.Title), Is.EqualTo(new[] { "A", "B", "C" }));
+        Assert.That(cards.Select(c => c.Position), Is.EqualTo(new[] { 0, 1, 2 })); // gapless, B back in the middle
+    }
+
+    [Test]
+    public async Task Restore_is_idempotent_for_a_card_that_is_not_deleted()
+    {
+        var listId = await NewListAsync();
+        var card = await _repo.CreateCardAsync(listId, "Here");
+
+        Assert.That(await _repo.RestoreCardAsync(card.Id), Is.True); // no-op, still reports found
+        Assert.That((await _repo.GetCardsForListAsync(listId)).Single().Title, Is.EqualTo("Here"));
+    }
+
+    [Test]
+    public async Task Restore_reports_a_missing_card()
+    {
+        Assert.That(await _repo.RestoreCardAsync(9999), Is.False);
+    }
+
+    [Test]
+    public async Task Restoring_a_done_card_keeps_it_done()
+    {
+        var listId = await NewListAsync();
+        var card = await _repo.CreateCardAsync(listId, "Shipped");
+        await _repo.SetCardCompletedAsync(card.Id, true);
+        await _repo.DeleteCardAsync(card.Id);
+
+        Assert.That(await _repo.RestoreCardAsync(card.Id), Is.True);
+        var row = await _db.Cards.IgnoreQueryFilters().SingleAsync(c => c.Id == card.Id);
+        Assert.That(row.DeletedAt, Is.Null);
+        Assert.That(row.CompletedAt, Is.Not.Null); // still done after undo
+    }
+
+    [Test]
+    public async Task Get_card_hides_a_soft_deleted_card()
+    {
+        var listId = await NewListAsync();
+        var card = await _repo.CreateCardAsync(listId, "Temp");
+        await _repo.DeleteCardAsync(card.Id);
+
+        Assert.That(await _repo.GetCardAsync(card.Id), Is.Null);
+    }
+
+    [Test]
+    public async Task Restore_works_from_a_fresh_context_not_only_a_tracked_one()
+    {
+        var listId = await NewListAsync();
+        var card = await _repo.CreateCardAsync(listId, "Temp");
+        await _repo.DeleteCardAsync(card.Id);
+
+        _db.ChangeTracker.Clear(); // force a DB read, as a new HTTP request would — no tracked entity
+
+        Assert.That(await _repo.RestoreCardAsync(card.Id), Is.True);
+        Assert.That((await _repo.GetCardsForListAsync(listId)).Select(c => c.Title), Is.EqualTo(new[] { "Temp" }));
     }
 }

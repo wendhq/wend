@@ -18,7 +18,7 @@ public static class CardEndpoints
                 var card = await cards.CreateCardAsync(listId, title);
                 return Results.Created($"/api/cards/{card.Id}", card);
             });
-        
+
         app.MapGet("/api/cards/{id:int}", async (int id, ICardRepository cards, IListRepository lists, ILabelRepository labels) =>
         {
             if (await cards.GetCardAsync(id) is not { } c) return Results.NotFound();
@@ -41,7 +41,10 @@ public static class CardEndpoints
 
         app.MapDelete("/api/cards/{id:int}", async (int id, ICardRepository cards) =>
             await cards.DeleteCardAsync(id) ? Results.NoContent() : Results.NotFound());
-        
+
+        app.MapPost("/api/cards/{id:int}/restore", async (int id, ICardRepository cards) =>
+            await cards.RestoreCardAsync(id) ? Results.NoContent() : Results.NotFound());
+
         app.MapPut("/api/cards/{id:int}/move", async (int id, MoveCardRequest req, ICardRepository cards) =>
             await cards.MoveCardAsync(id, req.ListId, req.Position) switch
             {

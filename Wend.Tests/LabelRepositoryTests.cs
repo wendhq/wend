@@ -203,7 +203,7 @@ public class LabelRepositoryTests
     }
 
     [Test]
-    public async Task Deleting_a_card_removes_its_join_rows()
+    public async Task Soft_deleting_a_card_keeps_its_join_rows_so_undo_can_recover_labels()
     {
         var board = await _boards.CreateBoardAsync("Board");
         var list = await _lists.CreateListAsync(board.Id, "List");
@@ -213,8 +213,9 @@ public class LabelRepositoryTests
 
         await _cards.DeleteCardAsync(card.Id);
 
-        Assert.That(await _db.CardLabels.AnyAsync(), Is.False);
-        Assert.That((await _labels.GetLabelAsync(label.Id)), Is.Not.Null); // label itself survives
+        // Soft delete keeps the row, so its label links survive — a restored card keeps its labels.
+        Assert.That(await _db.CardLabels.AnyAsync(), Is.True);
+        Assert.That((await _labels.GetLabelAsync(label.Id)), Is.Not.Null); // the label itself survives too
     }
 
     [Test]

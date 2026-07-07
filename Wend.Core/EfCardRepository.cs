@@ -9,7 +9,8 @@ public class EfCardRepository(WendDbContext db) : ICardRepository
             .OrderBy(c => c.Position)
             .ToListAsync();
 
-    public async Task<Card?> GetCardAsync(int id) => await db.Cards.FindAsync(id);
+    public async Task<Card?> GetCardAsync(int id) =>
+        await db.Cards.FirstOrDefaultAsync(c => c.Id == id); // goes through the filter → deleted cards read as gone
 
     public async Task<Card> CreateCardAsync(int listId, string title)
     {
@@ -41,10 +42,30 @@ public class EfCardRepository(WendDbContext db) : ICardRepository
     public async Task<bool> DeleteCardAsync(int id)
     {
         var card = await db.Cards.FindAsync(id);
-        if (card is null) return false;
-        db.Cards.Remove(card);
+        if (card is null || card.DeletedAt is not null) return false; // missing or already gone
+        card.DeletedAt = DateTime.UtcNow;   // soft delete — the row survives for undo
         await db.SaveChangesAsync();
-        await ResequenceAsync(card.ListId); // keep the survivors gapless (0,1,2,…)
+        await ResequenceAsync(card.ListId); // close the gap among the survivors (filter hides this card)
+        return true;
+    }
+
+    public async Task<bool> RestoreCardAsync(int id)
+    {
+        // IgnoreQueryFilters so the soft-deleted row is found from ANY context. FindAsync only
+        // returns it while it's still tracked in the same context — the API's per-request contexts
+        // read from the DB, where the filter hides it (that was the restore 404 the repo tests missed).
+        var card = await db.Cards.IgnoreQueryFilters().FirstOrDefaultAsync(c => c.Id == id);
+        if (card is null) return false;
+        if (card.DeletedAt is null) return true;   // already active — idempotent no-op
+
+        var siblings = await db.Cards.Where(c => c.ListId == card.ListId)
+            .OrderBy(c => c.Position)
+            .ToListAsync();                        // active siblings only (the card is still filtered out)
+        card.DeletedAt = null;
+        var index = Math.Clamp(card.Position, 0, siblings.Count); // its old spot, bounded to the list today
+        siblings.Insert(index, card);
+        for (var i = 0; i < siblings.Count; i++) siblings[i].Position = i;
+        await db.SaveChangesAsync();
         return true;
     }
 
