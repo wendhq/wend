@@ -1,4 +1,5 @@
 import { escapeHtml } from "../escape.js";
+import { getPrefs } from "../prefs.js";
 
 // Renders one board's view: back link, title, add-list form, each list with its move/rename/delete
 // controls, its ACTIVE cards (a leading done checkbox + label chips + move controls) and an add-card
@@ -17,6 +18,7 @@ export function createBoardView(root) {
     const board = lastBoard;
     const lists = board.lists;
     const labelsById = new Map((board.labels ?? []).map((l) => [l.id, l]));
+    const prefs = getPrefs();
 
     // Soft-tint chips for a card's labels (skips ids missing from the palette).
     const labelChips = (ids) =>
@@ -28,7 +30,8 @@ export function createBoardView(root) {
 
     const cardAria = (c) => {
       const names = (c.labelIds ?? []).map((id) => labelsById.get(id)).filter(Boolean).map((l) => l.name);
-      return `Open card: ${c.title}${names.length ? `, labels: ${names.join(", ")}` : ""}`;
+      const progress = c.checklistTotal ? `, ${c.checklistDone} of ${c.checklistTotal} done` : "";
+      return `Open card: ${c.title}${names.length ? `, labels: ${names.join(", ")}` : ""}${progress}`;
     };
 
     const items = lists.length
@@ -49,13 +52,15 @@ export function createBoardView(root) {
                     return `
             <li class="card-item" data-card-id="${c.id}" data-list-id="${l.id}">
               <div class="card-row">
-                <input type="checkbox" class="card-done-toggle" data-action="toggle-done" data-card-id="${c.id}"
-                  aria-label="Mark done: ${escapeHtml(c.title)}" />
+                ${prefs.showCardDone ? `<input type="checkbox" class="card-done-toggle" data-action="toggle-done" data-card-id="${c.id}"
+                  aria-label="Mark done: ${escapeHtml(c.title)}" />` : ""}
                 <button class="card-chip" data-action="open-card" data-card-id="${c.id}"
                   aria-label="${escapeHtml(cardAria(c))}">
                   ${chips ? `<span class="card-chip-labels">${chips}</span>` : ""}
                   <span class="card-title">${escapeHtml(c.title)}</span>
                   ${c.dueDate ? `<span class="card-due">${escapeHtml(c.dueDate)}</span>` : ""}
+                  ${c.checklistTotal ? `<span class="card-checklist">☑ ${c.checklistDone}/${c.checklistTotal}</span>
+                  <span class="card-progress" aria-hidden="true"><span class="card-progress-fill" style="width:${Math.round((c.checklistDone / c.checklistTotal) * 100)}%"></span></span>` : ""}
                 </button>
               </div>
               <div class="card-actions">

@@ -328,3 +328,27 @@
 .toast-action,
 .toast-dismiss { min-height: 44px; }
 .toast-dismiss { min-width: 44px; }
+
+/* Checklist progress on a card chip: a quiet count pill + a thin decorative bar. */
+.card-checklist {
+  font-size: 0.8rem;
+  opacity: 0.85;
+}
+.card-progress {
+  display: block;
+  height: 4px;
+  border-radius: 999px;
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  overflow: hidden;
+}
+.card-progress-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--wend-mint, #52e0b6);
+}
+/* Forced colors flatten backgrounds — keep the bar visible with real borders/colors. */
+@media (forced-colors: active) {
+  .card-progress { border: 1px solid CanvasText; background: Canvas; }
+  .card-progress-fill { background: CanvasText; }
+}
