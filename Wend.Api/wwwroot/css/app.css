@@ -51,6 +51,24 @@
   padding: 1rem;
   border-bottom: 1px solid;
   border-color: color-mix(in srgb, currentColor 15%, transparent);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* Settings screen. */
+.settings-view { display: flex; flex-direction: column; }
+.settings-heading { margin: 0 0 1rem; font-size: 1.25rem; }
+.setting-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  min-height: 44px; /* touch target */
+}
+.setting-hint {
+  opacity: 0.7;
+  font-size: 0.9rem;
+  margin: 0.25rem 0 1rem;
 }
 
 .app-header h1 {
@@ -310,3 +328,100 @@
 .toast-action,
 .toast-dismiss { min-height: 44px; }
 .toast-dismiss { min-width: 44px; }
+
+/* Checklist progress on a card chip: a quiet count pill + a thin decorative bar. */
+.card-checklist {
+  font-size: 0.8rem;
+  opacity: 0.85;
+}
+.card-progress {
+  display: block;
+  height: 4px;
+  border-radius: 999px;
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  overflow: hidden;
+}
+.card-progress-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--wend-mint, #52e0b6);
+}
+/* Forced colors flatten backgrounds — keep the bar visible with real borders/colors. */
+@media (forced-colors: active) {
+  .card-progress { border: 1px solid CanvasText; background: Canvas; }
+  .card-progress-fill { background: CanvasText; }
+}
+
+/* Checklist section in the task view. */
+.checklist-section {
+  border: 1px solid;
+  border-color: color-mix(in srgb, currentColor 15%, transparent);
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.checklist-header { display: flex; gap: 0.5rem; align-items: baseline; }
+.checklist-title { font-weight: 600; }
+.checklist-items, .done-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.checklist-row, .done-item-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  min-height: 44px; /* touch target */
+}
+.checklist-row .rename-trigger {
+  flex: 1;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0.25rem 0;
+  font: inherit;
+  color: inherit;
+}
+.rename-form { flex: 1; display: flex; gap: 0.5rem; }
+.rename-form input { flex: 1; }
+.item-actions { display: flex; gap: 0.25rem; }
+.item-form { display: flex; gap: 0.5rem; }
+.item-form input { flex: 1; }
+/* Done strip: dimmed, struck-through rows behind a disclosure. */
+.done-strip {
+  border-top: 1px solid;
+  border-color: color-mix(in srgb, currentColor 15%, transparent);
+  padding-top: 0.5rem;
+}
+.done-item-row { opacity: 0.6; }
+.done-item-text { text-decoration: line-through; }
+.done-row-label { display: flex; gap: 0.5rem; align-items: center; flex: 1; }
+
+/* Task-view header row + edit toggle. */
+.card-view-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+.card-view-top .back-link { margin-bottom: 0; }
+.card-heading .rename-trigger {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+}
+.card-meta { margin: 0 0 0.5rem; }
+.card-notes {
+  margin: 0 0 1rem;
+  white-space: pre-wrap; /* keep the user's line breaks in read-only notes */
+}

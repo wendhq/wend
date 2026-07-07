@@ -19,14 +19,17 @@ public static class CardEndpoints
                 return Results.Created($"/api/cards/{card.Id}", card);
             });
 
-        app.MapGet("/api/cards/{id:int}", async (int id, ICardRepository cards, IListRepository lists, ILabelRepository labels) =>
+        app.MapGet("/api/cards/{id:int}", async (int id, ICardRepository cards, IListRepository lists,
+            ILabelRepository labels, IChecklistItemRepository checklist) =>
         {
             if (await cards.GetCardAsync(id) is not { } c) return Results.NotFound();
             var list = await lists.GetListAsync(c.ListId);
             var attached = (await labels.GetCardLabelsAsync(c.Id))
                 .Select(l => new LabelDto(l.Id, l.Name, l.Colour)).ToList();
+            var items = (await checklist.GetItemsForCardAsync(c.Id))
+                .Select(i => new ChecklistItemDto(i.Id, i.Text, i.CheckedAt, i.Position)).ToList();
             return Results.Ok(new CardDetail(c.Id, c.ListId, list?.Title ?? "", list?.BoardId ?? 0,
-                c.Title, c.Description, c.DueDate, c.Position, c.CompletedAt, attached));
+                c.Title, c.Description, c.DueDate, c.Position, c.CompletedAt, attached, items));
         });
 
         app.MapPut("/api/cards/{id:int}", async (int id, EditCardRequest req, ICardRepository cards) =>
@@ -62,7 +65,7 @@ public static class CardEndpoints
 }
 
 public record CreateCardRequest(string Title);
-public record CardDetail(int Id, int ListId, string ListTitle, int BoardId, string Title, string? Description, DateOnly? DueDate, int Position, DateTime? CompletedAt, IReadOnlyList<LabelDto> Labels);
+public record CardDetail(int Id, int ListId, string ListTitle, int BoardId, string Title, string? Description, DateOnly? DueDate, int Position, DateTime? CompletedAt, IReadOnlyList<LabelDto> Labels, IReadOnlyList<ChecklistItemDto> Items);
 public record EditCardRequest(string Title, string? Description, DateOnly? DueDate);
 public record MoveCardRequest(int ListId, int Position);
 public record CompleteCardRequest(bool Completed);

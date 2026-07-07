@@ -10,6 +10,9 @@ import { createCardView } from "./card/view.js";
 import { createCardController } from "./card/controller.js";
 import { api } from "./api.js";
 import { createToast } from "./toast.js";
+import { createSettingsModel } from "./settings/model.js";
+import { createSettingsView } from "./settings/view.js";
+import { createSettingsController } from "./settings/controller.js";
 
 const announce = createAnnouncer(document.getElementById("status"));
 const toast = createToast(document.getElementById("toast-region"));
@@ -24,7 +27,7 @@ function mount(build) {
   build(root);
 }
 
-function showOverview(focusBoardId) {
+function showOverview(focusBoardId, focusInput = false) {
   mount((root) => {
     const model = createBoardsModel();
     const view = createBoardsView(root);
@@ -32,6 +35,7 @@ function showOverview(focusBoardId) {
     // After (re)load, return focus to the board we came back from — but not on first paint.
     model.load().then(() => {
       if (focusBoardId) view.focusOpen(focusBoardId);
+      else if (focusInput) view.focusNewBoardInput();
     });
   });
 }
@@ -51,7 +55,7 @@ function showBoard(boardId, focusCardId) {
   });
 }
 
-function showCard(cardId, boardId) {
+function showCard(cardId, boardId, focusItemId) {
     mount((root) => {
         const model = createCardModel(cardId);
         const view = createCardView(root);
@@ -67,8 +71,21 @@ function showCard(cardId, boardId) {
                 });
                 announce(`Deleted: ${title}. Undo available.`);
             },
+            onItemDeleted: (itemId, text) => {
+                toast.show({
+                    message: `Deleted: ${text}`,
+                    actionLabel: "Undo",
+                    onAction: () => undoItemDelete(itemId, text, cardId, boardId),
+                    onDismissFocus: () => document.querySelector(".item-form input")?.focus(),
+                    ariaLabel: "Deleted checklist item",
+                });
+                announce(`Deleted: ${text}. Undo available.`);
+            },
         });
-        model.load().then(() => view.focusHeading());
+        model.load().then(() => {
+            if (focusItemId) view.focusItem(focusItemId);
+            else view.focusHeading();
+        });
     });
 }
 
@@ -81,5 +98,28 @@ async function undoDelete(cardId, title, boardId) {
         announce("Couldn't restore the card — please try again.");
     }
 }
+
+// The toast outlives navigation, so undo RE-MOUNTS the task view from wherever we are
+// (mirrors undoDelete's navigate-on-undo) and focuses the restored item — focusItem opens
+// the Done strip first if the item came back checked.
+async function undoItemDelete(itemId, text, cardId, boardId) {
+    try {
+        await api(`/api/checklist-items/${itemId}/restore`, { method: "POST" });
+        announce(`Restored: ${text}.`);
+        showCard(cardId, boardId, itemId);
+    } catch {
+        announce("Couldn't restore the item — please try again.");
+    }
+}
+
+function showSettings() {
+  mount((root) => {
+    const model = createSettingsModel();
+    const view = createSettingsView(root);
+    createSettingsController(model, view, announce, { onBack: () => showOverview(null, true) });
+    view.focusHeading(); // house pattern: mounting focuses the screen's heading
+  });
+}
+document.getElementById("settings-link").addEventListener("click", showSettings);
 
 showOverview(); // first paint: no forced focus, skip link is available

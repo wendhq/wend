@@ -10,6 +10,7 @@ public class WendDbContext(DbContextOptions<WendDbContext> options) : DbContext(
     public DbSet<Card> Cards => Set<Card>();
     public DbSet<Label> Labels => Set<Label>();
     public DbSet<CardLabel> CardLabels => Set<CardLabel>();
+    public DbSet<ChecklistItem> ChecklistItems => Set<ChecklistItem>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -22,5 +23,9 @@ public class WendDbContext(DbContextOptions<WendDbContext> options) : DbContext(
         modelBuilder.Entity<CardLabel>().HasKey(cl => new { cl.CardId, cl.LabelId });
         modelBuilder.Entity<CardLabel>().HasOne<Card>().WithMany().HasForeignKey(cl => cl.CardId);
         modelBuilder.Entity<CardLabel>().HasOne<Label>().WithMany().HasForeignKey(cl => cl.LabelId);
+
+        // Hide soft-deleted checklist items from every query — mirrors the Card filter. Items
+        // carry their own filter so the required relationship to the filtered Card doesn't warn.
+        modelBuilder.Entity<ChecklistItem>().HasQueryFilter(i => i.DeletedAt == null);
     }
 }

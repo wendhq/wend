@@ -15,4 +15,7 @@ public class Card
     public DateTime? CompletedAt { get; set; }   // Plan 6 (Done)
     public DateTime? ArchivedAt { get; set; }    // later slice (Archive)
     public DateTime? DeletedAt { get; set; }     // Plan 7 (undo-delete)
+
+    // A card's checklist items. Required FK on ChecklistItem.CardId → deleting a card cascades to them.
+    public ICollection<ChecklistItem> ChecklistItems { get; set; } = [];
 }

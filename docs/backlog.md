@@ -24,7 +24,8 @@ Things we've consciously chosen to do *later*, each with the reason and the trig
 - **Now:** the board card-front shows labels as full soft-tint **chips** (name + colour) — the accessible default shipped in Plan 4.
 - **Later:** a per-user **setting** to switch the board front to compact **colour bars** (Trello-style, space-efficient); the user picks which they prefer, and the task view keeps full chips either way.
 - **Why deferred:** colour-bars-only makes colour the sole *visible* signal, so it needs the label names carried in screen-reader text **and** a real settings surface to store the preference — neither exists in Slice 1, and chips are the safe default to ship first.
-- **Revisit when:** Slice 1 grows a settings / preferences home to hang it on (or users ask for a denser board).
+- **Revisit when:** wanted — the blocker is gone: the checklist increment shipped a Settings
+  screen (`js/prefs.js` + `js/settings/`), so this toggle now has a home to hang on.
 - **Decided:** 2026-06-23 (Malin).
 
 ### Multi-card batch undo — restore several deleted cards at once
@@ -37,8 +38,7 @@ Things we've consciously chosen to do *later*, each with the reason and the trig
 
 ### Undo for checklist-item deletes
 
-- **Now:** the per-card checklist isn't built yet (it's the next increment); undo-first delete applies to cards only.
-- **Later:** when the checklist ships, deleting a checklist item ("task") should be undoable the same way a card is — soft-delete + a "Deleted · Undo" toast (or the batch mechanism above) — not an immediate hard delete.
-- **Why deferred:** there's nothing to undo until the checklist exists; this is a requirement to bake into the **checklist increment**, not a Plan 7 change.
-- **Revisit when:** building the per-card checklist — carry this into its spec.
-- **Decided:** 2026-07-07 (Malin & Henry, Plan 7 acceptance).
+- **Resolved (checklist increment, feature/checklist):** shipped as specced — checklist items
+  soft-delete (`DeletedAt` + query filter) with a "Deleted · Undo" toast that restores in place,
+  sharing the cards' toast primitive and retention behaviour.
+- **Originally decided:** 2026-07-07 (Malin & Henry, Plan 7 acceptance).
