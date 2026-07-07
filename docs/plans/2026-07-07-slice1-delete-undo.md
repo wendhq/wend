@@ -159,7 +159,9 @@ public async Task Restoring_a_done_card_keeps_it_done()
 ```csharp
 public async Task<bool> RestoreCardAsync(int id)
 {
-    var card = await db.Cards.FindAsync(id);   // FindAsync bypasses the filter, so it sees the deleted row
+    // IgnoreQueryFilters — FindAsync only sees the deleted row while it's still tracked in this
+    // context; the API reads from the DB per request, where the filter hides it.
+    var card = await db.Cards.IgnoreQueryFilters().FirstOrDefaultAsync(c => c.Id == id);
     if (card is null) return false;
     if (card.DeletedAt is null) return true;   // already active — idempotent no-op
 

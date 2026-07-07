@@ -60,8 +60,8 @@ existing `data.db` files already have the column.
   `ResequenceAsync(card.ListId)` call. `ResequenceAsync` queries through the filter, so it
   renumbers the **surviving** (still-visible) cards to a gapless `0..n-1` and never touches
   the deleted card's stored `Position`.
-- Returns `false` when the card is missing or already soft-deleted. `FindAsync` bypasses
-  the filter, so it can see an already-deleted row and reject the double-delete.
+- Returns `false` when the card is missing or already soft-deleted (the guard catches an
+  already-deleted row while it's still tracked; a fresh read finds it already filtered out).
 
 **New — `POST /api/cards/{id}/restore`**
 
@@ -69,24 +69,31 @@ existing `data.db` files already have the column.
   isn't deleted); `404` if no such card row exists.
 - `ICardRepository.RestoreCardAsync(int id)` returns whether the card was found.
   `EfCardRepository`:
-  - `FindAsync(id)` (bypasses the filter) → `null` ⇒ `false` (404). Already active
-    (`DeletedAt is null`) ⇒ `true` (no-op).
+  - `db.Cards.IgnoreQueryFilters().FirstOrDefaultAsync(c => c.Id == id)` → `null` ⇒ `false`
+    (404). Already active (`DeletedAt is null`) ⇒ `true` (no-op). **Must be
+    `IgnoreQueryFilters`, not `FindAsync`** — see the note below.
   - Otherwise: load the list's current active cards (`GetCardsForListAsync` — the filter
     still excludes the deleted card), clear `DeletedAt`, insert the card at
     `Math.Clamp(card.Position, 0, activeCount)`, renumber `0..n`, save.
 - If the card's list was hard-deleted meanwhile, the FK cascade removed the card row too →
-  `FindAsync` returns `null` → 404, and the toast surfaces "Couldn't restore." Rare; the
+  the read returns `null` → 404, and the toast surfaces "Couldn't restore." Rare; the
   toast is short-lived.
 
 **Hardening — the card GET hides a deleted card.** `GetCardAsync` (`EfCardRepository.cs:12`)
-uses `FindAsync`, which bypasses the filter, so `GET /api/cards/{id}` would still return a
-soft-deleted card (reachable via a stale link / the back button). Change it to a filtered
-read (`db.Cards.Where(c => c.Id == id).FirstOrDefaultAsync()`) so a deleted card `404`s.
-Restore keeps its own `FindAsync`, so it still finds the row. Small, in-scope correctness
-fix — no other API caller depends on the old behaviour (`Edit/Delete/Move/Complete/Restore`
-all use `FindAsync` directly).
+used `FindAsync`, which returns a *tracked* soft-deleted card straight from the change-tracker
+— so a GET right after a delete (same context) could still return it. Change it to a filtered
+read (`db.Cards.FirstOrDefaultAsync(c => c.Id == id)`) so a deleted card `404`s consistently.
+Small, in-scope correctness fix.
 
 No other endpoint changes — the board nest already drops soft-deleted cards.
+
+> **`FindAsync` vs. the query filter (the lesson).** `FindAsync` returns an entity straight
+> from the change-tracker when it's already tracked — bypassing the filter — but when it
+> reads from the database it **applies** the global query filter. Each API request gets its
+> own `DbContext`, so restore reads from the DB, where a soft-deleted card is filtered out.
+> That's why `RestoreCardAsync` uses `IgnoreQueryFilters()`. Repo tests that reuse one
+> context keep the entity tracked and never hit this — a fresh-context test (or
+> `ChangeTracker.Clear()`) does.
 
 ## Frontend (vanilla-JS MVC, served from `wwwroot`)
 
