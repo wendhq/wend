@@ -375,4 +375,17 @@ public class CardRepositoryTests
 
         Assert.That(await _repo.GetCardAsync(card.Id), Is.Null);
     }
+
+    [Test]
+    public async Task Restore_works_from_a_fresh_context_not_only_a_tracked_one()
+    {
+        var listId = await NewListAsync();
+        var card = await _repo.CreateCardAsync(listId, "Temp");
+        await _repo.DeleteCardAsync(card.Id);
+
+        _db.ChangeTracker.Clear(); // force a DB read, as a new HTTP request would — no tracked entity
+
+        Assert.That(await _repo.RestoreCardAsync(card.Id), Is.True);
+        Assert.That((await _repo.GetCardsForListAsync(listId)).Select(c => c.Title), Is.EqualTo(new[] { "Temp" }));
+    }
 }

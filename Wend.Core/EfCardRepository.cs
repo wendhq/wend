@@ -51,7 +51,10 @@ public class EfCardRepository(WendDbContext db) : ICardRepository
 
     public async Task<bool> RestoreCardAsync(int id)
     {
-        var card = await db.Cards.FindAsync(id);   // FindAsync bypasses the filter, so it sees the deleted row
+        // IgnoreQueryFilters so the soft-deleted row is found from ANY context. FindAsync only
+        // returns it while it's still tracked in the same context — the API's per-request contexts
+        // read from the DB, where the filter hides it (that was the restore 404 the repo tests missed).
+        var card = await db.Cards.IgnoreQueryFilters().FirstOrDefaultAsync(c => c.Id == id);
         if (card is null) return false;
         if (card.DeletedAt is null) return true;   // already active — idempotent no-op
 
