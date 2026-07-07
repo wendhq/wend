@@ -10,6 +10,9 @@ import { createCardView } from "./card/view.js";
 import { createCardController } from "./card/controller.js";
 import { api } from "./api.js";
 import { createToast } from "./toast.js";
+import { createSettingsModel } from "./settings/model.js";
+import { createSettingsView } from "./settings/view.js";
+import { createSettingsController } from "./settings/controller.js";
 
 const announce = createAnnouncer(document.getElementById("status"));
 const toast = createToast(document.getElementById("toast-region"));
@@ -24,7 +27,7 @@ function mount(build) {
   build(root);
 }
 
-function showOverview(focusBoardId) {
+function showOverview(focusBoardId, focusInput = false) {
   mount((root) => {
     const model = createBoardsModel();
     const view = createBoardsView(root);
@@ -32,6 +35,7 @@ function showOverview(focusBoardId) {
     // After (re)load, return focus to the board we came back from — but not on first paint.
     model.load().then(() => {
       if (focusBoardId) view.focusOpen(focusBoardId);
+      else if (focusInput) view.focusNewBoardInput();
     });
   });
 }
@@ -81,5 +85,15 @@ async function undoDelete(cardId, title, boardId) {
         announce("Couldn't restore the card — please try again.");
     }
 }
+
+function showSettings() {
+  mount((root) => {
+    const model = createSettingsModel();
+    const view = createSettingsView(root);
+    createSettingsController(model, view, announce, { onBack: () => showOverview(null, true) });
+    view.focusHeading(); // house pattern: mounting focuses the screen's heading
+  });
+}
+document.getElementById("settings-link").addEventListener("click", showSettings);
 
 showOverview(); // first paint: no forced focus, skip link is available

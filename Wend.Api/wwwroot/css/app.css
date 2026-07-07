@@ -51,6 +51,24 @@
   padding: 1rem;
   border-bottom: 1px solid;
   border-color: color-mix(in srgb, currentColor 15%, transparent);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* Settings screen. */
+.settings-view { display: flex; flex-direction: column; }
+.settings-heading { margin: 0 0 1rem; font-size: 1.25rem; }
+.setting-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  min-height: 44px; /* touch target */
+}
+.setting-hint {
+  opacity: 0.7;
+  font-size: 0.9rem;
+  margin: 0.25rem 0 1rem;
 }
 
 .app-header h1 {
