@@ -26,10 +26,26 @@ public static class ChecklistItemEndpoints
                 return await items.RenameItemAsync(id, text) ? Results.NoContent() : Results.NotFound();
             });
 
+        app.MapPut("/api/checklist-items/{id:int}/check",
+            async (int id, CheckChecklistItemRequest req, IChecklistItemRepository items) =>
+                await items.SetCheckedAsync(id, req.Checked) ? Results.NoContent() : Results.NotFound());
+
+        app.MapPut("/api/checklist-items/{id:int}/move",
+            async (int id, MoveChecklistItemRequest req, IChecklistItemRepository items) =>
+                await items.MoveItemAsync(id, req.Position) ? Results.NoContent() : Results.NotFound());
+
+        app.MapDelete("/api/checklist-items/{id:int}", async (int id, IChecklistItemRepository items) =>
+            await items.DeleteItemAsync(id) ? Results.NoContent() : Results.NotFound());
+
+        app.MapPost("/api/checklist-items/{id:int}/restore", async (int id, IChecklistItemRepository items) =>
+            await items.RestoreItemAsync(id) ? Results.NoContent() : Results.NotFound());
+
         return app;
     }
 }
 
 public record CreateChecklistItemRequest(string Text);
 public record RenameChecklistItemRequest(string Text);
+public record CheckChecklistItemRequest(bool Checked);
+public record MoveChecklistItemRequest(int Position);
 public record ChecklistItemDto(int Id, string Text, DateTime? CheckedAt, int Position);

@@ -95,4 +95,85 @@ public class ChecklistItemApiTests
         Assert.That(detail.Items.Select(i => i.Text), Is.EqualTo(new[] { "Renamed", "Second" }));
         Assert.That(detail.Items.Select(i => i.Position), Is.EqualTo(new[] { 0, 1 }));
     }
+
+    [Test]
+    public async Task Checking_an_item_stamps_and_clears_its_checkedAt()
+    {
+        var cardId = await NewCardAsync();
+        var item = await AddItemAsync(cardId, "Do it");
+
+        var check = await _client.PutAsJsonAsync($"/api/checklist-items/{item.Id}/check", new { @checked = true });
+        Assert.That(check.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
+        var detail = (await _client.GetFromJsonAsync<CardDetailDto>($"/api/cards/{cardId}"))!;
+        Assert.That(detail.Items.Single().CheckedAt, Is.Not.Null);
+
+        await _client.PutAsJsonAsync($"/api/checklist-items/{item.Id}/check", new { @checked = false });
+        detail = (await _client.GetFromJsonAsync<CardDetailDto>($"/api/cards/{cardId}"))!;
+        Assert.That(detail.Items.Single().CheckedAt, Is.Null);
+    }
+
+    [Test]
+    public async Task Moving_an_item_reorders_it()
+    {
+        var cardId = await NewCardAsync();
+        await AddItemAsync(cardId, "A");                 // 0
+        await AddItemAsync(cardId, "B");                 // 1
+        var c = await AddItemAsync(cardId, "C");         // 2
+
+        var move = await _client.PutAsJsonAsync($"/api/checklist-items/{c.Id}/move", new { position = 0 });
+        Assert.That(move.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
+
+        var detail = (await _client.GetFromJsonAsync<CardDetailDto>($"/api/cards/{cardId}"))!;
+        Assert.That(detail.Items.Select(i => i.Text), Is.EqualTo(new[] { "C", "A", "B" }));
+    }
+
+    [Test]
+    public async Task Deleting_then_restoring_an_item_brings_it_back_in_place()
+    {
+        var cardId = await NewCardAsync();
+        await AddItemAsync(cardId, "A");                 // 0
+        var b = await AddItemAsync(cardId, "B");         // 1
+        await AddItemAsync(cardId, "C");                 // 2
+
+        var del = await _client.DeleteAsync($"/api/checklist-items/{b.Id}");
+        Assert.That(del.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
+        var detail = (await _client.GetFromJsonAsync<CardDetailDto>($"/api/cards/{cardId}"))!;
+        Assert.That(detail.Items.Select(i => i.Text), Is.EqualTo(new[] { "A", "C" }));
+
+        var restore = await _client.PostAsync($"/api/checklist-items/{b.Id}/restore", null);
+        Assert.That(restore.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
+        detail = (await _client.GetFromJsonAsync<CardDetailDto>($"/api/cards/{cardId}"))!;
+        Assert.That(detail.Items.Select(i => i.Text), Is.EqualTo(new[] { "A", "B", "C" }));
+    }
+
+    [Test]
+    public async Task Missing_item_endpoints_are_404()
+    {
+        Assert.That((await _client.PutAsJsonAsync("/api/checklist-items/9999", new { text = "X" })).StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+        Assert.That((await _client.PutAsJsonAsync("/api/checklist-items/9999/check", new { @checked = true })).StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+        Assert.That((await _client.PutAsJsonAsync("/api/checklist-items/9999/move", new { position = 0 })).StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+        Assert.That((await _client.DeleteAsync("/api/checklist-items/9999")).StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+        Assert.That((await _client.PostAsync("/api/checklist-items/9999/restore", null)).StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+    }
+
+    [Test]
+    public async Task Board_nest_exposes_checklist_counts()
+    {
+        var board = await CreateBoardAsync("Sprint");
+        var listRes = await _client.PostAsJsonAsync($"/api/boards/{board.Id}/lists", new { title = "To do" });
+        var list = (await listRes.Content.ReadFromJsonAsync<ListDto>())!;
+        var cardRes = await _client.PostAsJsonAsync($"/api/lists/{list.Id}/cards", new { title = "With items" });
+        var cardId = (await cardRes.Content.ReadFromJsonAsync<CardDto>())!.Id;
+        await _client.PostAsJsonAsync($"/api/lists/{list.Id}/cards", new { title = "Without items" });
+
+        var item = await AddItemAsync(cardId, "One");
+        await AddItemAsync(cardId, "Two");
+        await _client.PutAsJsonAsync($"/api/checklist-items/{item.Id}/check", new { @checked = true });
+
+        var detail = (await _client.GetFromJsonAsync<BoardWithCardsDto>($"/api/boards/{board.Id}"))!;
+        var cards = detail.Lists.Single().Cards;
+        Assert.That(cards.Single(c => c.Title == "With items").ChecklistDone, Is.EqualTo(1));
+        Assert.That(cards.Single(c => c.Title == "With items").ChecklistTotal, Is.EqualTo(2));
+        Assert.That(cards.Single(c => c.Title == "Without items").ChecklistTotal, Is.EqualTo(0));
+    }
 }

@@ -85,6 +85,19 @@ public class EfChecklistItemRepository(WendDbContext db) : IChecklistItemReposit
         return true;
     }
 
+    public async Task<IReadOnlyDictionary<int, ChecklistCounts>> GetCountsByCardAsync(int boardId)
+    {
+        var rows = await (
+            from i in db.ChecklistItems
+            join c in db.Cards on i.CardId equals c.Id
+            join l in db.Lists on c.ListId equals l.Id
+            where l.BoardId == boardId
+            group i by i.CardId into g
+            select new { CardId = g.Key, Done = g.Count(x => x.CheckedAt != null), Total = g.Count() })
+            .ToListAsync();
+        return rows.ToDictionary(r => r.CardId, r => new ChecklistCounts(r.Done, r.Total));
+    }
+
     // Rewrites a card's item positions to a gapless 0-based sequence in current order.
     private async Task ResequenceAsync(int cardId)
     {

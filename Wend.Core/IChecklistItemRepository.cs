@@ -14,4 +14,7 @@ public interface IChecklistItemRepository
     Task<bool> MoveItemAsync(int id, int position);
     Task<bool> DeleteItemAsync(int id);
     Task<bool> RestoreItemAsync(int id);
+    Task<IReadOnlyDictionary<int, ChecklistCounts>> GetCountsByCardAsync(int boardId);
 }
+
+public record ChecklistCounts(int Done, int Total);
