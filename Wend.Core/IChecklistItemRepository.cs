@@ -10,4 +10,6 @@ public interface IChecklistItemRepository
     Task<IReadOnlyList<ChecklistItem>> GetItemsForCardAsync(int cardId);
     Task<ChecklistItem> AddItemAsync(int cardId, string text);
     Task<bool> RenameItemAsync(int id, string text);
+    Task<bool> SetCheckedAsync(int id, bool isChecked);
+    Task<bool> MoveItemAsync(int id, int position);
 }

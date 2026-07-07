@@ -136,4 +136,48 @@ public class ChecklistItemRepositoryTests
 
         Assert.That(await _repo.RenameItemAsync(9999, "X"), Is.False);
     }
+
+    [Test]
+    public async Task Set_checked_stamps_checkedAt_and_clears_it()
+    {
+        var cardId = await NewCardAsync();
+        var item = await _repo.AddItemAsync(cardId, "Do it");
+
+        Assert.That(await _repo.SetCheckedAsync(item.Id, true), Is.True);
+        Assert.That((await _repo.GetItemsForCardAsync(cardId)).Single().CheckedAt, Is.Not.Null);
+
+        Assert.That(await _repo.SetCheckedAsync(item.Id, false), Is.True);
+        Assert.That((await _repo.GetItemsForCardAsync(cardId)).Single().CheckedAt, Is.Null);
+    }
+
+    [Test]
+    public async Task Set_checked_reports_a_missing_item()
+    {
+        Assert.That(await _repo.SetCheckedAsync(9999, true), Is.False);
+    }
+
+    [Test]
+    public async Task Move_reorders_within_the_card_and_clamps_an_overshoot()
+    {
+        var cardId = await NewCardAsync();
+        var a = await _repo.AddItemAsync(cardId, "A");   // 0
+        await _repo.AddItemAsync(cardId, "B");           // 1
+        var c = await _repo.AddItemAsync(cardId, "C");   // 2
+
+        Assert.That(await _repo.MoveItemAsync(c.Id, 0), Is.True);
+        var items = await _repo.GetItemsForCardAsync(cardId);
+        Assert.That(items.Select(i => i.Text), Is.EqualTo(new[] { "C", "A", "B" }));
+        Assert.That(items.Select(i => i.Position), Is.EqualTo(new[] { 0, 1, 2 })); // gapless
+
+        // Position 99 overshoots — it should clamp to the bottom.
+        Assert.That(await _repo.MoveItemAsync(a.Id, 99), Is.True);
+        items = await _repo.GetItemsForCardAsync(cardId);
+        Assert.That(items.Select(i => i.Text), Is.EqualTo(new[] { "C", "B", "A" }));
+    }
+
+    [Test]
+    public async Task Move_reports_a_missing_item()
+    {
+        Assert.That(await _repo.MoveItemAsync(9999, 0), Is.False);
+    }
 }
