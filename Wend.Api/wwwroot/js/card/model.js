@@ -42,6 +42,10 @@ export function createCardModel(cardId) {
       await api(`/api/checklist-items/${id}/move`, { method: "PUT", body: JSON.stringify({ position }) });
       await this.load();
     },
+    async deleteItem(id) {
+      await api(`/api/checklist-items/${id}`, { method: "DELETE" });
+      await this.load();
+    },
     async remove() {
       await api(`/api/cards/${cardId}`, { method: "DELETE" });
     },

@@ -55,7 +55,7 @@ function showBoard(boardId, focusCardId) {
   });
 }
 
-function showCard(cardId, boardId) {
+function showCard(cardId, boardId, focusItemId) {
     mount((root) => {
         const model = createCardModel(cardId);
         const view = createCardView(root);
@@ -71,8 +71,21 @@ function showCard(cardId, boardId) {
                 });
                 announce(`Deleted: ${title}. Undo available.`);
             },
+            onItemDeleted: (itemId, text) => {
+                toast.show({
+                    message: `Deleted: ${text}`,
+                    actionLabel: "Undo",
+                    onAction: () => undoItemDelete(itemId, text, cardId, boardId),
+                    onDismissFocus: () => document.querySelector(".item-form input")?.focus(),
+                    ariaLabel: "Deleted checklist item",
+                });
+                announce(`Deleted: ${text}. Undo available.`);
+            },
         });
-        model.load().then(() => view.focusHeading());
+        model.load().then(() => {
+            if (focusItemId) view.focusItem(focusItemId);
+            else view.focusHeading();
+        });
     });
 }
 
@@ -83,6 +96,19 @@ async function undoDelete(cardId, title, boardId) {
         showBoard(boardId, cardId); // re-mount the board and focus the restored card
     } catch {
         announce("Couldn't restore the card — please try again.");
+    }
+}
+
+// The toast outlives navigation, so undo RE-MOUNTS the task view from wherever we are
+// (mirrors undoDelete's navigate-on-undo) and focuses the restored item — focusItem opens
+// the Done strip first if the item came back checked.
+async function undoItemDelete(itemId, text, cardId, boardId) {
+    try {
+        await api(`/api/checklist-items/${itemId}/restore`, { method: "POST" });
+        announce(`Restored: ${text}.`);
+        showCard(cardId, boardId, itemId);
+    } catch {
+        announce("Couldn't restore the item — please try again.");
     }
 }
 

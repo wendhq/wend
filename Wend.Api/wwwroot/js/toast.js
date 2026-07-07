@@ -33,13 +33,13 @@ export function createToast(region) {
     current = null;
   }
 
-  function show({ message, actionLabel, onAction, onDismissFocus }) {
+  function show({ message, actionLabel, onAction, onDismissFocus, ariaLabel = "Deleted card" }) {
     dismiss(); // one toast at a time — replace any current one
 
     const el = document.createElement("div");
     el.className = "toast toast-info";
     el.setAttribute("role", "group");
-    el.setAttribute("aria-label", "Deleted card");
+    el.setAttribute("aria-label", ariaLabel);
 
     const text = document.createElement("span");
     text.className = "toast-message";

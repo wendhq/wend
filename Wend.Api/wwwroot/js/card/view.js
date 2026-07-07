@@ -77,7 +77,11 @@ export function createCardView(root) {
   function focusAddInput() { root.querySelector(".item-form input")?.focus(); }
   function focusDoneStripToggle() { root.querySelector(".done-strip .done-toggle")?.focus(); }
   function focusRenameTrigger(id) { root.querySelector(`[data-action="rename-item"][data-item-id="${id}"]`)?.focus(); }
-  function focusItem(id) { root.querySelector(`input[data-action="toggle-item"][data-item-id="${id}"]`)?.focus(); }
+  function focusItem(id) {
+    const item = (lastCard.items ?? []).find((i) => i.id === id);
+    if (item?.checkedAt && !ui.doneOpen) { ui.doneOpen = true; paint(); } // open the strip first
+    root.querySelector(`input[data-action="toggle-item"][data-item-id="${id}"]`)?.focus();
+  }
 
   // Purely-visual rename transitions (no server): flip ui + repaint + place focus.
   function startItemRename(id) { ui.renamingId = id; paint(); root.querySelector(".rename-form input")?.select(); }
@@ -205,6 +209,7 @@ export function createCardView(root) {
       if (a === "rename-title") { ui.renamingId = "title"; paint(); root.querySelector(".rename-form input")?.select(); return; }
       if (a === "item-up") return h.moveItemUp(Number(btn.dataset.itemId));
       if (a === "item-down") return h.moveItemDown(Number(btn.dataset.itemId));
+      if (a === "delete-item") return h.deleteItem(Number(btn.dataset.itemId));
       if (a === "back") return h.back();
       if (a === "delete") return h.delete();
       if (a === "toggle-picker") return ui.pickerOpen ? closePicker() : openPicker();

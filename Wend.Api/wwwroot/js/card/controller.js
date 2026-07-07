@@ -1,7 +1,7 @@
 // Wires the task view to the model: save, delete, and the full label picker (attach / detach /
 // create / edit / delete). Announces each result and restores focus after server round-trips.
 // onBack() returns to the board (focusing this card); onDeleted() returns to the board.
-export function createCardController(model, view, announce, {onBack, onDeleted} = {}) {
+export function createCardController(model, view, announce, {onBack, onDeleted, onItemDeleted} = {}) {
     let palette = [];
     let current = null;
     const nameOf = (id) => (palette.find((l) => l.id === id) || {}).name || "the label";
@@ -97,6 +97,17 @@ export function createCardController(model, view, announce, {onBack, onDeleted} 
         },
         moveItemUp: (id) => moveItem(id, -1, "item-up"),
         moveItemDown: (id) => moveItem(id, +1, "item-down"),
+        deleteItem: async (id) => {
+            const item = (current.items ?? []).find((i) => i.id === id);
+            const text = item ? item.text : "the item";
+            try {
+                await model.deleteItem(id);
+                onItemDeleted?.(id, text); // the coordinator shows the undo toast
+                view.focusAddInput();      // the row is gone — park focus on the add input
+            } catch {
+                announce("Couldn't delete the item — please try again.");
+            }
+        },
         attachLabel: async (id) => {
             try {
                 await model.attachLabel(id);
