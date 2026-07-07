@@ -107,7 +107,7 @@ public class CardApiTests
         Assert.That(cards.Select(c => c.Title), Is.EqualTo(new[] { "First", "Second" }));
         Assert.That(cards.Select(c => c.Position), Is.EqualTo(new[] { 0, 1 }));
     }
-    
+
     [Test]
     public async Task Get_card_returns_its_detail_with_the_list_name()
     {
@@ -184,7 +184,7 @@ public class CardApiTests
         var del = await _client.DeleteAsync("/api/cards/9999");
         Assert.That(del.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
     }
-    
+
     [Test]
     public async Task Moving_a_card_within_its_list_reorders_it()
     {
@@ -296,5 +296,42 @@ public class CardApiTests
 
         var detail = await _client.GetFromJsonAsync<BoardWithCardsDto>($"/api/boards/{board.Id}");
         Assert.That(detail!.Lists.Single().Cards.Single().CompletedAt, Is.Not.Null);
+    }
+
+    [Test]
+    public async Task Deleting_then_restoring_a_card_brings_it_back()
+    {
+        var board = await CreateBoardAsync("B");
+        var list = await CreateListAsync(board.Id, "L");
+        var card = await CreateCardAsync(list.Id, "Temp");
+
+        await _client.DeleteAsync($"/api/cards/{card.Id}");
+        var afterDelete = await _client.GetFromJsonAsync<BoardWithCardsDto>($"/api/boards/{board.Id}");
+        Assert.That(afterDelete!.Lists.Single().Cards, Is.Empty);
+
+        var restore = await _client.PostAsync($"/api/cards/{card.Id}/restore", null);
+        Assert.That(restore.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
+
+        var afterRestore = await _client.GetFromJsonAsync<BoardWithCardsDto>($"/api/boards/{board.Id}");
+        Assert.That(afterRestore!.Lists.Single().Cards.Select(c => c.Title), Is.EqualTo(new[] { "Temp" }));
+    }
+
+    [Test]
+    public async Task Restoring_a_missing_card_is_404()
+    {
+        var res = await _client.PostAsync("/api/cards/9999/restore", null);
+        Assert.That(res.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+    }
+
+    [Test]
+    public async Task A_soft_deleted_card_is_404_on_get()
+    {
+        var board = await CreateBoardAsync("B");
+        var list = await CreateListAsync(board.Id, "L");
+        var card = await CreateCardAsync(list.Id, "Temp");
+        await _client.DeleteAsync($"/api/cards/{card.Id}");
+
+        var res = await _client.GetAsync($"/api/cards/{card.Id}");
+        Assert.That(res.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
     }
 }
