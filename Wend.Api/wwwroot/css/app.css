@@ -296,8 +296,7 @@
 .card-done { margin: 0 0 1rem; }
 .card-done-label { display: inline-flex; align-items: center; gap: 0.5rem; min-height: 44px; cursor: pointer; }
 
-/* Global Done area below the lists. */
-.done-area { margin-top: 1.5rem; }
+/* Shared strip disclosure — used by the per-list board Done strips and the checklist Done strip. */
 .done-toggle {
   width: 100%;
   text-align: left;
@@ -308,19 +307,6 @@
   border-color: color-mix(in srgb, currentColor 18%, transparent);
   border-radius: 0.5rem;
 }
-.done-body { margin-top: 0.6rem; display: flex; flex-direction: column; gap: 0.75rem; }
-.done-group-title { margin: 0 0 0.3rem; font-size: 0.85rem; opacity: 0.75; }
-.done-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.3rem; }
-.done-row-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  min-height: 44px;
-  cursor: pointer;
-  opacity: 0.7;
-}
-.done-row-title { text-decoration: line-through; }
-.done-row .card-done-toggle { margin-top: 0; }
 
 /* ---- Undo toast (uses the design-system .toast-region / .toast component) ---- */
 .toast { align-items: center; }

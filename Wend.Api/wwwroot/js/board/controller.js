@@ -63,13 +63,14 @@ export function createBoardController(model, view, announce, { onBack, onOpenCar
             }
         },
         toggleDone: async (cardId, completed) => {
-            const card = lists.flatMap((l) => l.cards ?? []).find((c) => c.id === cardId);
+            const list = lists.find((l) => (l.cards ?? []).some((c) => c.id === cardId));
+            const card = list?.cards?.find((c) => c.id === cardId);
             const title = card ? card.title : "the card";
             try {
                 await model.setCardDone(cardId, completed);
                 if (completed) {
                     announce(`Marked done: ${title}.`);
-                    view.focusDoneToggle();
+                    if (list) view.focusListDoneToggle(list.id); else view.focusHeading();
                 } else {
                     announce(`Restored: ${title}.`);
                     view.focusCard(cardId);

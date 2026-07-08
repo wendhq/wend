@@ -2,12 +2,12 @@ import { escapeHtml } from "../escape.js";
 import { getPrefs } from "../prefs.js";
 
 // Renders one board's view: back link, title, add-list form, each list with its move/rename/delete
-// controls, its ACTIVE cards (a leading done checkbox + label chips + move controls) and an add-card
-// form, then a collapsible global Done area (done cards grouped by list, each with an un-check).
-// "Done" is a render grouping on completedAt; the collapse state lives here (ui.doneOpen).
+// controls, its ACTIVE cards (a leading done checkbox + label chips + move controls), a collapsible
+// per-list Done strip (that list's completed cards, each with an un-check), and an add-card form.
+// "Done" is a render grouping on completedAt; per-list collapse state lives here (ui.doneOpenLists).
 export function createBoardView(root) {
   let lastBoard = null;
-  const ui = { doneOpen: false, renamingId: null };
+  const ui = { doneOpenLists: new Set(), renamingId: null };
 
   function render(board) {
     lastBoard = board;
@@ -77,6 +77,23 @@ export function createBoardView(root) {
             </li>`;
                   })
                   .join("");
+              const doneCards = (l.cards ?? []).filter((c) => c.completedAt);
+              const doneOpen = ui.doneOpenLists.has(l.id);
+              const doneStrip = doneCards.length ? `
+          <div class="done-strip">
+            <button type="button" class="done-toggle" data-action="toggle-list-done" data-list-id="${l.id}"
+              aria-expanded="${doneOpen ? "true" : "false"}">✓ Done (${doneCards.length})</button>
+            ${doneOpen ? `<ul class="done-items">${doneCards
+                .map((c) => `
+              <li class="done-item-row" data-card-id="${c.id}">
+                <label class="checklist-done-label">
+                  <input type="checkbox" data-action="toggle-done" data-card-id="${c.id}" checked
+                    aria-label="Mark not done: ${escapeHtml(c.title)}" />
+                  <span class="done-item-text">${escapeHtml(c.title)}</span>
+                </label>
+              </li>`)
+                .join("")}</ul>` : ""}
+          </div>` : "";
               return `
         <li class="list-card" data-list-id="${l.id}" role="group" aria-labelledby="list-${l.id}-title">
           <h3 id="list-${l.id}-title" class="list-title">${escapeHtml(l.title)}</h3>
@@ -96,6 +113,7 @@ export function createBoardView(root) {
               aria-label="Delete list: ${escapeHtml(l.title)}">Delete</button>
           </div>`}
           <ul class="card-list">${cards}</ul>
+          ${doneStrip}
           <form class="card-form" data-action="create-card" data-list-id="${l.id}">
             <input name="title" aria-label="Add a card to ${escapeHtml(l.title)}" placeholder="Add a card…" required />
             <button type="submit">Add</button>
@@ -104,34 +122,6 @@ export function createBoardView(root) {
             })
             .join("")
         : `<li class="empty">No lists yet — add one above.</li>`;
-
-    // Done area: done cards grouped under their list. Hidden entirely when nothing is done.
-    const doneGroups = lists
-        .map((l) => ({ title: l.title, cards: (l.cards ?? []).filter((c) => c.completedAt) }))
-        .filter((g) => g.cards.length);
-    const doneCount = doneGroups.reduce((n, g) => n + g.cards.length, 0);
-    const doneArea = doneCount === 0 ? "" : `
-        <section class="done-area" aria-label="Done">
-          <button class="done-toggle" data-action="toggle-done-section" aria-expanded="${ui.doneOpen ? "true" : "false"}">
-            ✓ Done (${doneCount})
-          </button>
-          ${ui.doneOpen ? `<div class="done-body">${doneGroups
-              .map((g) => `
-            <div class="done-group">
-              <h3 class="done-group-title">${escapeHtml(g.title)}</h3>
-              <ul class="done-list">${g.cards
-                  .map((c) => `
-                <li class="done-row" data-card-id="${c.id}">
-                  <label class="done-row-label">
-                    <input type="checkbox" class="card-done-toggle" data-action="toggle-done" data-card-id="${c.id}" checked
-                      aria-label="Mark not done: ${escapeHtml(c.title)}" />
-                    <span class="done-row-title">${escapeHtml(c.title)}</span>
-                  </label>
-                </li>`)
-                  .join("")}</ul>
-            </div>`)
-              .join("")}</div>` : ""}
-        </section>`;
 
     root.innerHTML = `
       <div class="board-view">
@@ -142,7 +132,6 @@ export function createBoardView(root) {
           <button type="submit">Add list</button>
         </form>
         <ul class="list-columns">${items}</ul>
-        ${doneArea}
       </div>`;
   }
 
@@ -158,10 +147,10 @@ export function createBoardView(root) {
   function focusCard(cardId) {
     root.querySelector(`.card-chip[data-card-id="${cardId}"]`)?.focus();
   }
-  function focusDoneToggle() {
-    const t = root.querySelector(".done-toggle");
+  function focusListDoneToggle(listId) {
+    const t = root.querySelector(`.list-card[data-list-id="${listId}"] .done-toggle`);
     if (t) t.focus();
-    else focusHeading(); // fallback so a vanished toggle can't strand focus on <body>
+    else focusHeading(); // never strand focus on <body>
   }
 
   function focusListAction(id, preferred) {
@@ -233,7 +222,13 @@ export function createBoardView(root) {
       const btn = e.target.closest("button[data-action]");
       if (!btn || btn.dataset.action === "create" || btn.dataset.action === "create-card") return;
       const action = btn.dataset.action;
-      if (action === "toggle-done-section") { ui.doneOpen = !ui.doneOpen; paint(); focusDoneToggle(); return; }
+      if (action === "toggle-list-done") {
+        const lid = Number(btn.dataset.listId);
+        ui.doneOpenLists.has(lid) ? ui.doneOpenLists.delete(lid) : ui.doneOpenLists.add(lid);
+        paint();
+        focusListDoneToggle(lid);
+        return;
+      }
       if (action === "back") return handlers.back();
       if (action === "open-card") return handlers.openCard(Number(btn.dataset.cardId));
       if (action === "card-up") return handlers.cardUp(Number(btn.dataset.cardId));
@@ -258,5 +253,5 @@ export function createBoardView(root) {
     });
   }
 
-  return { render, focusHeading, focusNewListInput, focusNewCardInput, focusCard, focusDoneToggle, focusListAction, focusCardAction, focusListRenameTrigger, bindActions };
+  return { render, focusHeading, focusNewListInput, focusNewCardInput, focusCard, focusListDoneToggle, focusListAction, focusCardAction, focusListRenameTrigger, bindActions };
 }
