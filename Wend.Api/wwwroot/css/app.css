@@ -38,6 +38,13 @@
   flex-wrap: wrap;
 }
 
+/* Mobile single-list switcher: view one list at a time; all columns show at ≥768px. */
+.list-switcher-row { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; }
+.list-switcher-label { font-weight: 600; }
+.list-switcher { flex: 1; min-height: 44px; max-width: 100%; }
+.list-columns > .list-card { display: none; }
+.list-columns > .list-card.is-current { display: flex; }
+
 @media (min-width: 768px) {
   .list-columns {
     flex-direction: row;
@@ -45,6 +52,8 @@
     overflow-x: auto;
   }
   .list-card { flex: 0 0 16rem; }
+  .list-switcher-row { display: none; }
+  .list-columns > .list-card { display: flex; } /* every column visible on desktop */
 }
 
 .app-header {
@@ -296,8 +305,7 @@
 .card-done { margin: 0 0 1rem; }
 .card-done-label { display: inline-flex; align-items: center; gap: 0.5rem; min-height: 44px; cursor: pointer; }
 
-/* Global Done area below the lists. */
-.done-area { margin-top: 1.5rem; }
+/* Shared strip disclosure — used by the per-list board Done strips and the checklist Done strip. */
 .done-toggle {
   width: 100%;
   text-align: left;
@@ -308,19 +316,6 @@
   border-color: color-mix(in srgb, currentColor 18%, transparent);
   border-radius: 0.5rem;
 }
-.done-body { margin-top: 0.6rem; display: flex; flex-direction: column; gap: 0.75rem; }
-.done-group-title { margin: 0 0 0.3rem; font-size: 0.85rem; opacity: 0.75; }
-.done-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.3rem; }
-.done-row-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  min-height: 44px;
-  cursor: pointer;
-  opacity: 0.7;
-}
-.done-row-title { text-decoration: line-through; }
-.done-row .card-done-toggle { margin-top: 0; }
 
 /* ---- Undo toast (uses the design-system .toast-region / .toast component) ---- */
 .toast { align-items: center; }
