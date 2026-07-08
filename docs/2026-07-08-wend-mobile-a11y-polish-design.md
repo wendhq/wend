@@ -1,7 +1,7 @@
 # Wend — Plan 8: mobile + a11y polish design spec
 
 - **Date:** 2026-07-08
-- **Status:** Draft — stress-tested 2026-07-08 (8 fixes folded); pending review (Malin & Henry)
+- **Status:** Phase 1 (a11y) built & merged 2026-07-08 (PR #25). Phase 2 (mobile) design brainstormed & **locked with Malin 2026-07-08** — the six open questions below are decided; the global Done area is retired (revises Slice-1 "Done = both"), pending **Henry's review**.
 - **Owners:** Malin & Henry
 - **Builds on:** [Slice 1 design](2026-06-15-wend-slice1-design.md) — the final Slice-1 increment
 - **Build mode:** **Claude solo** (per the 2026-07-07 delegation split — big plans go to Claude; the spec, review, and keyboard/screen-reader acceptance stay shared with Henry)
@@ -34,10 +34,11 @@ The a11y findings are ready to build now. The mobile layout still wants the shar
 - **F9** Picker `aria-haspopup="true"` (menu semantics for a checkbox group); Settings hints not linked via `aria-describedby`; `announce()`'s rAF drops messages in hidden/throttled tabs.
 - **F10** Settings toggle drops keyboard focus on re-render (same family as F1).
 
-**In — mobile layout (design pending — shared brainstorm):**
+**In — mobile layout (decided 2026-07-08 — brainstormed & locked with Malin):**
 
-- Single-list switcher on narrow screens (one list at a time + an accessible way to move between them).
+- Single-list switcher on narrow screens — native `<select>`, one list at a time, selection remembered per board.
 - Per-list Done strip (each list's completed cards, mirroring the checklist Done strip).
+- **Retire the global Done area** — replaced by the per-list strips (revises Slice-1 "Done = both"; see the Mobile layout § below). Frontend-only, no data change.
 
 **Out of scope:**
 
@@ -91,24 +92,25 @@ The toast itself is well-built (measured live: `role="group"`, correct message, 
 - **Settings hints not linked:** both `.setting-hint` paragraphs return `aria-describedby: null` ([settings/view.js:16](../Wend.Api/wwwroot/js/settings/view.js:16)), so a screen reader doesn't tie the hint to its checkbox. **Fix:** give each hint an `id` and each checkbox an `aria-describedby` pointing at it.
 - **`announce()` uses rAF:** it clears then sets `#status` across a `requestAnimationFrame` ([announce.js:4](../Wend.Api/wwwroot/js/announce.js:4)). The sweep demonstrated this **drops the message entirely in a hidden/throttled tab** (rAF is paused there). Normal foreground use works, but it's needlessly fragile. **Fix:** swap the rAF for a small `setTimeout` (~120ms), which fires regardless of tab visibility.
 
-## Mobile layout (design pending — for the shared brainstorm)
+## Mobile layout (decided — brainstormed & locked with Malin 2026-07-08)
 
-**Requirement.** Below the tablet breakpoint (`< 768px`) the board currently stacks all lists vertically — a long scroll. Show **one list at a time** with a switcher, and give each list its own **Done strip**.
+**Requirement.** Below the tablet breakpoint (`< 768px`) the board currently stacks all lists vertically — a long scroll. Show **one list at a time** with a switcher, and give each list its own **Done strip**. Mobile-first: single-list + switcher is the *baseline*; the horizontal columns layer up unchanged at `min-width: 768px` (the board already flips to columns there — [app.css:41](../Wend.Api/wwwroot/css/app.css:41)).
 
-**Proposed approach (to confirm together — not decided):**
+**Decisions (the six open questions, now answered):**
 
-- A labelled **list switcher** at the top of the board on narrow screens. Proposed: a native `<select>` ("Viewing: To Do ▾") — robust, native mobile UX, matches Wend's native-controls-first ethos. Mobile-first: the single-list + switcher is the *baseline*; the horizontal columns layer up unchanged at `min-width: 768px`.
-- A **per-list Done strip**: each list gains a collapsible `Done (n)` disclosure of *its* completed cards, mirroring the checklist Done strip and the global Done area.
-- Sits on top of **F6** — making each list a labelled region/heading is exactly what the switcher targets, so F6 lands first and the switcher builds on it.
+1. **Switcher control → native `<select>`.** A labelled `<select>` at the top of the board on narrow screens ("List: To Do ▾"). Matches Wend's native-first ethos (already used for "Move to…"), gives a large self-announcing touch target, and scales to any number of lists with zero custom ARIA. *Rejected:* an APG `role="tablist"` (roving tabindex + arrow keys + `aria-selected`/`aria-controls`; wraps badly on a narrow screen). Hidden at `min-width: 768px`, where all columns show.
 
-**Open questions for the brainstorm:**
+2. **Done area → per-list strip only; the global Done area is retired.** Each list gains a collapsible `Done (n)` strip of *its* completed cards, mirroring the checklist Done strip ([checklist.js:39](../Wend.Api/wwwroot/js/card/checklist.js:39)) — same collapse/label/contrast pattern; un-check returns the card to the active list. **This revises the Slice-1 "Done = both" decision** ([Slice 1 design](2026-06-15-wend-slice1-design.md)): with per-list strips, the global grouped-by-list area would render every done card a *second* time. Per-list-only = one card, one place, identical on mobile and desktop, consistent with the checklist strip already shipped. Removes the global `doneArea` ([board/view.js:108](../Wend.Api/wwwroot/js/board/view.js:108)) + its `ui.doneOpen`/`focusDoneToggle` (Phase-1 F1's refocus lesson carries to the per-list toggles) and the now-dead `.done-area`/`.done-group`/`.done-row-*` CSS ([app.css:300](../Wend.Api/wwwroot/css/app.css:300)). *Henry to confirm in review — the one Slice-1 decision Phase 2 changes.*
 
-1. **Switcher control:** native `<select>` vs an APG `role="tablist"` tabs pattern (more discoverable, heavier, more ARIA to get right).
-2. **Global vs per-list Done:** the slice spec said "Done = both". Do we keep the global Done area *and* add per-list strips, or does per-list replace the global area on mobile (and what happens on desktop)?
-3. **Selected-list persistence:** reset to the first list on each mount (the fresh-mount house pattern) vs remember the selection across open-card → back.
-4. **Swipe gestures:** proposed *no* (keyboard/SR-first; buttons/select only) — confirm.
-5. **Stale selection:** if the remembered/active list is deleted, fall back to the first list — don't leave the switcher pointing at a gone id.
-6. **Change announcement:** switching lists must announce the new list — a native `<select>` announces itself; a tabs pattern needs an explicit `aria-live` or focus move.
+3. **Selected-list persistence → remembered per board.** The selected list is stored per board in `localStorage` (validated on read, in the spirit of [`prefs.js`](../Wend.Api/wwwroot/js/prefs.js)) so tapping a card and coming back returns to the same list instead of resetting to the first — the fresh-mount house pattern otherwise loses the user's place on every card round-trip.
+
+4. **Swipe gestures → no.** Keyboard/SR-first; the `<select>` and buttons are the only way between lists (swipe fights SR gestures and isn't discoverable).
+
+5. **Stale selection → fall back to the first list.** If the remembered/active list id is gone (deleted), the switcher falls back to the first list; the board's empty state shows when there are no lists.
+
+6. **Change announcement → `announce()` on switch.** Switching lists fires the existing `announce()` with the new list name + active-card count ("Showing In Progress, 4 cards"); the native `<select>` also speaks the option itself. (A tabs pattern would have needed explicit `aria-controls`/live wiring — another point for `<select>`.)
+
+**Structure.** Sits on **F6** (Phase 1): each list is already a labelled `role="group"` / `<h3>` region ([board/view.js:81](../Wend.Api/wwwroot/js/board/view.js:81)) — the switcher selects on those. Baseline (mobile) renders the `<select>` and shows only the selected `.list-card`; `min-width: 768px` hides the `<select>` and shows every column (current behaviour, unchanged).
 
 ## Frontend (files touched)
 
@@ -153,11 +155,11 @@ Grouped so each task is independently verifiable in the browser. Tasks describe 
 5. **Toast timing** — F4. *Verify:* window ≥12s and/or not-until-interacted.
 6. **Inline rename** — F5 (boards + lists, replacing `prompt()`). *Verify:* text-as-button → input swap, Enter/Esc, focus returns — matching the card/item pattern.
 
-**Phase 2 — mobile layout (after the brainstorm):**
+**Phase 2 — mobile layout (decided 2026-07-08):**
 
-7. Per-list Done strip.
-8. Single-list switcher (control per the brainstorm decision).
-9. Acceptance + README status + backlog updates (close nothing new; note mobile shipped).
+7. Per-list Done strip + **retire the global Done area** (revises "Done = both"; removes the global `doneArea` block + dead `.done-area`/`.done-row-*` CSS; per-list toggles inherit the F1 refocus).
+8. Single-list switcher — native `<select>` (mobile baseline; hidden at `min-width: 768px`), selected list remembered per board in `localStorage` (validated; stale → first).
+9. Acceptance + README status (Slice 1 complete) + backlog note (mobile shipped).
 
 Branch `feature/mobile-a11y-polish` → PR → review + keyboard/SR acceptance → merge. Single-author (Claude as Malin) → squash-merge is clean (the merge-not-squash rule only bites when Henry has commits on the branch).
 
