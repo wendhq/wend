@@ -143,8 +143,7 @@ export function createCardController(model, view, announce, {onBack, onDeleted, 
             }
         },
         deleteLabel: async (id, name) => {
-            if (!confirm(`Delete
-            '${name}'? It will be removed from every card that uses it.`)) return;
+            if (!confirm(`Delete '${name}'? It will be removed from every card that uses it.`)) return;
             try {
                 await model.deleteLabel(id);
                 announce("Label deleted.");
