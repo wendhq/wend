@@ -3,7 +3,7 @@
 // keyboard focus is inside it, so it can't vanish before a keyboard / screen-reader user
 // reaches the action. A new show() replaces the current toast. No business logic — the caller
 // supplies the message and the callbacks.
-const TIMEOUT_MS = 8000;
+const TIMEOUT_MS = 12000; // long enough for a keyboard / screen-reader user to reach Undo (the only restore path until Trash)
 
 export function createToast(region) {
   let current = null; // { el, remaining, startedAt, timerId }
