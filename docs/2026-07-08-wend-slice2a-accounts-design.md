@@ -207,7 +207,7 @@ The Slice 1 bar carries forward unchanged — auth is not an excuse to drop it:
 
 ## Testing
 
-- **Testcontainers Postgres** — each integration run spins a throwaway Postgres container (replacing Slice 1's throwaway-SQLite factory); CI already has Docker.
+- **Two-tier test engine** — repository *unit* tests stay on fast in-memory SQLite (engine-agnostic CRUD); **API integration tests** — the real HTTP + EF path that ships — run on a throwaway **Testcontainers Postgres** (one container per run, a fresh database per test; CI already has Docker). The shipping path is Postgres-tested, so there is no production engine drift. *(Refined 2026-07-08 at Plan 1.)*
 - **Critical coverage:**
   - **Per-user isolation** — user A cannot read, mutate, move, or delete any of user B's boards/lists/cards (each returns 404). The highest-value test set in the slice.
   - **Session invalidation** — a session is refused on its next request after a password reset and after account deletion.
@@ -252,7 +252,7 @@ Unchanged from Slice 1, with one addition:
 - **ASP.NET Core Identity, not hand-rolled** — leans on battle-tested code for the parts that are dangerous to get subtly wrong on a public app (hashing, token generation, lockout); hand-rolling was kept out as a throwaway learning exercise, not production auth.
 - **Custom endpoints + hand-authored screens (not scaffolded Identity UI)** — the only integration that survives contact with Wend's no-build-step, accessibility-first architecture.
 - **Cookie sessions, not tokens-in-`localStorage`** — the safe default for a same-origin browser app; keeps the XSS discipline.
-- **PostgreSQL now, at the migration boundary** — SQLite is single-writer (a real bottleneck once 2b has concurrent writers) and hosted platforms want a managed DB; deciding at the moment we adopt migrations avoids rebaselining a SQLite history later. Dev + test + prod all on Postgres — no engine drift.
+- **PostgreSQL now, at the migration boundary** — SQLite is single-writer (a real bottleneck once 2b has concurrent writers) and hosted platforms want a managed DB; deciding at the moment we adopt migrations avoids rebaselining a SQLite history later. App + **integration** tests + prod all on Postgres (the shipping path has no engine drift); repo unit tests stay on in-memory SQLite for speed.
 - **404-not-403, and generic auth responses** — the API never leaks that another user's data, or a given email account, exists.
 - **Sessions die on security events** — reset and deletion evict live sessions rather than trusting a cookie's clock; this is what makes those flows mean anything.
 - **Deploy host + email provider deferred to the deployment plan** — neither changes the accounts design, and both deserve current-fact verification rather than a guess today.
