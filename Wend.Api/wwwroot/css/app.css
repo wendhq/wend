@@ -38,6 +38,13 @@
   flex-wrap: wrap;
 }
 
+/* Mobile single-list switcher: view one list at a time; all columns show at ≥768px. */
+.list-switcher-row { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; }
+.list-switcher-label { font-weight: 600; }
+.list-switcher { flex: 1; min-height: 44px; max-width: 100%; }
+.list-columns > .list-card { display: none; }
+.list-columns > .list-card.is-current { display: flex; }
+
 @media (min-width: 768px) {
   .list-columns {
     flex-direction: row;
@@ -45,6 +52,8 @@
     overflow-x: auto;
   }
   .list-card { flex: 0 0 16rem; }
+  .list-switcher-row { display: none; }
+  .list-columns > .list-card { display: flex; } /* every column visible on desktop */
 }
 
 .app-header {

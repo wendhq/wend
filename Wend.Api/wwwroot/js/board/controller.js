@@ -1,12 +1,22 @@
+import { setSelectedListId } from "../prefs.js";
+
 // Wires the board view to the model: announces results, manages focus, confirms list deletes,
 // turns move-left/right into a target position, and forwards card actions (reorder + move-to-list).
 // onBack() returns to the overview; onOpenCard(cardId) opens a card's task view.
 export function createBoardController(model, view, announce, { onBack, onOpenCard } = {}) {
     let lists = [];
+    let boardId = null;
 
     view.bindActions({
         back: () => onBack?.(),
         openCard: (cardId) => onOpenCard?.(cardId),
+        selectList: (listId) => {
+            const list = lists.find((l) => l.id === listId);
+            if (!list) return;
+            setSelectedListId(boardId, listId);
+            const count = (list.cards ?? []).filter((c) => !c.completedAt).length;
+            announce(`Showing ${list.title}, ${count} ${count === 1 ? "card" : "cards"}.`);
+        },
         create: async (title) => {
             if (!title) return;
             try {
@@ -113,6 +123,7 @@ export function createBoardController(model, view, announce, { onBack, onOpenCar
 
     model.subscribe((board) => {
         lists = board.lists;
+        boardId = board.id;
         view.render(board);
     });
 }

@@ -1,5 +1,5 @@
 import { escapeHtml } from "../escape.js";
-import { getPrefs } from "../prefs.js";
+import { getPrefs, getSelectedListId } from "../prefs.js";
 
 // Renders one board's view: back link, title, add-list form, each list with its move/rename/delete
 // controls, its ACTIVE cards (a leading done checkbox + label chips + move controls), a collapsible
@@ -7,7 +7,7 @@ import { getPrefs } from "../prefs.js";
 // "Done" is a render grouping on completedAt; per-list collapse state lives here (ui.doneOpenLists).
 export function createBoardView(root) {
   let lastBoard = null;
-  const ui = { doneOpenLists: new Set(), renamingId: null };
+  const ui = { doneOpenLists: new Set(), renamingId: null, selectedListId: null };
 
   function render(board) {
     lastBoard = board;
@@ -17,6 +17,13 @@ export function createBoardView(root) {
   function paint() {
     const board = lastBoard;
     const lists = board.lists;
+    // Resolve the mobile switcher's current list: keep a valid selection, else the remembered
+    // one (validated), else the first list. Self-heals when the selected list is deleted.
+    const validIds = new Set(lists.map((l) => l.id));
+    if (!validIds.has(ui.selectedListId)) {
+      const remembered = getSelectedListId(board.id);
+      ui.selectedListId = validIds.has(remembered) ? remembered : (lists[0]?.id ?? null);
+    }
     const labelsById = new Map((board.labels ?? []).map((l) => [l.id, l]));
     const prefs = getPrefs();
 
@@ -95,7 +102,7 @@ export function createBoardView(root) {
                 .join("")}</ul>` : ""}
           </div>` : "";
               return `
-        <li class="list-card" data-list-id="${l.id}" role="group" aria-labelledby="list-${l.id}-title">
+        <li class="list-card${l.id === ui.selectedListId ? " is-current" : ""}" data-list-id="${l.id}" role="group" aria-labelledby="list-${l.id}-title">
           <h3 id="list-${l.id}-title" class="list-title">${escapeHtml(l.title)}</h3>
           ${ui.renamingId === l.id
             ? `<form class="rename-form" data-action="save-list-rename" data-id="${l.id}">
@@ -123,6 +130,14 @@ export function createBoardView(root) {
             .join("")
         : `<li class="empty">No lists yet — add one above.</li>`;
 
+    const switcher = lists.length ? `
+        <div class="list-switcher-row">
+          <label class="list-switcher-label" for="list-switcher">List</label>
+          <select class="list-switcher" id="list-switcher" data-action="switch-list">
+            ${lists.map((l) => `<option value="${l.id}"${l.id === ui.selectedListId ? " selected" : ""}>${escapeHtml(l.title)}</option>`).join("")}
+          </select>
+        </div>` : "";
+
     root.innerHTML = `
       <div class="board-view">
         <button class="back-link" data-action="back">← Boards</button>
@@ -131,6 +146,7 @@ export function createBoardView(root) {
           <input name="title" aria-label="New list name" placeholder="New list…" required />
           <button type="submit">Add list</button>
         </form>
+        ${switcher}
         <ul class="list-columns">${items}</ul>
       </div>`;
   }
@@ -242,6 +258,13 @@ export function createBoardView(root) {
     root.addEventListener("change", (e) => {
       const done = e.target.closest('input[data-action="toggle-done"]');
       if (done) return handlers.toggleDone(Number(done.dataset.cardId), done.checked);
+      const sw = e.target.closest('select[data-action="switch-list"]');
+      if (sw) {
+        ui.selectedListId = Number(sw.value);
+        paint();
+        root.querySelector(".list-switcher")?.focus(); // repaint re-creates the select — refocus it
+        return handlers.selectList(ui.selectedListId);
+      }
       const sel = e.target.closest('select[data-action="card-move-to"]');
       if (!sel) return;
       const listId = Number(sel.value);
