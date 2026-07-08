@@ -10,16 +10,16 @@ export function createSettingsView(root) {
         <h2 class="settings-heading" tabindex="-1">Settings</h2>
         <label class="setting-row">
           <input type="checkbox" data-action="toggle-pref" data-pref="showCardDone"
-            ${prefs.showCardDone ? "checked" : ""} />
+            aria-describedby="hint-showCardDone" ${prefs.showCardDone ? "checked" : ""} />
           <span>Show card Done checkboxes</span>
         </label>
-        <p class="setting-hint">Adds a done checkbox to every card, so cards can be tucked into the board's Done area.</p>
+        <p class="setting-hint" id="hint-showCardDone">Adds a done checkbox to every card, so cards can be tucked into the board's Done area.</p>
         <label class="setting-row">
           <input type="checkbox" data-action="toggle-pref" data-pref="alwaysShowDeleteCard"
-            ${prefs.alwaysShowDeleteCard ? "checked" : ""} />
+            aria-describedby="hint-alwaysShowDeleteCard" ${prefs.alwaysShowDeleteCard ? "checked" : ""} />
           <span>Always show the Delete card button</span>
         </label>
-        <p class="setting-hint">Otherwise Delete card only appears in a card's Edit mode.</p>
+        <p class="setting-hint" id="hint-alwaysShowDeleteCard">Otherwise Delete card only appears in a card's Edit mode.</p>
       </div>`;
   }
 

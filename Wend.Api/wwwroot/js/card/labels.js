@@ -45,7 +45,7 @@ export function renderLabels(card, palette, ui) {
     <section class="labels-section" aria-label="Labels">
       <div class="labels-attached">${attachedChips}</div>
       <button type="button" class="labels-toggle" data-action="toggle-picker"
-        aria-haspopup="true" aria-expanded="${ui.pickerOpen ? "true" : "false"}">＋ Labels</button>
+        aria-expanded="${ui.pickerOpen ? "true" : "false"}">＋ Labels</button>
       ${ui.pickerOpen ? `<div class="label-picker" role="group" aria-label="Choose labels">${body}</div>` : ""}
     </section>`;
 }
