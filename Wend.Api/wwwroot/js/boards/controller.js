@@ -13,13 +13,11 @@ export function createBoardsController(model, view, announce, { onOpen } = {}) {
         announce("Couldn't add the board — please try again.");
       }
     },
-    rename: async (id) => {
-      const title = prompt("New board name?");
-      if (!title || !title.trim()) return;
+    rename: async (id, text) => {
       try {
-        await model.rename(id, title.trim());
+        await model.rename(id, text);
         announce("Board renamed.");
-        view.focusNewBoardInput();
+        view.focusRenameTrigger(id);
       } catch {
         announce("Couldn't rename the board — please try again.");
       }

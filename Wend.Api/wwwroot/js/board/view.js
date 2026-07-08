@@ -7,7 +7,7 @@ import { getPrefs } from "../prefs.js";
 // "Done" is a render grouping on completedAt; the collapse state lives here (ui.doneOpen).
 export function createBoardView(root) {
   let lastBoard = null;
-  const ui = { doneOpen: false };
+  const ui = { doneOpen: false, renamingId: null };
 
   function render(board) {
     lastBoard = board;
@@ -80,7 +80,12 @@ export function createBoardView(root) {
               return `
         <li class="list-card" data-list-id="${l.id}" role="group" aria-labelledby="list-${l.id}-title">
           <h3 id="list-${l.id}-title" class="list-title">${escapeHtml(l.title)}</h3>
-          <div class="list-actions">
+          ${ui.renamingId === l.id
+            ? `<form class="rename-form" data-action="save-list-rename" data-id="${l.id}">
+                <input name="text" value="${escapeHtml(l.title)}" aria-label="List name" maxlength="200" required />
+                <button type="submit">Save</button>
+              </form>`
+            : `<div class="list-actions">
             <button data-action="move-left" data-id="${l.id}" ${first ? "disabled" : ""}
               aria-label="Move list left: ${escapeHtml(l.title)}">◀</button>
             <button data-action="move-right" data-id="${l.id}" ${last ? "disabled" : ""}
@@ -89,7 +94,7 @@ export function createBoardView(root) {
               aria-label="Rename list: ${escapeHtml(l.title)}">Rename</button>
             <button data-action="delete" data-id="${l.id}"
               aria-label="Delete list: ${escapeHtml(l.title)}">Delete</button>
-          </div>
+          </div>`}
           <ul class="card-list">${cards}</ul>
           <form class="card-form" data-action="create-card" data-list-id="${l.id}">
             <input name="title" aria-label="Add a card to ${escapeHtml(l.title)}" placeholder="Add a card…" required />
@@ -185,9 +190,33 @@ export function createBoardView(root) {
     item.querySelector(".card-chip")?.focus();
   }
 
+  function focusListRenameTrigger(id) {
+    root.querySelector(`[data-action="rename"][data-id="${id}"]`)?.focus();
+  }
+  // Enter / leave inline list rename (no server): flip ui + repaint + place focus.
+  function startListRename(id) {
+    ui.renamingId = id;
+    paint();
+    root.querySelector(".rename-form input")?.select();
+  }
+  function cancelListRename() {
+    const id = ui.renamingId;
+    ui.renamingId = null;
+    paint();
+    if (id != null) focusListRenameTrigger(id);
+  }
+
   function bindActions(handlers) {
     root.addEventListener("submit", async (e) => {
       const action = e.target.dataset.action;
+      if (action === "save-list-rename") {
+        e.preventDefault();
+        const text = e.target.elements["text"].value.trim();
+        if (!text) return;
+        ui.renamingId = null;
+        await handlers.rename(Number(e.target.dataset.id), text);
+        return;
+      }
       if (action !== "create" && action !== "create-card") return;
       e.preventDefault();
       const title = e.target.title.value.trim();
@@ -210,7 +239,7 @@ export function createBoardView(root) {
       if (action === "card-up") return handlers.cardUp(Number(btn.dataset.cardId));
       if (action === "card-down") return handlers.cardDown(Number(btn.dataset.cardId));
       const id = Number(btn.dataset.id);
-      if (action === "rename") handlers.rename(id);
+      if (action === "rename") startListRename(id);
       else if (action === "delete") handlers.delete(id);
       else if (action === "move-left") handlers.moveLeft(id);
       else if (action === "move-right") handlers.moveRight(id);
@@ -224,7 +253,10 @@ export function createBoardView(root) {
       if (!listId) return;
       handlers.moveCardTo(Number(sel.dataset.cardId), listId);
     });
+    root.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && ui.renamingId != null) { e.stopPropagation(); cancelListRename(); }
+    });
   }
 
-  return { render, focusHeading, focusNewListInput, focusNewCardInput, focusCard, focusDoneToggle, focusListAction, focusCardAction, bindActions };
+  return { render, focusHeading, focusNewListInput, focusNewCardInput, focusCard, focusDoneToggle, focusListAction, focusCardAction, focusListRenameTrigger, bindActions };
 }
