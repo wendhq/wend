@@ -30,7 +30,7 @@
   gap: 0.5rem;
 }
 
-.list-title { font-weight: 600; }
+.list-title { font-weight: 600; margin: 0; font-size: inherit; } /* an <h3> labelling its list region — neutralise heading defaults */
 
 .list-actions {
   display: flex;
@@ -290,7 +290,7 @@
 /* Active card: a leading done checkbox beside the open button, then the move row. */
 .card-row { display: flex; align-items: flex-start; gap: 0.4rem; }
 .card-row .card-chip { flex: 1; }
-.card-done-toggle { width: 1.15rem; height: 1.15rem; margin-top: 0.55rem; flex: none; }
+.card-done-toggle { width: 1.5rem; height: 1.5rem; margin-top: 0.35rem; flex: none; }
 
 /* Card-detail done toggle. */
 .card-done { margin: 0 0 1rem; }
@@ -380,6 +380,9 @@
   align-items: center;
   min-height: 44px; /* touch target */
 }
+/* ≥24px checkbox targets (WCAG 2.5.8); the 44px row supplies the hit area. */
+.checklist-row input[type="checkbox"],
+.done-item-row input[type="checkbox"] { width: 1.5rem; height: 1.5rem; }
 .checklist-row .rename-trigger {
   flex: 1;
   text-align: left;
@@ -400,9 +403,8 @@
   border-color: color-mix(in srgb, currentColor 15%, transparent);
   padding-top: 0.5rem;
 }
-.done-item-row { opacity: 0.6; }
-.done-item-text { text-decoration: line-through; }
-.done-row-label { display: flex; gap: 0.5rem; align-items: center; flex: 1; }
+.done-item-text { text-decoration: line-through; opacity: 0.7; } /* single 0.7 dim → ~5.36:1 (matches the board Done area); no stacked opacity */
+.checklist-done-label { display: flex; gap: 0.5rem; align-items: center; flex: 1; }
 
 /* Task-view header row + edit toggle. */
 .card-view-top {

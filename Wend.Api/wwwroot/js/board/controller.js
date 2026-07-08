@@ -27,13 +27,11 @@ export function createBoardController(model, view, announce, { onBack, onOpenCar
                 announce("Couldn't add the card — please try again.");
             }
         },
-        rename: async (id) => {
-            const title = prompt("New list name?");
-            if (!title || !title.trim()) return;
+        rename: async (id, text) => {
             try {
-                await model.rename(id, title.trim());
+                await model.rename(id, text);
                 announce("List renamed.");
-                view.focusNewListInput();
+                view.focusListRenameTrigger(id);
             } catch {
                 announce("Couldn't rename the list — please try again.");
             }

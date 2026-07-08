@@ -43,7 +43,7 @@ export function renderChecklist(card, ui) {
       ${ui.doneOpen ? `<ul class="done-items">${done
         .map((i) => `
         <li class="done-item-row" data-item-id="${i.id}">
-          <label class="done-row-label">
+          <label class="checklist-done-label">
             <input type="checkbox" data-action="toggle-item" data-item-id="${i.id}" checked
               aria-label="Mark not done: ${escapeHtml(i.text)}" />
             <span class="done-item-text">${escapeHtml(i.text)}</span>
