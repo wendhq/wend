@@ -25,6 +25,12 @@ export function createSettingsView(root) {
 
   function focusHeading() { root.querySelector(".settings-heading")?.focus(); }
 
+  function focusPref(key) {
+    const cb = root.querySelector(`input[data-pref="${key}"]`);
+    if (cb) cb.focus();
+    else focusHeading(); // fallback if the checkbox is somehow absent
+  }
+
   function bindActions(handlers) {
     h = handlers;
     root.addEventListener("click", (e) => {
@@ -36,5 +42,5 @@ export function createSettingsView(root) {
     });
   }
 
-  return { render, focusHeading, bindActions };
+  return { render, focusHeading, focusPref, bindActions };
 }

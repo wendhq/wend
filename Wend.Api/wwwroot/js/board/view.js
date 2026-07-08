@@ -154,7 +154,9 @@ export function createBoardView(root) {
     root.querySelector(`.card-chip[data-card-id="${cardId}"]`)?.focus();
   }
   function focusDoneToggle() {
-    root.querySelector(".done-toggle")?.focus();
+    const t = root.querySelector(".done-toggle");
+    if (t) t.focus();
+    else focusHeading(); // fallback so a vanished toggle can't strand focus on <body>
   }
 
   function focusListAction(id, preferred) {
@@ -202,7 +204,7 @@ export function createBoardView(root) {
       const btn = e.target.closest("button[data-action]");
       if (!btn || btn.dataset.action === "create" || btn.dataset.action === "create-card") return;
       const action = btn.dataset.action;
-      if (action === "toggle-done-section") { ui.doneOpen = !ui.doneOpen; paint(); return; }
+      if (action === "toggle-done-section") { ui.doneOpen = !ui.doneOpen; paint(); focusDoneToggle(); return; }
       if (action === "back") return handlers.back();
       if (action === "open-card") return handlers.openCard(Number(btn.dataset.cardId));
       if (action === "card-up") return handlers.cardUp(Number(btn.dataset.cardId));
