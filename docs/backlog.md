@@ -42,3 +42,11 @@ Things we've consciously chosen to do *later*, each with the reason and the trig
   soft-delete (`DeletedAt` + query filter) with a "Deleted · Undo" toast that restores in place,
   sharing the cards' toast primitive and retention behaviour.
 - **Originally decided:** 2026-07-07 (Malin & Henry, Plan 7 acceptance).
+
+### Dev static-file caching — a no-cache header for local development
+
+- **Now:** `UseStaticFiles` sends no `Cache-Control`, so a dev browser can serve stale JS/CSS from earlier `127.0.0.1:5174` sessions and a normal reload won't revalidate ES-module imports — two "bugs" in the 2026-07-08 a11y sweep were cache ghosts. Workaround: hard-reload / disable cache before every browser check.
+- **Later:** a dev-only middleware that sets `Cache-Control: no-cache` on static files (Development environment only), so reloads always revalidate.
+- **Why deferred:** out of Plan 8's frontend-only scope; the hard-reload habit is a working stopgap and this touches server startup config.
+- **Revisit when:** the next housekeeping pass, or if stale-cache ghosts keep biting acceptance runs.
+- **Decided:** 2026-07-08 (Malin, Plan 8).
