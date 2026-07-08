@@ -78,8 +78,8 @@ export function createBoardView(root) {
                   })
                   .join("");
               return `
-        <li class="list-card" data-list-id="${l.id}">
-          <span class="list-title">${escapeHtml(l.title)}</span>
+        <li class="list-card" data-list-id="${l.id}" role="group" aria-labelledby="list-${l.id}-title">
+          <h3 id="list-${l.id}-title" class="list-title">${escapeHtml(l.title)}</h3>
           <div class="list-actions">
             <button data-action="move-left" data-id="${l.id}" ${first ? "disabled" : ""}
               aria-label="Move list left: ${escapeHtml(l.title)}">◀</button>

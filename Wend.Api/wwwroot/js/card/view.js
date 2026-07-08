@@ -31,13 +31,16 @@ export function createCardView(root) {
         </div>
         <h2 class="card-heading" tabindex="-1">${
           ui.renamingId === "title"
-            ? `<form class="rename-form" data-action="save-title">
-                <input name="text" value="${escapeHtml(card.title)}" aria-label="Card title" maxlength="200" required />
-                <button type="submit">Save</button>
-              </form>`
+            ? escapeHtml(card.title)
             : `<button type="button" class="rename-trigger" data-action="rename-title"
                 aria-label="Rename: ${escapeHtml(card.title)}">${escapeHtml(card.title)}</button>`
         }</h2>
+        ${ui.renamingId === "title"
+          ? `<form class="rename-form" data-action="save-title">
+              <input name="text" value="${escapeHtml(card.title)}" aria-label="Card title" maxlength="200" required />
+              <button type="submit">Save</button>
+            </form>`
+          : ""}
         <p class="card-list-name">In list: <strong>${escapeHtml(card.listTitle)}</strong></p>
         ${prefs.showCardDone ? `<div class="card-done">
           <label class="card-done-label">

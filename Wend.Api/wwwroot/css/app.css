@@ -30,7 +30,7 @@
   gap: 0.5rem;
 }
 
-.list-title { font-weight: 600; }
+.list-title { font-weight: 600; margin: 0; font-size: inherit; } /* an <h3> labelling its list region — neutralise heading defaults */
 
 .list-actions {
   display: flex;
