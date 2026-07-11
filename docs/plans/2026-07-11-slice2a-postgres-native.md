@@ -30,10 +30,10 @@
 ## Task 0 — install the native PostgreSQL service (one-time, per machine)
 
 ```powershell
-winget install --exact --id PostgreSQL.PostgreSQL
+winget install --exact --id PostgreSQL.PostgreSQL.17 --interactive
 ```
 
-During install set the **postgres** superuser password to `postgres` and keep port **5432** (local dev only — never committed). It installs as a normal Windows service (`postgresql-x64-17`) that starts with Windows. Verify:
+(PostgreSQL's winget packages are versioned — `PostgreSQL.PostgreSQL.17`, not `PostgreSQL.PostgreSQL`.) During install set the **postgres** superuser password to `postgres` and keep port **5432** (local dev only — never committed). It installs as a normal Windows service (`postgresql-x64-17`) that starts with Windows. Verify:
 
 ```powershell
 Get-Service postgresql*      # Running
