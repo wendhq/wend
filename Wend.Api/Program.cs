@@ -26,11 +26,10 @@ builder.WebHost.ConfigureKestrel(k => k.ListenLocalhost(port));
 
 var app = builder.Build();
 
-// Create the SQLite schema on first run. NOTE: EnsureCreated does NOT migrate an existing
-// database when later plans add tables — see "Schema & migrations" in the notes. Slice 1
-// adopts EF Core migrations at the Slice 1 -> 2 boundary.
+// Apply pending EF Core migrations on startup (dev-simple; the deployment plan switches this to
+// migration bundles / scripts, which Microsoft recommends for production).
 using (var scope = app.Services.CreateScope())
-    scope.ServiceProvider.GetRequiredService<WendDbContext>().Database.EnsureCreated();
+    scope.ServiceProvider.GetRequiredService<WendDbContext>().Database.Migrate();
 
 // Unhandled failures → bodyless 500 (no developer exception page over the wire).
 app.UseExceptionHandler(b => b.Run(ctx => { ctx.Response.StatusCode = 500; return Task.CompletedTask; }));
