@@ -12,9 +12,9 @@ A free, open-source, accessible, dark-mode-first kanban board — a calm alterna
 
 **Slice 1 — local single-user board (complete).**
 
-Boards, lists, and cards work end to end — create, rename, delete, and reorder lists inside a board, add cards to a list, move a card within its list or to another list, label them, delete a card with a one-click undo, open a card into a focused task view with an Edit mode, keep a per-card checklist (add, rename, reorder, check off into a collapsible Done strip, delete with undo) with progress shown on the board's card chips, and tune it all in a small settings screen — saved to SQLite, accessible and dark-mode-first.
+Boards, lists, and cards work end to end — create, rename, delete, and reorder lists inside a board, add cards to a list, move a card within its list or to another list, label them, delete a card with a one-click undo, open a card into a focused task view with an Edit mode, keep a per-card checklist (add, rename, reorder, check off into a collapsible Done strip, delete with undo) with progress shown on the board's card chips, and tune it all in a small settings screen — saved to PostgreSQL, accessible and dark-mode-first.
 
-- **Done:** the board, list, card, label, and checklist backend (JSON APIs behind `IBoardRepository`, `IListRepository`, `ICardRepository`, `ILabelRepository`, and `IChecklistItemRepository` seams, EF Core + SQLite, 147 NUnit tests, localhost-only) and the vanilla-JS MVC frontend (board-view navigation, accessible list reordering, card chips with a focused task view, accessible card moving with up/down buttons and a move-to-list dropdown, an inline label picker with soft-tint chips, a per-card checklist with a Done strip and chip progress bars, an undo-first delete for cards and checklist items with a transient "Deleted · Undo" toast, a task-view Edit mode, a localStorage settings screen gating the card Done checkboxes and the Delete card button, screen-reader announcements, keyboard focus management, per-list Done strips, and a mobile single-list switcher).
+- **Done:** the board, list, card, label, and checklist backend (JSON APIs behind `IBoardRepository`, `IListRepository`, `ICardRepository`, `ILabelRepository`, and `IChecklistItemRepository` seams, EF Core + PostgreSQL with migrations, 147 NUnit tests, localhost-only) and the vanilla-JS MVC frontend (board-view navigation, accessible list reordering, card chips with a focused task view, accessible card moving with up/down buttons and a move-to-list dropdown, an inline label picker with soft-tint chips, a per-card checklist with a Done strip and chip progress bars, an undo-first delete for cards and checklist items with a transient "Deleted · Undo" toast, a task-view Edit mode, a localStorage settings screen gating the card Done checkboxes and the Delete card button, screen-reader announcements, keyboard focus management, per-list Done strips, and a mobile single-list switcher).
 - **Next:** Slice 2 — sharing and multi-user accounts.
 
 Design specs: [`docs/2026-06-15-wend-slice1-design.md`](docs/2026-06-15-wend-slice1-design.md), [`docs/2026-06-19-wend-lists-design.md`](docs/2026-06-19-wend-lists-design.md), [`docs/2026-06-22-wend-cards-design.md`](docs/2026-06-22-wend-cards-design.md), [`docs/2026-06-23-wend-labels-design.md`](docs/2026-06-23-wend-labels-design.md), [`docs/2026-06-24-wend-card-moving-design.md`](docs/2026-06-24-wend-card-moving-design.md), [`docs/2026-06-25-wend-done-design.md`](docs/2026-06-25-wend-done-design.md), [`docs/2026-07-07-wend-delete-undo-design.md`](docs/2026-07-07-wend-delete-undo-design.md), [`docs/2026-07-07-wend-checklist-design.md`](docs/2026-07-07-wend-checklist-design.md), [`docs/2026-07-08-wend-mobile-a11y-polish-design.md`](docs/2026-07-08-wend-mobile-a11y-polish-design.md)
@@ -24,7 +24,7 @@ Build plans: [`docs/plans/2026-06-16-slice1-foundation-boards.md`](docs/plans/20
 ## Stack
 
 - ASP.NET Core (`net10.0`) — minimal API, localhost only
-- EF Core → SQLite for storage, behind an `IBoardRepository` seam
+- EF Core → PostgreSQL for storage (EF migrations), behind an `IBoardRepository` seam
 - Vanilla-JavaScript MVC frontend, served from `wwwroot`
 - NUnit tests
 
@@ -38,13 +38,24 @@ Build plans: [`docs/plans/2026-06-16-slice1-foundation-boards.md`](docs/plans/20
 
 ## Run it
 
+Wend stores data in **PostgreSQL**. Install a local server once — a normal Windows service, no Docker:
+
 ```
+winget install --exact --id PostgreSQL.PostgreSQL.17
+```
+
+Set the `postgres` password to `postgres` and keep port `5432`. Store the dev connection string once, then run:
+
+```
+dotnet user-secrets set "ConnectionStrings:WendDb" "Host=localhost;Port=5432;Database=wend;Username=postgres;Password=postgres" --project Wend.Api
 dotnet run --project Wend.Api
 ```
 
-Then open http://127.0.0.1:5174 to create boards, open one to manage its lists (create, rename, delete, reorder), add cards and move them within or between lists — open a card for its task view to edit the title, notes, due date, labels, and a per-card checklist. The API lives under `/api/boards`, `/api/lists`, `/api/cards`, `/api/labels`, and `/api/checklist-items`. On first run the SQLite database is created at `%LOCALAPPDATA%\Wend\data.db`.
+Then open http://127.0.0.1:5174 to create boards, open one to manage its lists (create, rename, delete, reorder), add cards and move them within or between lists — open a card for its task view to edit the title, notes, due date, labels, and a per-card checklist. The API lives under `/api/boards`, `/api/lists`, `/api/cards`, `/api/labels`, and `/api/checklist-items`. The schema is created and kept current by EF Core migrations on startup.
 
 ## Tests
+
+The API integration tests need the local PostgreSQL server running (each creates a throwaway database on it); the repository unit tests run on in-memory SQLite.
 
 ```
 dotnet test
