@@ -4,11 +4,13 @@ using Wend.Core;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Config seam — DB path and port are overridable by tests and manual runs.
-var dbPath = builder.Configuration["Wend:DbPath"] ?? WendPaths.DefaultDbPath();
+// Config seam — connection string from user-secrets (dev) or environment (prod).
+var connectionString = builder.Configuration.GetConnectionString("WendDb")
+    ?? throw new InvalidOperationException(
+        "ConnectionStrings:WendDb is not configured. Set it via user-secrets (dev) or environment (prod).");
 var port = int.TryParse(builder.Configuration["Wend:Port"], out var p) ? p : 5174;
 
-builder.Services.AddDbContext<WendDbContext>(options => options.UseSqlite($"Data Source={dbPath}"));
+builder.Services.AddDbContext<WendDbContext>(options => options.UseNpgsql(connectionString));
 builder.Services.AddScoped<IBoardRepository, EfBoardRepository>();builder.Services.AddScoped<IListRepository, EfListRepository>();
 builder.Services.AddScoped<ICardRepository, EfCardRepository>();
 builder.Services.AddScoped<ILabelRepository, EfLabelRepository>();
