@@ -13,8 +13,10 @@ public class ChecklistItemRepositoryTests
     private EfCardRepository _cards = null!;
     private EfChecklistItemRepository _repo = null!;
 
+    private string _ownerId = null!;
+
     [SetUp]
-    public void SetUp()
+    public async Task SetUp()
     {
         // In-memory SQLite lives only as long as the connection is open.
         _connection = new SqliteConnection("Data Source=:memory:");
@@ -28,6 +30,8 @@ public class ChecklistItemRepositoryTests
         _lists = new EfListRepository(_db);
         _cards = new EfCardRepository(_db);
         _repo = new EfChecklistItemRepository(_db);
+        // Board.OwnerId is required, so every test needs an owner to hang boards off.
+        _ownerId = await TestUsers.SeedAsync(_db);
     }
 
     [TearDown]
@@ -40,7 +44,7 @@ public class ChecklistItemRepositoryTests
     // Adds a board + list + card directly, returning the card id, so item tests have a parent.
     private async Task<int> NewCardAsync()
     {
-        var board = await _boards.CreateBoardAsync("Board");
+        var board = await _boards.CreateBoardAsync("Board", _ownerId);
         var list = await _lists.CreateListAsync(board.Id, "List");
         var card = await _cards.CreateCardAsync(list.Id, "Card");
         return card.Id;

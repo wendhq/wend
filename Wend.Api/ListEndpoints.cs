@@ -9,11 +9,14 @@ public static class ListEndpoints
     public static IEndpointRouteBuilder MapListEndpoints(this IEndpointRouteBuilder app)
     {
         app.MapPost("/api/boards/{boardId:int}/lists",
-            async (int boardId, CreateListRequest req, IBoardRepository boards, IListRepository lists) =>
+            async (int boardId, CreateListRequest req, IBoardRepository boards, IListRepository lists,
+                ICurrentUser currentUser) =>
             {
+                if (currentUser.UserId is not { } ownerId) return Results.Unauthorized();
                 var title = req.Title?.Trim() ?? "";
                 if (title.Length is 0 or > MaxTitleLength) return Results.BadRequest();
-                if (await boards.GetBoardAsync(boardId) is null) return Results.NotFound();
+                // Another user's board resolves as null here, so posting into it is 404 — not 403.
+                if (await boards.GetBoardAsync(boardId, ownerId) is null) return Results.NotFound();
                 var list = await lists.CreateListAsync(boardId, title);
                 return Results.Created($"/api/lists/{list.Id}", list);
             });

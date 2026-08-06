@@ -11,8 +11,10 @@ public class ListRepositoryTests
     private EfListRepository _repo = null!;
     private EfBoardRepository _boards = null!;
 
+    private string _ownerId = null!;
+
     [SetUp]
-    public void SetUp()
+    public async Task SetUp()
     {
         // In-memory SQLite lives only as long as the connection is open.
         _connection = new SqliteConnection("Data Source=:memory:");
@@ -24,10 +26,12 @@ public class ListRepositoryTests
         _db.Database.EnsureCreated();
         _repo = new EfListRepository(_db);
         _boards = new EfBoardRepository(_db);
+        // Board.OwnerId is required, so every test needs an owner to hang boards off.
+        _ownerId = await TestUsers.SeedAsync(_db);
     }
     
     private async Task<int> NewBoardAsync(string title = "Board") =>
-        (await _boards.CreateBoardAsync(title)).Id;
+        (await _boards.CreateBoardAsync(title, _ownerId)).Id;
 
     [Test]
     public async Task Create_appends_each_list_at_the_next_position()
@@ -76,7 +80,7 @@ public class ListRepositoryTests
     [Test]
     public async Task Saved_list_belongs_to_its_board_and_keeps_its_position()
     {
-        var board = new Board { Title = "Sprint 1" };
+        var board = new Board { Title = "Sprint 1", OwnerId = _ownerId };
         _db.Boards.Add(board);
         await _db.SaveChangesAsync();
 
@@ -93,7 +97,7 @@ public class ListRepositoryTests
     [Test]
     public async Task Deleting_a_board_cascades_to_its_lists()
     {
-        var board = new Board { Title = "Temp" };
+        var board = new Board { Title = "Temp", OwnerId = _ownerId };
         _db.Boards.Add(board);
         await _db.SaveChangesAsync();
         _db.Lists.Add(new List { BoardId = board.Id, Title = "To do", Position = 0 });

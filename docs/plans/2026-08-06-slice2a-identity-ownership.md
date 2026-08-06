@@ -657,8 +657,11 @@ repositories, which are unchanged until Tasks 4–7.
 
 Add `using System.Net;`, `using System.Net.Http.Json;` to the file.
 
-- [ ] **Step 12 — run the suite.** Expected: **151 passed, 0 failed** (149 + 2 new). If the number
-is lower, a test was dropped in the Step 9–10 edits — find it before continuing.
+- [ ] **Step 12 — run the suite.** Expected: **152 passed, 0 failed** — 149 + 2 API isolation tests
++ 1 repository-level isolation test (`Another_users_board_is_invisible_and_untouchable` in
+`BoardRepositoryTests`, added in execution: the boundary is worth pinning at the repository layer
+too, not only over HTTP). If the number is lower, a test was dropped in the Step 9–10 edits — find
+it before continuing.
 
 - [ ] **Step 13 — commit**
 
@@ -704,7 +707,7 @@ that do not yet have it, and pass `ownerId` to every `lists.*` call.
 - [ ] **Step 4** — `Wend.Tests/ListRepositoryTests.cs`: add `_ownerId` to every `_repo.*` call.
 - [ ] **Step 5** — add to `OwnershipTests.cs`: user B gets 404 renaming, deleting, moving and
 reading user A's list, and 404 posting a list into user A's board.
-- [ ] **Step 6** — `dotnet test`. Expected **155** (151 + 4 new).
+- [ ] **Step 6** — `dotnet test`. Expected **156** (152 + 4 new).
 - [ ] **Step 7** — commit: `Scope list queries to the board owner`
 
 ### Task 5 — cards
@@ -780,7 +783,7 @@ prevent. Prose in Step 4 is not enough; pin it:
 
 (`MoveCardRequest` is `(int ListId, int Position)` — the target list is `ListId`, not `TargetListId`.)
 
-- [ ] **Step 9** — `dotnet test`. Expected **162** (155 + 7 new).
+- [ ] **Step 9** — `dotnet test`. Expected **163** (156 + 7 new).
 - [ ] **Step 10** — commit: `Scope card queries to the board owner`
 
 ### Task 6 — labels
@@ -813,7 +816,7 @@ validation exactly as it is** — it now runs after ownership has already exclud
 - [ ] **Step 6** — `Wend.Tests/LabelRepositoryTests.cs`: `_ownerId` on every `_repo.*` call (16 tests).
 - [ ] **Step 7** — add to `OwnershipTests.cs`: user B gets 404 reading, editing and deleting user A's
 label, and cannot attach their own label to user A's card.
-- [ ] **Step 8** — `dotnet test`. Expected **166** (162 + 4 new).
+- [ ] **Step 8** — `dotnet test`. Expected **167** (163 + 4 new).
 - [ ] **Step 9** — commit: `Scope label queries to the board owner`
 
 ### Task 7 — checklist items
@@ -864,7 +867,7 @@ helper, and leave the test in place as the guard.
 - [ ] **Step 5** — `Wend.Tests/ChecklistItemRepositoryTests.cs`: `_ownerId` on every `_repo.*` call (14 tests).
 - [ ] **Step 6** — add to `OwnershipTests.cs`: user B gets 404 reading, renaming, checking, moving,
 deleting and restoring user A's checklist item.
-- [ ] **Step 7** — `dotnet test`. Expected **173** (166 + 6 isolation + 1 from Step 2).
+- [ ] **Step 7** — `dotnet test`. Expected **174** (167 + 6 isolation + 1 from Step 2).
 - [ ] **Step 8** — commit: `Scope checklist item queries to the board owner`
 
 ---
@@ -991,7 +994,7 @@ dotnet build
 dotnet test
 ```
 
-Expected: 0 warnings; **177 passed, 0 failed** (173 + 4 new).
+Expected: 0 warnings; **178 passed, 0 failed** (174 + 4 new).
 
 - [ ] **Step 6 — manual acceptance.** Start the app and confirm the honest, expected end state:
 
@@ -1046,7 +1049,7 @@ the reviewer reads it before checking the branch out:
 
 ## Definition of done
 
-- `dotnet test` green at **177**; `dotnet build` clean at 0 warnings.
+- `dotnet test` green at **178**; `dotnet build` clean at 0 warnings.
 - `WendUser` exists, `WendDbContext` is an `IdentityDbContext<WendUser>`, and Identity's seven tables are created by a committed migration.
 - `Board.OwnerId` is required and cascades from `WendUser`; deleting a user erases every board, list, card, label, join row and checklist item they own, proven by test.
 - All **34** repository methods take an explicit `ownerId`; all **22** former `FindAsync` call sites are owner-scoped lookups.

@@ -13,8 +13,10 @@ public class LabelRepositoryTests
     private EfCardRepository _cards = null!;
     private EfLabelRepository _labels = null!;
 
+    private string _ownerId = null!;
+
     [SetUp]
-    public void SetUp()
+    public async Task SetUp()
     {
         _connection = new SqliteConnection("Data Source=:memory:");
         _connection.Open();
@@ -25,6 +27,8 @@ public class LabelRepositoryTests
         _lists = new EfListRepository(_db);
         _cards = new EfCardRepository(_db);
         _labels = new EfLabelRepository(_db);
+        // Board.OwnerId is required, so every test needs an owner to hang boards off.
+        _ownerId = await TestUsers.SeedAsync(_db);
     }
 
     [TearDown]
@@ -37,7 +41,7 @@ public class LabelRepositoryTests
     [Test]
     public async Task A_label_belongs_to_its_board()
     {
-        var board = await _boards.CreateBoardAsync("Board");
+        var board = await _boards.CreateBoardAsync("Board", _ownerId);
         _db.Labels.Add(new Label { BoardId = board.Id, Name = "Urgent", Colour = "rose" });
         await _db.SaveChangesAsync();
 
@@ -51,11 +55,11 @@ public class LabelRepositoryTests
     [Test]
     public async Task Deleting_a_board_cascades_to_its_labels()
     {
-        var board = await _boards.CreateBoardAsync("Board");
+        var board = await _boards.CreateBoardAsync("Board", _ownerId);
         _db.Labels.Add(new Label { BoardId = board.Id, Name = "Urgent", Colour = "rose" });
         await _db.SaveChangesAsync();
 
-        await _boards.DeleteBoardAsync(board.Id);
+        await _boards.DeleteBoardAsync(board.Id, _ownerId);
 
         Assert.That(await _db.Labels.AnyAsync(), Is.False);
     }
@@ -73,7 +77,7 @@ public class LabelRepositoryTests
     [Test]
     public async Task Create_returns_a_board_scoped_label()
     {
-        var board = await _boards.CreateBoardAsync("Board");
+        var board = await _boards.CreateBoardAsync("Board", _ownerId);
 
         var label = await _labels.CreateLabelAsync(board.Id, "Urgent", "rose");
 
@@ -86,7 +90,7 @@ public class LabelRepositoryTests
     [Test]
     public async Task Get_for_board_lists_labels_in_creation_order()
     {
-        var board = await _boards.CreateBoardAsync("Board");
+        var board = await _boards.CreateBoardAsync("Board", _ownerId);
         await _labels.CreateLabelAsync(board.Id, "First", "mint");
         await _labels.CreateLabelAsync(board.Id, "Second", "cyan");
 
@@ -98,8 +102,8 @@ public class LabelRepositoryTests
     [Test]
     public async Task Get_for_board_excludes_other_boards()
     {
-        var a = await _boards.CreateBoardAsync("A");
-        var b = await _boards.CreateBoardAsync("B");
+        var a = await _boards.CreateBoardAsync("A", _ownerId);
+        var b = await _boards.CreateBoardAsync("B", _ownerId);
         await _labels.CreateLabelAsync(a.Id, "OnA", "mint");
         await _labels.CreateLabelAsync(b.Id, "OnB", "cyan");
 
@@ -111,7 +115,7 @@ public class LabelRepositoryTests
     [Test]
     public async Task Get_label_returns_it_or_null()
     {
-        var board = await _boards.CreateBoardAsync("Board");
+        var board = await _boards.CreateBoardAsync("Board", _ownerId);
         var created = await _labels.CreateLabelAsync(board.Id, "Find me", "amber");
 
         Assert.That((await _labels.GetLabelAsync(created.Id))!.Name, Is.EqualTo("Find me"));
@@ -121,7 +125,7 @@ public class LabelRepositoryTests
     [Test]
     public async Task Edit_updates_name_and_colour_and_reports_missing()
     {
-        var board = await _boards.CreateBoardAsync("Board");
+        var board = await _boards.CreateBoardAsync("Board", _ownerId);
         var label = await _labels.CreateLabelAsync(board.Id, "Old", "mint");
 
         Assert.That(await _labels.EditLabelAsync(label.Id, "New", "lilac"), Is.True);
@@ -135,7 +139,7 @@ public class LabelRepositoryTests
     [Test]
     public async Task Delete_removes_the_label_and_reports_missing()
     {
-        var board = await _boards.CreateBoardAsync("Board");
+        var board = await _boards.CreateBoardAsync("Board", _ownerId);
         var label = await _labels.CreateLabelAsync(board.Id, "Temp", "slate");
 
         Assert.That(await _labels.DeleteLabelAsync(label.Id), Is.True);
@@ -146,7 +150,7 @@ public class LabelRepositoryTests
     [Test]
     public async Task Deleting_a_label_cascades_its_join_rows()
     {
-        var board = await _boards.CreateBoardAsync("Board");
+        var board = await _boards.CreateBoardAsync("Board", _ownerId);
         var list = await _lists.CreateListAsync(board.Id, "List");
         var card = await _cards.CreateCardAsync(list.Id, "Card");
         var label = await _labels.CreateLabelAsync(board.Id, "Urgent", "rose");
@@ -160,7 +164,7 @@ public class LabelRepositoryTests
         [Test]
     public async Task Attach_links_a_card_and_a_label_and_is_idempotent()
     {
-        var board = await _boards.CreateBoardAsync("Board");
+        var board = await _boards.CreateBoardAsync("Board", _ownerId);
         var list = await _lists.CreateListAsync(board.Id, "List");
         var card = await _cards.CreateCardAsync(list.Id, "Card");
         var label = await _labels.CreateLabelAsync(board.Id, "Urgent", "rose");
@@ -174,7 +178,7 @@ public class LabelRepositoryTests
     [Test]
     public async Task Detach_unlinks_and_is_a_no_op_when_not_attached()
     {
-        var board = await _boards.CreateBoardAsync("Board");
+        var board = await _boards.CreateBoardAsync("Board", _ownerId);
         var list = await _lists.CreateListAsync(board.Id, "List");
         var card = await _cards.CreateCardAsync(list.Id, "Card");
         var label = await _labels.CreateLabelAsync(board.Id, "Urgent", "rose");
@@ -189,7 +193,7 @@ public class LabelRepositoryTests
     [Test]
     public async Task Get_card_labels_returns_attached_labels_in_id_order()
     {
-        var board = await _boards.CreateBoardAsync("Board");
+        var board = await _boards.CreateBoardAsync("Board", _ownerId);
         var list = await _lists.CreateListAsync(board.Id, "List");
         var card = await _cards.CreateCardAsync(list.Id, "Card");
         var a = await _labels.CreateLabelAsync(board.Id, "A", "mint");
@@ -205,7 +209,7 @@ public class LabelRepositoryTests
     [Test]
     public async Task Soft_deleting_a_card_keeps_its_join_rows_so_undo_can_recover_labels()
     {
-        var board = await _boards.CreateBoardAsync("Board");
+        var board = await _boards.CreateBoardAsync("Board", _ownerId);
         var list = await _lists.CreateListAsync(board.Id, "List");
         var card = await _cards.CreateCardAsync(list.Id, "Card");
         var label = await _labels.CreateLabelAsync(board.Id, "Urgent", "rose");
@@ -221,13 +225,13 @@ public class LabelRepositoryTests
     [Test]
     public async Task Deleting_a_board_removes_its_labels_and_join_rows()
     {
-        var board = await _boards.CreateBoardAsync("Board");
+        var board = await _boards.CreateBoardAsync("Board", _ownerId);
         var list = await _lists.CreateListAsync(board.Id, "List");
         var card = await _cards.CreateCardAsync(list.Id, "Card");
         var label = await _labels.CreateLabelAsync(board.Id, "Urgent", "rose");
         await _labels.AttachAsync(card.Id, label.Id);
 
-        await _boards.DeleteBoardAsync(board.Id);
+        await _boards.DeleteBoardAsync(board.Id, _ownerId);
 
         Assert.That(await _db.Labels.AnyAsync(), Is.False);
         Assert.That(await _db.CardLabels.AnyAsync(), Is.False);
@@ -236,7 +240,7 @@ public class LabelRepositoryTests
     [Test]
     public async Task Label_ids_by_card_groups_only_this_boards_cards()
     {
-        var board = await _boards.CreateBoardAsync("Board");
+        var board = await _boards.CreateBoardAsync("Board", _ownerId);
         var list = await _lists.CreateListAsync(board.Id, "List");
         var card = await _cards.CreateCardAsync(list.Id, "Card");
         var a = await _labels.CreateLabelAsync(board.Id, "A", "mint");
@@ -244,7 +248,7 @@ public class LabelRepositoryTests
         await _labels.AttachAsync(card.Id, a.Id);
         await _labels.AttachAsync(card.Id, b.Id);
 
-        var other = await _boards.CreateBoardAsync("Other");
+        var other = await _boards.CreateBoardAsync("Other", _ownerId);
         var otherList = await _lists.CreateListAsync(other.Id, "L");
         var otherCard = await _cards.CreateCardAsync(otherList.Id, "C");
         var c = await _labels.CreateLabelAsync(other.Id, "C", "amber");

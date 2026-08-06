@@ -12,8 +12,10 @@ public class CardRepositoryTests
     private EfBoardRepository _boards = null!;
     private EfListRepository _lists = null!;
 
+    private string _ownerId = null!;
+
     [SetUp]
-    public void SetUp()
+    public async Task SetUp()
     {
         // In-memory SQLite lives only as long as the connection is open.
         _connection = new SqliteConnection("Data Source=:memory:");
@@ -26,6 +28,8 @@ public class CardRepositoryTests
         _repo = new EfCardRepository(_db);
         _boards = new EfBoardRepository(_db);
         _lists = new EfListRepository(_db);
+        // Board.OwnerId is required, so every test needs an owner to hang boards off.
+        _ownerId = await TestUsers.SeedAsync(_db);
     }
 
     [TearDown]
@@ -38,7 +42,7 @@ public class CardRepositoryTests
     // Adds a board + one list directly, returning the list id, so card tests have a parent.
     private async Task<int> NewListAsync()
     {
-        var board = await _boards.CreateBoardAsync("Board");
+        var board = await _boards.CreateBoardAsync("Board", _ownerId);
         var list = await _lists.CreateListAsync(board.Id, "List");
         return list.Id;
     }
@@ -209,7 +213,7 @@ public class CardRepositoryTests
     [Test]
     public async Task Move_to_another_list_appends_at_its_bottom_and_resequences_both()
     {
-        var board = await _boards.CreateBoardAsync("Board");
+        var board = await _boards.CreateBoardAsync("Board", _ownerId);
         var todo = await _lists.CreateListAsync(board.Id, "To do");
         var doing = await _lists.CreateListAsync(board.Id, "Doing");
         await _repo.CreateCardAsync(todo.Id, "A");          // todo 0
@@ -232,7 +236,7 @@ public class CardRepositoryTests
     [Test]
     public async Task Move_to_another_list_can_insert_at_the_top()
     {
-        var board = await _boards.CreateBoardAsync("Board");
+        var board = await _boards.CreateBoardAsync("Board", _ownerId);
         var todo = await _lists.CreateListAsync(board.Id, "To do");
         var doing = await _lists.CreateListAsync(board.Id, "Doing");
         var a = await _repo.CreateCardAsync(todo.Id, "A");
@@ -258,11 +262,11 @@ public class CardRepositoryTests
     [Test]
     public async Task Move_to_a_list_on_another_board_is_rejected()
     {
-        var boardA = await _boards.CreateBoardAsync("A");
+        var boardA = await _boards.CreateBoardAsync("A", _ownerId);
         var listA = await _lists.CreateListAsync(boardA.Id, "A-list");
         var card = await _repo.CreateCardAsync(listA.Id, "Card");
 
-        var boardB = await _boards.CreateBoardAsync("B");
+        var boardB = await _boards.CreateBoardAsync("B", _ownerId);
         var listB = await _lists.CreateListAsync(boardB.Id, "B-list");
 
         Assert.That(await _repo.MoveCardAsync(card.Id, listB.Id, 0), Is.EqualTo(CardMoveResult.CrossBoard));

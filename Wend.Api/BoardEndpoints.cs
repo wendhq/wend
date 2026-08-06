@@ -8,20 +8,32 @@ public static class BoardEndpoints
 
     public static RouteGroupBuilder MapBoardEndpoints(this RouteGroupBuilder group)
     {
-        group.MapGet("/", async (IBoardRepository repo) =>
-            Results.Ok(await repo.GetBoardsAsync()));
-        
-        group.MapPost("/", async (CreateBoardRequest req, IBoardRepository repo) =>
+        // Each handler opens with the same guard. Kept per-handler rather than lifted into a
+        // route-group filter: it is compile-enforced (ownerId only exists via this pattern match),
+        // and Plan 3 puts real authentication in front of these routes, where a group filter would
+        // have to be unpicked to let /api/auth/* through. Decided at plan time — please don't reopen.
+        group.MapGet("/", async (IBoardRepository repo, ICurrentUser currentUser) =>
         {
+            if (currentUser.UserId is not { } ownerId) return Results.Unauthorized();
+            return Results.Ok(await repo.GetBoardsAsync(ownerId));
+        });
+
+        group.MapPost("/", async (CreateBoardRequest req, IBoardRepository repo, ICurrentUser currentUser) =>
+        {
+            if (currentUser.UserId is not { } ownerId) return Results.Unauthorized();
             var title = req.Title?.Trim() ?? "";
             if (title.Length is 0 or > MaxTitleLength) return Results.BadRequest();
-            var board = await repo.CreateBoardAsync(title);
+            var board = await repo.CreateBoardAsync(title, ownerId);
             return Results.Created($"/api/boards/{board.Id}", board);
         });
+
         group.MapGet("/{id:int}", async (int id, IBoardRepository boards, IListRepository lists,
-            ICardRepository cards, ILabelRepository labels, IChecklistItemRepository checklist) =>
+            ICardRepository cards, ILabelRepository labels, IChecklistItemRepository checklist,
+            ICurrentUser currentUser) =>
         {
-            if (await boards.GetBoardAsync(id) is not { } board) return Results.NotFound();
+            if (currentUser.UserId is not { } ownerId) return Results.Unauthorized();
+            // The board is ownership-checked here, so the nested reads below are already scoped.
+            if (await boards.GetBoardAsync(id, ownerId) is not { } board) return Results.NotFound();
 
             var palette = (await labels.GetBoardLabelsAsync(id))
                 .Select(l => new LabelDto(l.Id, l.Name, l.Colour)).ToList();
@@ -42,17 +54,22 @@ public static class BoardEndpoints
             return Results.Ok(new BoardDetail(board.Id, board.Title, palette, summaries));
         });
 
-        group.MapPut("/{id:int}", async (int id, RenameBoardRequest req, IBoardRepository repo) =>
+        group.MapPut("/{id:int}", async (int id, RenameBoardRequest req, IBoardRepository repo,
+            ICurrentUser currentUser) =>
         {
+            if (currentUser.UserId is not { } ownerId) return Results.Unauthorized();
             var title = req.Title?.Trim() ?? "";
             if (title.Length is 0 or > MaxTitleLength) return Results.BadRequest();
-            return await repo.RenameBoardAsync(id, title)
+            return await repo.RenameBoardAsync(id, title, ownerId)
                 ? Results.NoContent() : Results.NotFound();
         });
 
-        group.MapDelete("/{id:int}", async (int id, IBoardRepository repo) =>
-            await repo.DeleteBoardAsync(id) ? Results.NoContent() : Results.NotFound());
-        
+        group.MapDelete("/{id:int}", async (int id, IBoardRepository repo, ICurrentUser currentUser) =>
+        {
+            if (currentUser.UserId is not { } ownerId) return Results.Unauthorized();
+            return await repo.DeleteBoardAsync(id, ownerId) ? Results.NoContent() : Results.NotFound();
+        });
+
         return group;
     }
 }

@@ -24,6 +24,14 @@ public class WendDbContext(DbContextOptions<WendDbContext> options)
         // registration in Plan 3, which is the first thing that can write it.
         modelBuilder.Entity<WendUser>().Property(u => u.DisplayName).HasMaxLength(100);
 
+        // Every board belongs to one user; deleting the user erases their boards and everything
+        // beneath them via the existing required FKs.
+        modelBuilder.Entity<Board>()
+            .HasOne<WendUser>()
+            .WithMany()
+            .HasForeignKey(b => b.OwnerId)
+            .OnDelete(DeleteBehavior.Cascade);
+
         // Hide soft-deleted / archived cards from every query. Plans 6-7 set these timestamps;
         // until then the filter is inert (no card ever has them set).
         modelBuilder.Entity<Card>().HasQueryFilter(c => c.DeletedAt == null && c.ArchivedAt == null);
