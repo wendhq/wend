@@ -64,6 +64,43 @@ public class OwnershipTests
             Is.EqualTo(HttpStatusCode.Unauthorized));
     }
 
+    [Test]
+    public async Task A_list_is_invisible_to_another_user()
+    {
+        using var factory = new WendApiFactory();
+        var client = factory.CreateClient();
+
+        var board = await (await client.PostAsJsonAsync("/api/boards", new { Title = "Mine" }))
+            .Content.ReadFromJsonAsync<Board>();
+        var list = await (await client.PostAsJsonAsync($"/api/boards/{board!.Id}/lists", new { Title = "To do" }))
+            .Content.ReadFromJsonAsync<Wend.Core.List>();
+
+        factory.CurrentUser.UserId = await SeedOtherUserAsync(factory);
+        Assert.That(factory.CurrentUser.UserId, Is.Not.EqualTo(factory.DefaultUserId));
+
+        Assert.That((await client.PutAsJsonAsync($"/api/lists/{list!.Id}", new { Title = "Theirs" })).StatusCode,
+            Is.EqualTo(HttpStatusCode.NotFound));
+        Assert.That((await client.PutAsJsonAsync($"/api/lists/{list.Id}/move", new { Position = 0 })).StatusCode,
+            Is.EqualTo(HttpStatusCode.NotFound));
+        Assert.That((await client.DeleteAsync($"/api/lists/{list.Id}")).StatusCode,
+            Is.EqualTo(HttpStatusCode.NotFound));
+    }
+
+    [Test]
+    public async Task Posting_a_list_into_another_users_board_is_404()
+    {
+        using var factory = new WendApiFactory();
+        var client = factory.CreateClient();
+
+        var board = await (await client.PostAsJsonAsync("/api/boards", new { Title = "Mine" }))
+            .Content.ReadFromJsonAsync<Board>();
+
+        factory.CurrentUser.UserId = await SeedOtherUserAsync(factory);
+
+        var posted = await client.PostAsJsonAsync($"/api/boards/{board!.Id}/lists", new { Title = "Intruder" });
+        Assert.That(posted.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+    }
+
     /// <summary>
     /// Seeds a second user. Callers assign the result to factory.CurrentUser.UserId — never call
     /// CreateClient() again afterwards, or ConfigureClient silently reverts to the default user.

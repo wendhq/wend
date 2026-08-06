@@ -151,7 +151,7 @@ public class LabelRepositoryTests
     public async Task Deleting_a_label_cascades_its_join_rows()
     {
         var board = await _boards.CreateBoardAsync("Board", _ownerId);
-        var list = await _lists.CreateListAsync(board.Id, "List");
+        var list = await _lists.CreateListAsync(board.Id, "List", _ownerId);
         var card = await _cards.CreateCardAsync(list.Id, "Card");
         var label = await _labels.CreateLabelAsync(board.Id, "Urgent", "rose");
         _db.CardLabels.Add(new CardLabel { CardId = card.Id, LabelId = label.Id });
@@ -165,7 +165,7 @@ public class LabelRepositoryTests
     public async Task Attach_links_a_card_and_a_label_and_is_idempotent()
     {
         var board = await _boards.CreateBoardAsync("Board", _ownerId);
-        var list = await _lists.CreateListAsync(board.Id, "List");
+        var list = await _lists.CreateListAsync(board.Id, "List", _ownerId);
         var card = await _cards.CreateCardAsync(list.Id, "Card");
         var label = await _labels.CreateLabelAsync(board.Id, "Urgent", "rose");
 
@@ -179,7 +179,7 @@ public class LabelRepositoryTests
     public async Task Detach_unlinks_and_is_a_no_op_when_not_attached()
     {
         var board = await _boards.CreateBoardAsync("Board", _ownerId);
-        var list = await _lists.CreateListAsync(board.Id, "List");
+        var list = await _lists.CreateListAsync(board.Id, "List", _ownerId);
         var card = await _cards.CreateCardAsync(list.Id, "Card");
         var label = await _labels.CreateLabelAsync(board.Id, "Urgent", "rose");
 
@@ -194,7 +194,7 @@ public class LabelRepositoryTests
     public async Task Get_card_labels_returns_attached_labels_in_id_order()
     {
         var board = await _boards.CreateBoardAsync("Board", _ownerId);
-        var list = await _lists.CreateListAsync(board.Id, "List");
+        var list = await _lists.CreateListAsync(board.Id, "List", _ownerId);
         var card = await _cards.CreateCardAsync(list.Id, "Card");
         var a = await _labels.CreateLabelAsync(board.Id, "A", "mint");
         var b = await _labels.CreateLabelAsync(board.Id, "B", "cyan");
@@ -210,7 +210,7 @@ public class LabelRepositoryTests
     public async Task Soft_deleting_a_card_keeps_its_join_rows_so_undo_can_recover_labels()
     {
         var board = await _boards.CreateBoardAsync("Board", _ownerId);
-        var list = await _lists.CreateListAsync(board.Id, "List");
+        var list = await _lists.CreateListAsync(board.Id, "List", _ownerId);
         var card = await _cards.CreateCardAsync(list.Id, "Card");
         var label = await _labels.CreateLabelAsync(board.Id, "Urgent", "rose");
         await _labels.AttachAsync(card.Id, label.Id);
@@ -226,7 +226,7 @@ public class LabelRepositoryTests
     public async Task Deleting_a_board_removes_its_labels_and_join_rows()
     {
         var board = await _boards.CreateBoardAsync("Board", _ownerId);
-        var list = await _lists.CreateListAsync(board.Id, "List");
+        var list = await _lists.CreateListAsync(board.Id, "List", _ownerId);
         var card = await _cards.CreateCardAsync(list.Id, "Card");
         var label = await _labels.CreateLabelAsync(board.Id, "Urgent", "rose");
         await _labels.AttachAsync(card.Id, label.Id);
@@ -241,7 +241,7 @@ public class LabelRepositoryTests
     public async Task Label_ids_by_card_groups_only_this_boards_cards()
     {
         var board = await _boards.CreateBoardAsync("Board", _ownerId);
-        var list = await _lists.CreateListAsync(board.Id, "List");
+        var list = await _lists.CreateListAsync(board.Id, "List", _ownerId);
         var card = await _cards.CreateCardAsync(list.Id, "Card");
         var a = await _labels.CreateLabelAsync(board.Id, "A", "mint");
         var b = await _labels.CreateLabelAsync(board.Id, "B", "cyan");
@@ -249,7 +249,7 @@ public class LabelRepositoryTests
         await _labels.AttachAsync(card.Id, b.Id);
 
         var other = await _boards.CreateBoardAsync("Other", _ownerId);
-        var otherList = await _lists.CreateListAsync(other.Id, "L");
+        var otherList = await _lists.CreateListAsync(other.Id, "L", _ownerId);
         var otherCard = await _cards.CreateCardAsync(otherList.Id, "C");
         var c = await _labels.CreateLabelAsync(other.Id, "C", "amber");
         await _labels.AttachAsync(otherCard.Id, c.Id);

@@ -17,22 +17,34 @@ public static class ListEndpoints
                 if (title.Length is 0 or > MaxTitleLength) return Results.BadRequest();
                 // Another user's board resolves as null here, so posting into it is 404 — not 403.
                 if (await boards.GetBoardAsync(boardId, ownerId) is null) return Results.NotFound();
-                var list = await lists.CreateListAsync(boardId, title);
+                var list = await lists.CreateListAsync(boardId, title, ownerId);
                 return Results.Created($"/api/lists/{list.Id}", list);
             });
 
-        app.MapPut("/api/lists/{id:int}", async (int id, RenameListRequest req, IListRepository lists) =>
+        app.MapPut("/api/lists/{id:int}", async (int id, RenameListRequest req, IListRepository lists,
+            ICurrentUser currentUser) =>
         {
+            if (currentUser.UserId is not { } ownerId) return Results.Unauthorized();
             var title = req.Title?.Trim() ?? "";
             if (title.Length is 0 or > MaxTitleLength) return Results.BadRequest();
-            return await lists.RenameListAsync(id, title) ? Results.NoContent() : Results.NotFound();
+            return await lists.RenameListAsync(id, title, ownerId)
+                ? Results.NoContent() : Results.NotFound();
         });
 
-        app.MapDelete("/api/lists/{id:int}", async (int id, IListRepository lists) =>
-            await lists.DeleteListAsync(id) ? Results.NoContent() : Results.NotFound());
-        
-        app.MapPut("/api/lists/{id:int}/move", async (int id, MoveListRequest req, IListRepository lists) =>
-            await lists.MoveListAsync(id, req.Position) ? Results.NoContent() : Results.NotFound());
+        app.MapDelete("/api/lists/{id:int}", async (int id, IListRepository lists,
+            ICurrentUser currentUser) =>
+        {
+            if (currentUser.UserId is not { } ownerId) return Results.Unauthorized();
+            return await lists.DeleteListAsync(id, ownerId) ? Results.NoContent() : Results.NotFound();
+        });
+
+        app.MapPut("/api/lists/{id:int}/move", async (int id, MoveListRequest req, IListRepository lists,
+            ICurrentUser currentUser) =>
+        {
+            if (currentUser.UserId is not { } ownerId) return Results.Unauthorized();
+            return await lists.MoveListAsync(id, req.Position, ownerId)
+                ? Results.NoContent() : Results.NotFound();
+        });
         
         return app;
     }

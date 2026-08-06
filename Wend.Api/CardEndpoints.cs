@@ -10,20 +10,24 @@ public static class CardEndpoints
     public static IEndpointRouteBuilder MapCardEndpoints(this IEndpointRouteBuilder app)
     {
         app.MapPost("/api/lists/{listId:int}/cards",
-            async (int listId, CreateCardRequest req, IListRepository lists, ICardRepository cards) =>
+            async (int listId, CreateCardRequest req, IListRepository lists, ICardRepository cards,
+                ICurrentUser currentUser) =>
             {
+                if (currentUser.UserId is not { } ownerId) return Results.Unauthorized();
                 var title = req.Title?.Trim() ?? "";
                 if (title.Length is 0 or > MaxTitleLength) return Results.BadRequest();
-                if (await lists.GetListAsync(listId) is null) return Results.NotFound();
+                // Another user's list resolves as null here, so posting into it is 404 — not 403.
+                if (await lists.GetListAsync(listId, ownerId) is null) return Results.NotFound();
                 var card = await cards.CreateCardAsync(listId, title);
                 return Results.Created($"/api/cards/{card.Id}", card);
             });
 
         app.MapGet("/api/cards/{id:int}", async (int id, ICardRepository cards, IListRepository lists,
-            ILabelRepository labels, IChecklistItemRepository checklist) =>
+            ILabelRepository labels, IChecklistItemRepository checklist, ICurrentUser currentUser) =>
         {
+            if (currentUser.UserId is not { } ownerId) return Results.Unauthorized();
             if (await cards.GetCardAsync(id) is not { } c) return Results.NotFound();
-            var list = await lists.GetListAsync(c.ListId);
+            var list = await lists.GetListAsync(c.ListId, ownerId);
             var attached = (await labels.GetCardLabelsAsync(c.Id))
                 .Select(l => new LabelDto(l.Id, l.Name, l.Colour)).ToList();
             var items = (await checklist.GetItemsForCardAsync(c.Id))

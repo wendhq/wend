@@ -41,7 +41,7 @@ public static class BoardEndpoints
             var counts = await checklist.GetCountsByCardAsync(id);
 
             var summaries = new List<ListSummary>();
-            foreach (var l in await lists.GetListsForBoardAsync(id))
+            foreach (var l in await lists.GetListsForBoardAsync(id, ownerId))
             {
                 var cardSummaries = (await cards.GetCardsForListAsync(l.Id))
                     .Select(c => new CardSummary(c.Id, c.Title, c.DueDate, c.Position, c.CompletedAt,

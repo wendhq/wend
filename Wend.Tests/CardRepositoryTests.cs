@@ -43,7 +43,7 @@ public class CardRepositoryTests
     private async Task<int> NewListAsync()
     {
         var board = await _boards.CreateBoardAsync("Board", _ownerId);
-        var list = await _lists.CreateListAsync(board.Id, "List");
+        var list = await _lists.CreateListAsync(board.Id, "List", _ownerId);
         return list.Id;
     }
 
@@ -214,8 +214,8 @@ public class CardRepositoryTests
     public async Task Move_to_another_list_appends_at_its_bottom_and_resequences_both()
     {
         var board = await _boards.CreateBoardAsync("Board", _ownerId);
-        var todo = await _lists.CreateListAsync(board.Id, "To do");
-        var doing = await _lists.CreateListAsync(board.Id, "Doing");
+        var todo = await _lists.CreateListAsync(board.Id, "To do", _ownerId);
+        var doing = await _lists.CreateListAsync(board.Id, "Doing", _ownerId);
         await _repo.CreateCardAsync(todo.Id, "A");          // todo 0
         var b = await _repo.CreateCardAsync(todo.Id, "B");  // todo 1
         await _repo.CreateCardAsync(todo.Id, "C");          // todo 2
@@ -237,8 +237,8 @@ public class CardRepositoryTests
     public async Task Move_to_another_list_can_insert_at_the_top()
     {
         var board = await _boards.CreateBoardAsync("Board", _ownerId);
-        var todo = await _lists.CreateListAsync(board.Id, "To do");
-        var doing = await _lists.CreateListAsync(board.Id, "Doing");
+        var todo = await _lists.CreateListAsync(board.Id, "To do", _ownerId);
+        var doing = await _lists.CreateListAsync(board.Id, "Doing", _ownerId);
         var a = await _repo.CreateCardAsync(todo.Id, "A");
         await _repo.CreateCardAsync(doing.Id, "X");  // 0
         await _repo.CreateCardAsync(doing.Id, "Y");  // 1
@@ -263,11 +263,11 @@ public class CardRepositoryTests
     public async Task Move_to_a_list_on_another_board_is_rejected()
     {
         var boardA = await _boards.CreateBoardAsync("A", _ownerId);
-        var listA = await _lists.CreateListAsync(boardA.Id, "A-list");
+        var listA = await _lists.CreateListAsync(boardA.Id, "A-list", _ownerId);
         var card = await _repo.CreateCardAsync(listA.Id, "Card");
 
         var boardB = await _boards.CreateBoardAsync("B", _ownerId);
-        var listB = await _lists.CreateListAsync(boardB.Id, "B-list");
+        var listB = await _lists.CreateListAsync(boardB.Id, "B-list", _ownerId);
 
         Assert.That(await _repo.MoveCardAsync(card.Id, listB.Id, 0), Is.EqualTo(CardMoveResult.CrossBoard));
     }

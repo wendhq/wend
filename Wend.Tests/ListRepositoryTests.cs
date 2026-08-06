@@ -38,8 +38,8 @@ public class ListRepositoryTests
     {
         var boardId = await NewBoardAsync();
 
-        var first = await _repo.CreateListAsync(boardId, "To do");
-        var second = await _repo.CreateListAsync(boardId, "Doing");
+        var first = await _repo.CreateListAsync(boardId, "To do", _ownerId);
+        var second = await _repo.CreateListAsync(boardId, "Doing", _ownerId);
 
         Assert.That(first.Position, Is.EqualTo(0));
         Assert.That(second.Position, Is.EqualTo(1));
@@ -49,10 +49,10 @@ public class ListRepositoryTests
     public async Task Get_lists_for_board_returns_them_in_position_order()
     {
         var boardId = await NewBoardAsync();
-        await _repo.CreateListAsync(boardId, "To do");
-        await _repo.CreateListAsync(boardId, "Doing");
+        await _repo.CreateListAsync(boardId, "To do", _ownerId);
+        await _repo.CreateListAsync(boardId, "Doing", _ownerId);
 
-        var lists = await _repo.GetListsForBoardAsync(boardId);
+        var lists = await _repo.GetListsForBoardAsync(boardId, _ownerId);
 
         Assert.That(lists.Select(l => l.Title), Is.EqualTo(new[] { "To do", "Doing" }));
     }
@@ -63,8 +63,8 @@ public class ListRepositoryTests
         var boardA = await NewBoardAsync("A");
         var boardB = await NewBoardAsync("B");
 
-        var a1 = await _repo.CreateListAsync(boardA, "A1");
-        var b1 = await _repo.CreateListAsync(boardB, "B1");
+        var a1 = await _repo.CreateListAsync(boardA, "A1", _ownerId);
+        var b1 = await _repo.CreateListAsync(boardB, "B1", _ownerId);
 
         Assert.That(a1.Position, Is.EqualTo(0));
         Assert.That(b1.Position, Is.EqualTo(0));
@@ -112,25 +112,25 @@ public class ListRepositoryTests
     public async Task Rename_changes_the_title_and_reports_missing()
     {
         var boardId = await NewBoardAsync();
-        var list = await _repo.CreateListAsync(boardId, "Old");
+        var list = await _repo.CreateListAsync(boardId, "Old", _ownerId);
 
-        Assert.That(await _repo.RenameListAsync(list.Id, "New"), Is.True);
-        var lists = await _repo.GetListsForBoardAsync(boardId);
+        Assert.That(await _repo.RenameListAsync(list.Id, "New", _ownerId), Is.True);
+        var lists = await _repo.GetListsForBoardAsync(boardId, _ownerId);
         Assert.That(lists.Single().Title, Is.EqualTo("New"));
-        Assert.That(await _repo.RenameListAsync(9999, "X"), Is.False);
+        Assert.That(await _repo.RenameListAsync(9999, "X", _ownerId), Is.False);
     }
 
     [Test]
     public async Task Delete_removes_the_list_and_resequences_the_rest()
     {
         var boardId = await NewBoardAsync();
-        await _repo.CreateListAsync(boardId, "A");           // 0
-        var b = await _repo.CreateListAsync(boardId, "B");   // 1
-        await _repo.CreateListAsync(boardId, "C");           // 2
+        await _repo.CreateListAsync(boardId, "A", _ownerId);           // 0
+        var b = await _repo.CreateListAsync(boardId, "B", _ownerId);   // 1
+        await _repo.CreateListAsync(boardId, "C", _ownerId);           // 2
 
-        Assert.That(await _repo.DeleteListAsync(b.Id), Is.True);
+        Assert.That(await _repo.DeleteListAsync(b.Id, _ownerId), Is.True);
 
-        var lists = await _repo.GetListsForBoardAsync(boardId);
+        var lists = await _repo.GetListsForBoardAsync(boardId, _ownerId);
         Assert.That(lists.Select(l => l.Title), Is.EqualTo(new[] { "A", "C" }));
         Assert.That(lists.Select(l => l.Position), Is.EqualTo(new[] { 0, 1 })); // gapless
     }
@@ -138,20 +138,20 @@ public class ListRepositoryTests
     [Test]
     public async Task Delete_reports_missing()
     {
-        Assert.That(await _repo.DeleteListAsync(9999), Is.False);
+        Assert.That(await _repo.DeleteListAsync(9999, _ownerId), Is.False);
     }
     
     [Test]
     public async Task Move_reorders_within_the_board_and_resequences()
     {
         var boardId = await NewBoardAsync();
-        var a = await _repo.CreateListAsync(boardId, "A"); // 0
-        await _repo.CreateListAsync(boardId, "B");          // 1
-        await _repo.CreateListAsync(boardId, "C");          // 2
+        var a = await _repo.CreateListAsync(boardId, "A", _ownerId); // 0
+        await _repo.CreateListAsync(boardId, "B", _ownerId);          // 1
+        await _repo.CreateListAsync(boardId, "C", _ownerId);          // 2
 
-        Assert.That(await _repo.MoveListAsync(a.Id, 2), Is.True);
+        Assert.That(await _repo.MoveListAsync(a.Id, 2, _ownerId), Is.True);
 
-        var lists = await _repo.GetListsForBoardAsync(boardId);
+        var lists = await _repo.GetListsForBoardAsync(boardId, _ownerId);
         Assert.That(lists.Select(l => l.Title), Is.EqualTo(new[] { "B", "C", "A" }));
         Assert.That(lists.Select(l => l.Position), Is.EqualTo(new[] { 0, 1, 2 }));
     }
@@ -160,18 +160,18 @@ public class ListRepositoryTests
     public async Task Move_clamps_an_out_of_range_position()
     {
         var boardId = await NewBoardAsync();
-        var a = await _repo.CreateListAsync(boardId, "A");
-        await _repo.CreateListAsync(boardId, "B");
+        var a = await _repo.CreateListAsync(boardId, "A", _ownerId);
+        await _repo.CreateListAsync(boardId, "B", _ownerId);
 
-        Assert.That(await _repo.MoveListAsync(a.Id, 99), Is.True);
+        Assert.That(await _repo.MoveListAsync(a.Id, 99, _ownerId), Is.True);
 
-        var lists = await _repo.GetListsForBoardAsync(boardId);
+        var lists = await _repo.GetListsForBoardAsync(boardId, _ownerId);
         Assert.That(lists.Select(l => l.Title), Is.EqualTo(new[] { "B", "A" }));
     }
 
     [Test]
     public async Task Move_reports_missing_list()
     {
-        Assert.That(await _repo.MoveListAsync(9999, 0), Is.False);
+        Assert.That(await _repo.MoveListAsync(9999, 0, _ownerId), Is.False);
     }
 }

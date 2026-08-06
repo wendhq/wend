@@ -45,11 +45,13 @@ public static class LabelEndpoints
             await labels.DeleteLabelAsync(id) ? Results.NoContent() : Results.NotFound());
         
         app.MapPost("/api/cards/{cardId:int}/labels",
-            async (int cardId, AttachLabelRequest req, ICardRepository cards, IListRepository lists, ILabelRepository labels) =>
+            async (int cardId, AttachLabelRequest req, ICardRepository cards, IListRepository lists,
+                ILabelRepository labels, ICurrentUser currentUser) =>
             {
+                if (currentUser.UserId is not { } ownerId) return Results.Unauthorized();
                 if (await cards.GetCardAsync(cardId) is not { } card) return Results.NotFound();
                 if (await labels.GetLabelAsync(req.LabelId) is not { } label) return Results.NotFound();
-                var list = await lists.GetListAsync(card.ListId);
+                var list = await lists.GetListAsync(card.ListId, ownerId);
                 if (list is null || list.BoardId != label.BoardId) return Results.BadRequest(); // cross-board
                 await labels.AttachAsync(cardId, req.LabelId); // idempotent
                 return Results.NoContent();
