@@ -1,7 +1,7 @@
 # Wend — Slice 2a Plan 2 design: Identity schema & per-user ownership
 
 - **Date:** 2026-08-06
-- **Status:** Draft — pending review by both owners
+- **Status:** Draft — clean slate and the 401 window **confirmed by Henry 2026-08-06**; the ownership-parameter and Identity-depth decisions are still pending his sign-off
 - **Owners:** Malin & Henry (equal ownership)
 - **Repo:** `github.com/wendhq/wend`
 - **Parent spec:** [`2026-07-08-wend-slice2a-accounts-design.md`](2026-07-08-wend-slice2a-accounts-design.md) (signed off, stress-tested)
@@ -52,7 +52,7 @@ deferring the security boundary or dragging authentication forward.
 |---|---|---|
 | **Scoping timing** | Lands in this plan, behind an `ICurrentUser` seam | The security boundary ships with the schema that enforces it, never as a retrofit |
 | **Enforcement point** | Explicit `string ownerId` parameter on every repository method | Ownership becomes part of the contract; a method added in a later plan cannot silently skip it |
-| **Existing dev data** | Clean slate — the migration empties `Boards` | No placeholder account row is invented, and none can leak into production |
+| **Existing dev data** | Clean slate — the migration empties `Boards` | An ownerless board should not be a state the system can represent (Henry, review 2026-08-06); no placeholder account row is invented, and none can leak into production |
 | **Identity depth** | Schema only; services in Plan 3 | Keeps this plan "data model + boundary" and Plan 3 "auth machinery" |
 
 **Accepted cost of the clean slate:** current dev boards are lost, and Wend is unusable in the
@@ -234,9 +234,14 @@ exactly this shape once silently dropped three tests behind a green suite.
   which would have silently dropped ownership on the exact paths that bring data back.
 - **`ICurrentUser` in `Wend.Api`** — "current user" is an HTTP concept; the domain receives an
   owner id as an ordinary argument.
-- **Clean slate over a seeded placeholder** — a passwordless account row that exists to paper over
-  a two-plan gap is a security smell that someone has to remember to delete. Losing disposable dev
-  boards is cheaper than shipping that.
+- **Clean slate over a seeded placeholder** — **an ownerless board should not be a state the system
+  can represent** (Henry's framing at review, 2026-08-06, and the load-bearing reason). Creating a
+  board should require an account. This is also why `OwnerId` is **required rather than nullable**:
+  a nullable column would keep ownerless boards legal indefinitely, and every query would carry a
+  null branch meaning "belongs to nobody" — precisely the state the slice exists to abolish. The
+  secondary argument still holds: a passwordless placeholder account exists only to paper over a
+  two-plan gap, and someone has to remember to delete it. Losing disposable dev boards is cheaper
+  than either.
 - **Identity schema without Identity services** — the .NET 10 headless-Identity wiring is a flagged
   gotcha; it belongs in the plan that actually signs users in, not in a schema change.
 
