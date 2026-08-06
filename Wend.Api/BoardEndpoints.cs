@@ -35,9 +35,9 @@ public static class BoardEndpoints
             // The board is ownership-checked here, so the nested reads below are already scoped.
             if (await boards.GetBoardAsync(id, ownerId) is not { } board) return Results.NotFound();
 
-            var palette = (await labels.GetBoardLabelsAsync(id))
+            var palette = (await labels.GetBoardLabelsAsync(id, ownerId))
                 .Select(l => new LabelDto(l.Id, l.Name, l.Colour)).ToList();
-            var labelIdsByCard = await labels.GetLabelIdsByCardAsync(id);
+            var labelIdsByCard = await labels.GetLabelIdsByCardAsync(id, ownerId);
             var counts = await checklist.GetCountsByCardAsync(id);
 
             var summaries = new List<ListSummary>();

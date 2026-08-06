@@ -28,7 +28,7 @@ public static class CardEndpoints
             if (currentUser.UserId is not { } ownerId) return Results.Unauthorized();
             if (await cards.GetCardAsync(id, ownerId) is not { } c) return Results.NotFound();
             var list = await lists.GetListAsync(c.ListId, ownerId);
-            var attached = (await labels.GetCardLabelsAsync(c.Id))
+            var attached = (await labels.GetCardLabelsAsync(c.Id, ownerId))
                 .Select(l => new LabelDto(l.Id, l.Name, l.Colour)).ToList();
             var items = (await checklist.GetItemsForCardAsync(c.Id))
                 .Select(i => new ChecklistItemDto(i.Id, i.Text, i.CheckedAt, i.Position)).ToList();

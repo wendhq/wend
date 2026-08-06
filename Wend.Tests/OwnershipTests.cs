@@ -190,6 +190,59 @@ public class OwnershipTests
         Assert.That(moveAsA.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
     }
 
+    [Test]
+    public async Task A_label_is_invisible_to_another_user()
+    {
+        using var factory = new WendApiFactory();
+        var client = factory.CreateClient();
+
+        var board = await (await client.PostAsJsonAsync("/api/boards", new { Title = "Mine" }))
+            .Content.ReadFromJsonAsync<Board>();
+        var label = await (await client.PostAsJsonAsync($"/api/boards/{board!.Id}/labels",
+            new { Name = "Urgent", Colour = "rose" })).Content.ReadFromJsonAsync<LabelDto>();
+
+        factory.CurrentUser.UserId = await SeedOtherUserAsync(factory);
+        Assert.That(factory.CurrentUser.UserId, Is.Not.EqualTo(factory.DefaultUserId));
+
+        Assert.That((await client.GetAsync($"/api/boards/{board.Id}/labels")).StatusCode,
+            Is.EqualTo(HttpStatusCode.NotFound));
+        Assert.That((await client.PutAsJsonAsync($"/api/labels/{label!.Id}",
+            new { Name = "Theirs", Colour = "mint" })).StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+        Assert.That((await client.DeleteAsync($"/api/labels/{label.Id}")).StatusCode,
+            Is.EqualTo(HttpStatusCode.NotFound));
+    }
+
+    [Test]
+    public async Task A_label_cannot_be_attached_to_another_users_card()
+    {
+        using var factory = new WendApiFactory();
+        var client = factory.CreateClient();
+
+        // User A's card.
+        var boardA = await (await client.PostAsJsonAsync("/api/boards", new { Title = "A" }))
+            .Content.ReadFromJsonAsync<Board>();
+        var listA = await (await client.PostAsJsonAsync($"/api/boards/{boardA!.Id}/lists", new { Title = "A list" }))
+            .Content.ReadFromJsonAsync<Wend.Core.List>();
+        var cardA = await (await client.PostAsJsonAsync($"/api/lists/{listA!.Id}/cards", new { Title = "A card" }))
+            .Content.ReadFromJsonAsync<Card>();
+
+        // User B's own label.
+        factory.CurrentUser.UserId = await SeedOtherUserAsync(factory);
+        var boardB = await (await client.PostAsJsonAsync("/api/boards", new { Title = "B" }))
+            .Content.ReadFromJsonAsync<Board>();
+        var labelB = await (await client.PostAsJsonAsync($"/api/boards/{boardB!.Id}/labels",
+            new { Name = "Theirs", Colour = "cyan" })).Content.ReadFromJsonAsync<LabelDto>();
+
+        // B attaching their label to A's card: the card is missing to them.
+        var attached = await client.PostAsJsonAsync($"/api/cards/{cardA!.Id}/labels", new { LabelId = labelB!.Id });
+        Assert.That(attached.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+
+        // And A cannot reach B's label either.
+        factory.CurrentUser.UserId = factory.DefaultUserId;
+        var reverse = await client.PostAsJsonAsync($"/api/cards/{cardA.Id}/labels", new { LabelId = labelB.Id });
+        Assert.That(reverse.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+    }
+
     /// <summary>
     /// Seeds a second user. Callers assign the result to factory.CurrentUser.UserId — never call
     /// CreateClient() again afterwards, or ConfigureClient silently reverts to the default user.
