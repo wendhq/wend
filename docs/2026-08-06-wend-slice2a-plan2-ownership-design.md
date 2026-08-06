@@ -116,7 +116,7 @@ correct 404 without new branching.
   repositories become `Owned(ownerId).FirstOrDefaultAsync(...)`. This is the same class of change
   as the Plan 7 restore bug, where a `FindAsync` read behaved differently across contexts.
 - **The `IgnoreQueryFilters()` trap is designed out.** `RestoreCardAsync` and
-  `RestoreChecklistItemAsync` still need `IgnoreQueryFilters()` to reach soft-deleted rows. Because
+  `RestoreItemAsync` still need `IgnoreQueryFilters()` to reach soft-deleted rows. Because
   ownership lives in a `Where` clause rather than a global query filter, it survives that call. A
   global-filter implementation would have silently dropped the ownership predicate on exactly the
   paths that resurrect data — this is why that option was rejected.
