@@ -51,6 +51,25 @@ dotnet user-secrets set "ConnectionStrings:WendDb" "Host=localhost;Port=5432;Dat
 dotnet run --project Wend.Api
 ```
 
+> ### ⚠️ On the `feature/slice2a-plan2-ownership` branch
+>
+> **Every `/api/*` route returns 401 until Plan 3 lands authentication.** Boards now require an
+> owner, but nothing can sign in yet, so the board UI renders an empty shell and the console logs a
+> failed `/api/boards` fetch. That is the expected state of this branch, not a bug.
+>
+> **Checking the branch out destroys local board data.** The `AddBoardOwner` migration opens with
+> `DELETE FROM "Boards"`, and `Migrate()` runs at startup — so `dotnet run` *or* `dotnet test` wipes
+> your `wend` database with no prompt. Returning to `main` needs the database dropped first, because
+> `main`'s `Board` has no `OwnerId` while the column remains `NOT NULL`:
+>
+> ```
+> dotnet ef database drop --force --project Wend.Core --startup-project Wend.Api
+> git switch main
+> dotnet run --project Wend.Api
+> ```
+>
+> Full rationale: [`docs/plans/2026-08-06-slice2a-identity-ownership.md`](docs/plans/2026-08-06-slice2a-identity-ownership.md).
+
 Then open http://127.0.0.1:5174 to create boards, open one to manage its lists (create, rename, delete, reorder), add cards and move them within or between lists — open a card for its task view to edit the title, notes, due date, labels, and a per-card checklist. The API lives under `/api/boards`, `/api/lists`, `/api/cards`, `/api/labels`, and `/api/checklist-items`. The schema is created and kept current by EF Core migrations on startup.
 
 ## Tests

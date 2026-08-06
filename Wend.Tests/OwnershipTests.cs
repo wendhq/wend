@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Wend.Api;
 using Wend.Core;
@@ -299,6 +300,96 @@ public class OwnershipTests
         var posted = await client.PostAsJsonAsync($"/api/cards/{card!.Id}/checklist-items",
             new { Text = "Intruder" });
         Assert.That(posted.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+    }
+
+    [Test]
+    public async Task Deleting_a_user_erases_every_table_their_data_touches()
+    {
+        using var factory = new WendApiFactory();
+        var client = factory.CreateClient();
+
+        // Populate ALL six tables. Labels and CardLabels reach the user through a different FK
+        // path (Board → Label → CardLabel) than cards do (Board → List → Card), so they are
+        // exactly the rows that could survive unnoticed — and the GDPR erasure claim rests on them.
+        var board = await (await client.PostAsJsonAsync("/api/boards", new { Title = "Mine" }))
+            .Content.ReadFromJsonAsync<Board>();
+        var list = await (await client.PostAsJsonAsync($"/api/boards/{board!.Id}/lists", new { Title = "To do" }))
+            .Content.ReadFromJsonAsync<Wend.Core.List>();
+        var card = await (await client.PostAsJsonAsync($"/api/lists/{list!.Id}/cards", new { Title = "A card" }))
+            .Content.ReadFromJsonAsync<Card>();
+        var label = await (await client.PostAsJsonAsync($"/api/boards/{board.Id}/labels",
+            new { Name = "Urgent", Colour = "rose" })).Content.ReadFromJsonAsync<LabelDto>();
+        await client.PostAsJsonAsync($"/api/cards/{card!.Id}/labels", new { LabelId = label!.Id });
+        await client.PostAsJsonAsync($"/api/cards/{card.Id}/checklist-items", new { Text = "Step one" });
+
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<WendDbContext>();
+
+        // Sanity: everything really is there before the delete, or the assertions below prove nothing.
+        Assert.That(db.CardLabels.Any(), Is.True, "join row was not created — the test proves nothing");
+        Assert.That(db.ChecklistItems.IgnoreQueryFilters().Any(), Is.True);
+
+        db.Users.Remove(db.Users.Single(u => u.Id == factory.DefaultUserId));
+        await db.SaveChangesAsync();
+
+        Assert.That(db.Boards.Any(), Is.False, "boards survived");
+        Assert.That(db.Lists.Any(), Is.False, "lists survived");
+        Assert.That(db.Cards.IgnoreQueryFilters().Any(), Is.False, "cards survived");
+        Assert.That(db.Labels.Any(), Is.False, "labels survived");
+        Assert.That(db.CardLabels.Any(), Is.False, "card-label join rows survived");
+        Assert.That(db.ChecklistItems.IgnoreQueryFilters().Any(), Is.False, "checklist items survived");
+    }
+
+    [Test]
+    public async Task Every_owner_scoped_group_is_401_when_anonymous()
+    {
+        using var factory = new WendApiFactory();
+        var client = factory.CreateClient();
+        factory.CurrentUser.UserId = null;   // after CreateClient, which sets the default user
+
+        foreach (var path in new[]
+                 {
+                     "/api/boards",
+                     "/api/boards/1",
+                     "/api/cards/1",
+                     "/api/boards/1/labels",
+                 })
+        {
+            var response = await client.GetAsync(path);
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized), $"GET {path}");
+        }
+
+        Assert.That((await client.DeleteAsync("/api/lists/1")).StatusCode,
+            Is.EqualTo(HttpStatusCode.Unauthorized));
+        Assert.That((await client.DeleteAsync("/api/checklist-items/1")).StatusCode,
+            Is.EqualTo(HttpStatusCode.Unauthorized));
+
+        // The card-labels group has no GET — attach and detach are its whole surface, so those are
+        // the verbs to sweep. (Asking for GET /api/cards/1/labels returns the SPA shell at 200,
+        // because MapFallbackToFile catches every unmatched path, /api/* included.)
+        Assert.That((await client.PostAsJsonAsync("/api/cards/1/labels", new { LabelId = 1 })).StatusCode,
+            Is.EqualTo(HttpStatusCode.Unauthorized));
+        Assert.That((await client.DeleteAsync("/api/cards/1/labels/1")).StatusCode,
+            Is.EqualTo(HttpStatusCode.Unauthorized));
+
+        Assert.That((await client.GetAsync("/api/health")).StatusCode, Is.EqualTo(HttpStatusCode.OK));
+    }
+
+    [Test]
+    public async Task Migrations_apply_cleanly_to_an_empty_database()
+    {
+        using var factory = new WendApiFactory();
+        _ = factory.CreateClient();
+
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<WendDbContext>();
+
+        Assert.That(await db.Database.GetPendingMigrationsAsync(), Is.Empty);
+
+        // Applied names carry EF's timestamp prefix, e.g. 20260806120000_AddBoardOwner.
+        var applied = (await db.Database.GetAppliedMigrationsAsync()).ToList();
+        Assert.That(applied.Any(m => m.EndsWith("AddIdentitySchema")), Is.True);
+        Assert.That(applied.Any(m => m.EndsWith("AddBoardOwner")), Is.True);
     }
 
     /// <summary>

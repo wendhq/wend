@@ -8,7 +8,8 @@ public static class BoardEndpoints
 
     public static RouteGroupBuilder MapBoardEndpoints(this RouteGroupBuilder group)
     {
-        // Each handler opens with the same guard. Kept per-handler rather than lifted into a
+        // Each handler opens with the same guard — 28 of them across the five endpoint files.
+        // Reviewed at that count and kept per-handler rather than lifted into a
         // route-group filter: it is compile-enforced (ownerId only exists via this pattern match),
         // and Plan 3 puts real authentication in front of these routes, where a group filter would
         // have to be unpicked to let /api/auth/* through. Decided at plan time — please don't reopen.
