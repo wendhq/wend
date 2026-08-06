@@ -1,7 +1,7 @@
 # Wend — Slice 2a Plan 2 design: Identity schema & per-user ownership
 
 - **Date:** 2026-08-06
-- **Status:** Draft — clean slate and the 401 window **confirmed by Henry 2026-08-06**; the ownership-parameter and Identity-depth decisions are still pending his sign-off
+- **Status:** **Signed off by both owners 2026-08-06** — all four locked decisions confirmed by Henry at review
 - **Owners:** Malin & Henry (equal ownership)
 - **Repo:** `github.com/wendhq/wend`
 - **Parent spec:** [`2026-07-08-wend-slice2a-accounts-design.md`](2026-07-08-wend-slice2a-accounts-design.md) (signed off, stress-tested)
