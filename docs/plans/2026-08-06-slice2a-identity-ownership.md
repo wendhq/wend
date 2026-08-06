@@ -132,10 +132,26 @@ public class WendUser : IdentityUser
 - [ ] **Step 3 — add the four upward navigations.** Each pairs with a collection that already
 exists on the principal, so **no column is added**. `= null!;` tells the compiler EF populates it.
 
+> **Each one needs `[JsonIgnore]`, and skipping it breaks 38 tests.** The navigations are free
+> *schema*-wise but not *serialisation*-wise. Endpoints return tracked entities directly
+> (`Results.Created(..., list)`), and EF's navigation fixup populates the upward navigation
+> whenever the principal is loaded in the same context — which the create-into endpoints always do,
+> because they check the parent exists first. `Board.Lists → List.Board → Board.Lists` is then a
+> reference cycle, `System.Text.Json` throws, and the bodyless 500 handler turns it into an empty
+> response body. The client-side symptom is a misleading
+> `JsonException: The input does not contain any JSON tokens` in the *test*, not the server.
+> `[JsonIgnore]` says what is true: these navigations are query plumbing, never wire format.
+> API responses stay byte-identical to Plan 1. *(Found in execution, 2026-08-06.)*
+
 In `Wend.Core/List.cs`, inside `class List`:
+
+All four files also need `using System.Text.Json.Serialization;`.
 
 ```csharp
     // Upward navigation — exists so ownership (Board.OwnerId) is expressible in a query.
+    // [JsonIgnore] because EF's fixup populates it whenever the board is in the same context,
+    // which would make Board.Lists → List.Board → Board.Lists a serialisation cycle on the wire.
+    [JsonIgnore]
     public Board Board { get; set; } = null!;
 ```
 
@@ -143,6 +159,8 @@ In `Wend.Core/Card.cs`, inside `class Card`:
 
 ```csharp
     // Upward navigation — ownership is reached via List → Board → OwnerId.
+    // [JsonIgnore]: EF fixup would otherwise make List.Cards → Card.List a serialisation cycle.
+    [JsonIgnore]
     public List List { get; set; } = null!;
 ```
 
@@ -150,6 +168,8 @@ In `Wend.Core/Label.cs`, inside `class Label`:
 
 ```csharp
     // Upward navigation — ownership is reached via Board → OwnerId.
+    // [JsonIgnore]: EF fixup would otherwise make Board.Labels → Label.Board a serialisation cycle.
+    [JsonIgnore]
     public Board Board { get; set; } = null!;
 ```
 
@@ -157,6 +177,8 @@ In `Wend.Core/ChecklistItem.cs`, inside `class ChecklistItem`:
 
 ```csharp
     // Upward navigation — ownership is reached via Card → List → Board → OwnerId.
+    // [JsonIgnore]: EF fixup would otherwise make Card.ChecklistItems → ChecklistItem.Card a cycle.
+    [JsonIgnore]
     public Card Card { get; set; } = null!;
 ```
 

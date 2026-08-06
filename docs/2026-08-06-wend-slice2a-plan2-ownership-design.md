@@ -91,6 +91,12 @@ exists on the principal (`Board.Lists`, `List.Cards`, `Board.Labels`, `Card.Chec
 EF pairs them by convention and **no column is added**. They exist solely to make ownership
 traversable.
 
+They are free in the schema but **not** on the wire: endpoints return tracked entities directly,
+and EF's navigation fixup populates the upward navigation whenever the principal sits in the same
+context, turning `Board.Lists → List.Board` into a serialisation cycle. Each navigation therefore
+carries **`[JsonIgnore]`**, which is also the honest statement of intent — they are query plumbing,
+never wire format, and API responses stay byte-identical to Plan 1. *(Confirmed in execution.)*
+
 **Ownership cascade.** Deleting a `WendUser` removes their boards, and the existing required FKs
 cascade onward to lists, cards, labels, join rows and checklist items. This is the mechanism that
 makes account deletion a clean GDPR erasure in a later plan; this plan proves it with a test.
@@ -251,8 +257,11 @@ exactly this shape once silently dropped three tests behind a green suite.
 
 - Whether EF applies `Card`'s soft-delete filter when `Card` is traversed as a navigation inside a
   `ChecklistItem` ownership predicate (test, then record).
-- Whether adding the four navigations produces a genuinely empty schema diff, or whether EF emits
-  incidental model changes that need folding into the migration.
+- ~~Whether adding the four navigations produces a genuinely empty schema diff, or whether EF emits
+  incidental model changes that need folding into the migration.~~ **Resolved 2026-08-06:** the
+  `AddIdentitySchema` migration contains only the seven `AspNet*` `CreateTable`/`CreateIndex`
+  operations — no `AddColumn` or `AlterColumn` against any Wend table. The navigations did,
+  however, break JSON serialisation until `[JsonIgnore]` was added (see *Data model*).
 - `DisplayName` column constraints (length cap, nullability) — set here, validated in Plan 3.
 - Whether the 401 guard is repeated per endpoint or lifted into a route-group endpoint filter, once
   the repetition is visible across all five endpoint files.
