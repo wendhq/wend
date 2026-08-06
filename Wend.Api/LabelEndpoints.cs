@@ -49,7 +49,7 @@ public static class LabelEndpoints
                 ILabelRepository labels, ICurrentUser currentUser) =>
             {
                 if (currentUser.UserId is not { } ownerId) return Results.Unauthorized();
-                if (await cards.GetCardAsync(cardId) is not { } card) return Results.NotFound();
+                if (await cards.GetCardAsync(cardId, ownerId) is not { } card) return Results.NotFound();
                 if (await labels.GetLabelAsync(req.LabelId) is not { } label) return Results.NotFound();
                 var list = await lists.GetListAsync(card.ListId, ownerId);
                 if (list is null || list.BoardId != label.BoardId) return Results.BadRequest(); // cross-board

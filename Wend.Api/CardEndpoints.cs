@@ -18,7 +18,7 @@ public static class CardEndpoints
                 if (title.Length is 0 or > MaxTitleLength) return Results.BadRequest();
                 // Another user's list resolves as null here, so posting into it is 404 — not 403.
                 if (await lists.GetListAsync(listId, ownerId) is null) return Results.NotFound();
-                var card = await cards.CreateCardAsync(listId, title);
+                var card = await cards.CreateCardAsync(listId, title, ownerId);
                 return Results.Created($"/api/cards/{card.Id}", card);
             });
 
@@ -26,7 +26,7 @@ public static class CardEndpoints
             ILabelRepository labels, IChecklistItemRepository checklist, ICurrentUser currentUser) =>
         {
             if (currentUser.UserId is not { } ownerId) return Results.Unauthorized();
-            if (await cards.GetCardAsync(id) is not { } c) return Results.NotFound();
+            if (await cards.GetCardAsync(id, ownerId) is not { } c) return Results.NotFound();
             var list = await lists.GetListAsync(c.ListId, ownerId);
             var attached = (await labels.GetCardLabelsAsync(c.Id))
                 .Select(l => new LabelDto(l.Id, l.Name, l.Colour)).ToList();
@@ -36,33 +36,52 @@ public static class CardEndpoints
                 c.Title, c.Description, c.DueDate, c.Position, c.CompletedAt, attached, items));
         });
 
-        app.MapPut("/api/cards/{id:int}", async (int id, EditCardRequest req, ICardRepository cards) =>
+        app.MapPut("/api/cards/{id:int}", async (int id, EditCardRequest req, ICardRepository cards,
+            ICurrentUser currentUser) =>
         {
+            if (currentUser.UserId is not { } ownerId) return Results.Unauthorized();
             var title = req.Title?.Trim() ?? "";
             if (title.Length is 0 or > MaxTitleLength) return Results.BadRequest();
             var description = req.Description?.Trim();
             if (description is { Length: > MaxDescriptionLength }) return Results.BadRequest();
-            return await cards.EditCardAsync(id, title, description, req.DueDate)
+            return await cards.EditCardAsync(id, title, description, req.DueDate, ownerId)
                 ? Results.NoContent() : Results.NotFound();
         });
 
-        app.MapDelete("/api/cards/{id:int}", async (int id, ICardRepository cards) =>
-            await cards.DeleteCardAsync(id) ? Results.NoContent() : Results.NotFound());
+        app.MapDelete("/api/cards/{id:int}", async (int id, ICardRepository cards,
+            ICurrentUser currentUser) =>
+        {
+            if (currentUser.UserId is not { } ownerId) return Results.Unauthorized();
+            return await cards.DeleteCardAsync(id, ownerId) ? Results.NoContent() : Results.NotFound();
+        });
 
-        app.MapPost("/api/cards/{id:int}/restore", async (int id, ICardRepository cards) =>
-            await cards.RestoreCardAsync(id) ? Results.NoContent() : Results.NotFound());
+        app.MapPost("/api/cards/{id:int}/restore", async (int id, ICardRepository cards,
+            ICurrentUser currentUser) =>
+        {
+            if (currentUser.UserId is not { } ownerId) return Results.Unauthorized();
+            return await cards.RestoreCardAsync(id, ownerId) ? Results.NoContent() : Results.NotFound();
+        });
 
-        app.MapPut("/api/cards/{id:int}/move", async (int id, MoveCardRequest req, ICardRepository cards) =>
-            await cards.MoveCardAsync(id, req.ListId, req.Position) switch
+        app.MapPut("/api/cards/{id:int}/move", async (int id, MoveCardRequest req, ICardRepository cards,
+            ICurrentUser currentUser) =>
+        {
+            if (currentUser.UserId is not { } ownerId) return Results.Unauthorized();
+            // Another user's target list is MISSING, not cross-board, so this returns 404 not 400.
+            return await cards.MoveCardAsync(id, req.ListId, req.Position, ownerId) switch
             {
                 CardMoveResult.Moved => Results.NoContent(),
                 CardMoveResult.CrossBoard => Results.BadRequest(),
                 _ => Results.NotFound(),
-            });
+            };
+        });
 
-        app.MapPut("/api/cards/{id:int}/complete", async (int id, CompleteCardRequest req, ICardRepository cards) =>
-            await cards.SetCardCompletedAsync(id, req.Completed)
-                ? Results.NoContent() : Results.NotFound());
+        app.MapPut("/api/cards/{id:int}/complete", async (int id, CompleteCardRequest req,
+            ICardRepository cards, ICurrentUser currentUser) =>
+        {
+            if (currentUser.UserId is not { } ownerId) return Results.Unauthorized();
+            return await cards.SetCardCompletedAsync(id, req.Completed, ownerId)
+                ? Results.NoContent() : Results.NotFound();
+        });
 
         return app;
     }

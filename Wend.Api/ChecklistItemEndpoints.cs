@@ -9,11 +9,14 @@ public static class ChecklistItemEndpoints
     public static IEndpointRouteBuilder MapChecklistItemEndpoints(this IEndpointRouteBuilder app)
     {
         app.MapPost("/api/cards/{cardId:int}/checklist-items",
-            async (int cardId, CreateChecklistItemRequest req, ICardRepository cards, IChecklistItemRepository items) =>
+            async (int cardId, CreateChecklistItemRequest req, ICardRepository cards,
+                IChecklistItemRepository items, ICurrentUser currentUser) =>
             {
+                if (currentUser.UserId is not { } ownerId) return Results.Unauthorized();
                 var text = req.Text?.Trim() ?? "";
                 if (text.Length is 0 or > MaxTextLength) return Results.BadRequest();
-                if (await cards.GetCardAsync(cardId) is null) return Results.NotFound();
+                // Another user's card resolves as null here, so posting into it is 404 — not 403.
+                if (await cards.GetCardAsync(cardId, ownerId) is null) return Results.NotFound();
                 var item = await items.AddItemAsync(cardId, text);
                 return Results.Created($"/api/checklist-items/{item.Id}", item);
             });

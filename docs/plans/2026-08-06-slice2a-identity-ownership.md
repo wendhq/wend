@@ -785,7 +785,10 @@ prevent. Prose in Step 4 is not enough; pin it:
 
 (`MoveCardRequest` is `(int ListId, int Position)` — the target list is `ListId`, not `TargetListId`.)
 
-- [ ] **Step 9** — `dotnet test`. Expected **161** (154 + 7 new).
+- [ ] **Step 9** — `dotnet test`. Expected **157** (154 + 3 new). The seven behaviours land in three
+tests: read/edit/complete/delete/restore share one (which also asserts the *owner* can still
+restore, so the boundary blocked the intruder rather than the feature), posting into another user's
+list gets its own, and the move enumeration case gets its own.
 - [ ] **Step 10** — commit: `Scope card queries to the board owner`
 
 ### Task 6 — labels
@@ -818,7 +821,7 @@ validation exactly as it is** — it now runs after ownership has already exclud
 - [ ] **Step 6** — `Wend.Tests/LabelRepositoryTests.cs`: `_ownerId` on every `_repo.*` call (16 tests).
 - [ ] **Step 7** — add to `OwnershipTests.cs`: user B gets 404 reading, editing and deleting user A's
 label, and cannot attach their own label to user A's card.
-- [ ] **Step 8** — `dotnet test`. Expected **165** (161 + 4 new).
+- [ ] **Step 8** — `dotnet test`. Expected **161** (157 + 4 new).
 - [ ] **Step 9** — commit: `Scope label queries to the board owner`
 
 ### Task 7 — checklist items
@@ -869,7 +872,7 @@ helper, and leave the test in place as the guard.
 - [ ] **Step 5** — `Wend.Tests/ChecklistItemRepositoryTests.cs`: `_ownerId` on every `_repo.*` call (14 tests).
 - [ ] **Step 6** — add to `OwnershipTests.cs`: user B gets 404 reading, renaming, checking, moving,
 deleting and restoring user A's checklist item.
-- [ ] **Step 7** — `dotnet test`. Expected **172** (165 + 6 isolation + 1 from Step 2).
+- [ ] **Step 7** — `dotnet test`. Expected **168** (161 + 6 isolation + 1 from Step 2).
 - [ ] **Step 8** — commit: `Scope checklist item queries to the board owner`
 
 ---
@@ -996,7 +999,7 @@ dotnet build
 dotnet test
 ```
 
-Expected: 0 warnings; **176 passed, 0 failed** (172 + 4 new).
+Expected: 0 warnings; **172 passed, 0 failed** (168 + 4 new).
 
 - [ ] **Step 6 — manual acceptance.** Start the app and confirm the honest, expected end state:
 
@@ -1051,7 +1054,7 @@ the reviewer reads it before checking the branch out:
 
 ## Definition of done
 
-- `dotnet test` green at **176**; `dotnet build` clean at 0 warnings.
+- `dotnet test` green at **172**; `dotnet build` clean at 0 warnings.
 - `WendUser` exists, `WendDbContext` is an `IdentityDbContext<WendUser>`, and Identity's seven tables are created by a committed migration.
 - `Board.OwnerId` is required and cascades from `WendUser`; deleting a user erases every board, list, card, label, join row and checklist item they own, proven by test.
 - All **34** repository methods take an explicit `ownerId`; all **22** former `FindAsync` call sites are owner-scoped lookups.

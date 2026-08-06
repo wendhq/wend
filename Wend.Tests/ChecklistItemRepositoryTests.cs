@@ -46,7 +46,7 @@ public class ChecklistItemRepositoryTests
     {
         var board = await _boards.CreateBoardAsync("Board", _ownerId);
         var list = await _lists.CreateListAsync(board.Id, "List", _ownerId);
-        var card = await _cards.CreateCardAsync(list.Id, "Card");
+        var card = await _cards.CreateCardAsync(list.Id, "Card", _ownerId);
         return card.Id;
     }
 

@@ -43,7 +43,7 @@ public static class BoardEndpoints
             var summaries = new List<ListSummary>();
             foreach (var l in await lists.GetListsForBoardAsync(id, ownerId))
             {
-                var cardSummaries = (await cards.GetCardsForListAsync(l.Id))
+                var cardSummaries = (await cards.GetCardsForListAsync(l.Id, ownerId))
                     .Select(c => new CardSummary(c.Id, c.Title, c.DueDate, c.Position, c.CompletedAt,
                         labelIdsByCard.TryGetValue(c.Id, out var ids) ? ids : new List<int>(),
                         counts.TryGetValue(c.Id, out var k) ? k.Done : 0,

@@ -152,7 +152,7 @@ public class LabelRepositoryTests
     {
         var board = await _boards.CreateBoardAsync("Board", _ownerId);
         var list = await _lists.CreateListAsync(board.Id, "List", _ownerId);
-        var card = await _cards.CreateCardAsync(list.Id, "Card");
+        var card = await _cards.CreateCardAsync(list.Id, "Card", _ownerId);
         var label = await _labels.CreateLabelAsync(board.Id, "Urgent", "rose");
         _db.CardLabels.Add(new CardLabel { CardId = card.Id, LabelId = label.Id });
         await _db.SaveChangesAsync();
@@ -166,7 +166,7 @@ public class LabelRepositoryTests
     {
         var board = await _boards.CreateBoardAsync("Board", _ownerId);
         var list = await _lists.CreateListAsync(board.Id, "List", _ownerId);
-        var card = await _cards.CreateCardAsync(list.Id, "Card");
+        var card = await _cards.CreateCardAsync(list.Id, "Card", _ownerId);
         var label = await _labels.CreateLabelAsync(board.Id, "Urgent", "rose");
 
         await _labels.AttachAsync(card.Id, label.Id);
@@ -180,7 +180,7 @@ public class LabelRepositoryTests
     {
         var board = await _boards.CreateBoardAsync("Board", _ownerId);
         var list = await _lists.CreateListAsync(board.Id, "List", _ownerId);
-        var card = await _cards.CreateCardAsync(list.Id, "Card");
+        var card = await _cards.CreateCardAsync(list.Id, "Card", _ownerId);
         var label = await _labels.CreateLabelAsync(board.Id, "Urgent", "rose");
 
         await _labels.DetachAsync(card.Id, label.Id); // nothing attached yet — no throw
@@ -195,7 +195,7 @@ public class LabelRepositoryTests
     {
         var board = await _boards.CreateBoardAsync("Board", _ownerId);
         var list = await _lists.CreateListAsync(board.Id, "List", _ownerId);
-        var card = await _cards.CreateCardAsync(list.Id, "Card");
+        var card = await _cards.CreateCardAsync(list.Id, "Card", _ownerId);
         var a = await _labels.CreateLabelAsync(board.Id, "A", "mint");
         var b = await _labels.CreateLabelAsync(board.Id, "B", "cyan");
         await _labels.AttachAsync(card.Id, b.Id);
@@ -211,11 +211,11 @@ public class LabelRepositoryTests
     {
         var board = await _boards.CreateBoardAsync("Board", _ownerId);
         var list = await _lists.CreateListAsync(board.Id, "List", _ownerId);
-        var card = await _cards.CreateCardAsync(list.Id, "Card");
+        var card = await _cards.CreateCardAsync(list.Id, "Card", _ownerId);
         var label = await _labels.CreateLabelAsync(board.Id, "Urgent", "rose");
         await _labels.AttachAsync(card.Id, label.Id);
 
-        await _cards.DeleteCardAsync(card.Id);
+        await _cards.DeleteCardAsync(card.Id, _ownerId);
 
         // Soft delete keeps the row, so its label links survive — a restored card keeps its labels.
         Assert.That(await _db.CardLabels.AnyAsync(), Is.True);
@@ -227,7 +227,7 @@ public class LabelRepositoryTests
     {
         var board = await _boards.CreateBoardAsync("Board", _ownerId);
         var list = await _lists.CreateListAsync(board.Id, "List", _ownerId);
-        var card = await _cards.CreateCardAsync(list.Id, "Card");
+        var card = await _cards.CreateCardAsync(list.Id, "Card", _ownerId);
         var label = await _labels.CreateLabelAsync(board.Id, "Urgent", "rose");
         await _labels.AttachAsync(card.Id, label.Id);
 
@@ -242,7 +242,7 @@ public class LabelRepositoryTests
     {
         var board = await _boards.CreateBoardAsync("Board", _ownerId);
         var list = await _lists.CreateListAsync(board.Id, "List", _ownerId);
-        var card = await _cards.CreateCardAsync(list.Id, "Card");
+        var card = await _cards.CreateCardAsync(list.Id, "Card", _ownerId);
         var a = await _labels.CreateLabelAsync(board.Id, "A", "mint");
         var b = await _labels.CreateLabelAsync(board.Id, "B", "cyan");
         await _labels.AttachAsync(card.Id, a.Id);
@@ -250,7 +250,7 @@ public class LabelRepositoryTests
 
         var other = await _boards.CreateBoardAsync("Other", _ownerId);
         var otherList = await _lists.CreateListAsync(other.Id, "L", _ownerId);
-        var otherCard = await _cards.CreateCardAsync(otherList.Id, "C");
+        var otherCard = await _cards.CreateCardAsync(otherList.Id, "C", _ownerId);
         var c = await _labels.CreateLabelAsync(other.Id, "C", "amber");
         await _labels.AttachAsync(otherCard.Id, c.Id);
 

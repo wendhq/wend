@@ -93,8 +93,8 @@ public class CardRepositoryTests
     {
         var listId = await NewListAsync();
 
-        var first = await _repo.CreateCardAsync(listId, "First");
-        var second = await _repo.CreateCardAsync(listId, "Second");
+        var first = await _repo.CreateCardAsync(listId, "First", _ownerId);
+        var second = await _repo.CreateCardAsync(listId, "Second", _ownerId);
 
         Assert.That(first.Position, Is.EqualTo(0));
         Assert.That(second.Position, Is.EqualTo(1));
@@ -105,10 +105,10 @@ public class CardRepositoryTests
     public async Task Get_cards_for_list_returns_them_in_position_order()
     {
         var listId = await NewListAsync();
-        await _repo.CreateCardAsync(listId, "First");
-        await _repo.CreateCardAsync(listId, "Second");
+        await _repo.CreateCardAsync(listId, "First", _ownerId);
+        await _repo.CreateCardAsync(listId, "Second", _ownerId);
 
-        var cards = await _repo.GetCardsForListAsync(listId);
+        var cards = await _repo.GetCardsForListAsync(listId, _ownerId);
 
         Assert.That(cards.Select(c => c.Title), Is.EqualTo(new[] { "First", "Second" }));
     }
@@ -119,8 +119,8 @@ public class CardRepositoryTests
         var listA = await NewListAsync();
         var listB = await NewListAsync();
 
-        var a1 = await _repo.CreateCardAsync(listA, "A1");
-        var b1 = await _repo.CreateCardAsync(listB, "B1");
+        var a1 = await _repo.CreateCardAsync(listA, "A1", _ownerId);
+        var b1 = await _repo.CreateCardAsync(listB, "B1", _ownerId);
 
         Assert.That(a1.Position, Is.EqualTo(0));
         Assert.That(b1.Position, Is.EqualTo(0));
@@ -130,39 +130,39 @@ public class CardRepositoryTests
     public async Task Get_card_returns_it_or_null()
     {
         var listId = await NewListAsync();
-        var created = await _repo.CreateCardAsync(listId, "Find me");
+        var created = await _repo.CreateCardAsync(listId, "Find me", _ownerId);
 
-        Assert.That((await _repo.GetCardAsync(created.Id))!.Title, Is.EqualTo("Find me"));
-        Assert.That(await _repo.GetCardAsync(9999), Is.Null);
+        Assert.That((await _repo.GetCardAsync(created.Id, _ownerId))!.Title, Is.EqualTo("Find me"));
+        Assert.That(await _repo.GetCardAsync(9999, _ownerId), Is.Null);
     }
     [Test]
     public async Task Edit_updates_the_fields_and_reports_missing()
     {
         var listId = await NewListAsync();
-        var card = await _repo.CreateCardAsync(listId, "Old");
+        var card = await _repo.CreateCardAsync(listId, "Old", _ownerId);
 
         var due = new DateOnly(2026, 6, 25);
-        Assert.That(await _repo.EditCardAsync(card.Id, "New", "Some notes", due), Is.True);
+        Assert.That(await _repo.EditCardAsync(card.Id, "New", "Some notes", due, _ownerId), Is.True);
 
-        var saved = (await _repo.GetCardAsync(card.Id))!;
+        var saved = (await _repo.GetCardAsync(card.Id, _ownerId))!;
         Assert.That(saved.Title, Is.EqualTo("New"));
         Assert.That(saved.Description, Is.EqualTo("Some notes"));
         Assert.That(saved.DueDate, Is.EqualTo(due));
 
-        Assert.That(await _repo.EditCardAsync(9999, "X", null, null), Is.False);
+        Assert.That(await _repo.EditCardAsync(9999, "X", null, null, _ownerId), Is.False);
     }
 
     [Test]
     public async Task Delete_removes_the_card_and_resequences_the_rest()
     {
         var listId = await NewListAsync();
-        await _repo.CreateCardAsync(listId, "A");           // 0
-        var b = await _repo.CreateCardAsync(listId, "B");   // 1
-        await _repo.CreateCardAsync(listId, "C");           // 2
+        await _repo.CreateCardAsync(listId, "A", _ownerId);           // 0
+        var b = await _repo.CreateCardAsync(listId, "B", _ownerId);   // 1
+        await _repo.CreateCardAsync(listId, "C", _ownerId);           // 2
 
-        Assert.That(await _repo.DeleteCardAsync(b.Id), Is.True);
+        Assert.That(await _repo.DeleteCardAsync(b.Id, _ownerId), Is.True);
 
-        var cards = await _repo.GetCardsForListAsync(listId);
+        var cards = await _repo.GetCardsForListAsync(listId, _ownerId);
         Assert.That(cards.Select(c => c.Title), Is.EqualTo(new[] { "A", "C" }));
         Assert.That(cards.Select(c => c.Position), Is.EqualTo(new[] { 0, 1 })); // gapless
     }
@@ -170,20 +170,20 @@ public class CardRepositoryTests
     [Test]
     public async Task Delete_reports_missing()
     {
-        Assert.That(await _repo.DeleteCardAsync(9999), Is.False);
+        Assert.That(await _repo.DeleteCardAsync(9999, _ownerId), Is.False);
     }
 
     [Test]
     public async Task Move_reorders_a_card_up_within_its_list()
     {
         var listId = await NewListAsync();
-        await _repo.CreateCardAsync(listId, "A");          // 0
-        await _repo.CreateCardAsync(listId, "B");          // 1
-        var c = await _repo.CreateCardAsync(listId, "C");  // 2
+        await _repo.CreateCardAsync(listId, "A", _ownerId);          // 0
+        await _repo.CreateCardAsync(listId, "B", _ownerId);          // 1
+        var c = await _repo.CreateCardAsync(listId, "C", _ownerId);  // 2
 
-        Assert.That(await _repo.MoveCardAsync(c.Id, listId, 0), Is.EqualTo(CardMoveResult.Moved));
+        Assert.That(await _repo.MoveCardAsync(c.Id, listId, 0, _ownerId), Is.EqualTo(CardMoveResult.Moved));
 
-        var cards = await _repo.GetCardsForListAsync(listId);
+        var cards = await _repo.GetCardsForListAsync(listId, _ownerId);
         Assert.That(cards.Select(x => x.Title), Is.EqualTo(new[] { "C", "A", "B" }));
         Assert.That(cards.Select(x => x.Position), Is.EqualTo(new[] { 0, 1, 2 })); // gapless
     }
@@ -192,13 +192,13 @@ public class CardRepositoryTests
     public async Task Move_reorders_a_card_down_within_its_list()
     {
         var listId = await NewListAsync();
-        var a = await _repo.CreateCardAsync(listId, "A");  // 0
-        await _repo.CreateCardAsync(listId, "B");          // 1
-        await _repo.CreateCardAsync(listId, "C");          // 2
+        var a = await _repo.CreateCardAsync(listId, "A", _ownerId);  // 0
+        await _repo.CreateCardAsync(listId, "B", _ownerId);          // 1
+        await _repo.CreateCardAsync(listId, "C", _ownerId);          // 2
 
-        Assert.That(await _repo.MoveCardAsync(a.Id, listId, 2), Is.EqualTo(CardMoveResult.Moved));
+        Assert.That(await _repo.MoveCardAsync(a.Id, listId, 2, _ownerId), Is.EqualTo(CardMoveResult.Moved));
 
-        var cards = await _repo.GetCardsForListAsync(listId);
+        var cards = await _repo.GetCardsForListAsync(listId, _ownerId);
         Assert.That(cards.Select(x => x.Title), Is.EqualTo(new[] { "B", "C", "A" }));
         Assert.That(cards.Select(x => x.Position), Is.EqualTo(new[] { 0, 1, 2 }));
     }
@@ -207,7 +207,7 @@ public class CardRepositoryTests
     public async Task Move_reports_a_missing_card()
     {
         var listId = await NewListAsync();
-        Assert.That(await _repo.MoveCardAsync(9999, listId, 0), Is.EqualTo(CardMoveResult.NotFound));
+        Assert.That(await _repo.MoveCardAsync(9999, listId, 0, _ownerId), Is.EqualTo(CardMoveResult.NotFound));
     }
 
     [Test]
@@ -216,19 +216,19 @@ public class CardRepositoryTests
         var board = await _boards.CreateBoardAsync("Board", _ownerId);
         var todo = await _lists.CreateListAsync(board.Id, "To do", _ownerId);
         var doing = await _lists.CreateListAsync(board.Id, "Doing", _ownerId);
-        await _repo.CreateCardAsync(todo.Id, "A");          // todo 0
-        var b = await _repo.CreateCardAsync(todo.Id, "B");  // todo 1
-        await _repo.CreateCardAsync(todo.Id, "C");          // todo 2
-        await _repo.CreateCardAsync(doing.Id, "X");         // doing 0
+        await _repo.CreateCardAsync(todo.Id, "A", _ownerId);          // todo 0
+        var b = await _repo.CreateCardAsync(todo.Id, "B", _ownerId);  // todo 1
+        await _repo.CreateCardAsync(todo.Id, "C", _ownerId);          // todo 2
+        await _repo.CreateCardAsync(doing.Id, "X", _ownerId);         // doing 0
 
         // position 99 overshoots — it should clamp to the bottom.
-        Assert.That(await _repo.MoveCardAsync(b.Id, doing.Id, 99), Is.EqualTo(CardMoveResult.Moved));
+        Assert.That(await _repo.MoveCardAsync(b.Id, doing.Id, 99, _ownerId), Is.EqualTo(CardMoveResult.Moved));
 
-        var todoCards = await _repo.GetCardsForListAsync(todo.Id);
+        var todoCards = await _repo.GetCardsForListAsync(todo.Id, _ownerId);
         Assert.That(todoCards.Select(c => c.Title), Is.EqualTo(new[] { "A", "C" }));
         Assert.That(todoCards.Select(c => c.Position), Is.EqualTo(new[] { 0, 1 }));  // source gapless
 
-        var doingCards = await _repo.GetCardsForListAsync(doing.Id);
+        var doingCards = await _repo.GetCardsForListAsync(doing.Id, _ownerId);
         Assert.That(doingCards.Select(c => c.Title), Is.EqualTo(new[] { "X", "B" }));
         Assert.That(doingCards.Select(c => c.Position), Is.EqualTo(new[] { 0, 1 })); // target gapless
     }
@@ -239,13 +239,13 @@ public class CardRepositoryTests
         var board = await _boards.CreateBoardAsync("Board", _ownerId);
         var todo = await _lists.CreateListAsync(board.Id, "To do", _ownerId);
         var doing = await _lists.CreateListAsync(board.Id, "Doing", _ownerId);
-        var a = await _repo.CreateCardAsync(todo.Id, "A");
-        await _repo.CreateCardAsync(doing.Id, "X");  // 0
-        await _repo.CreateCardAsync(doing.Id, "Y");  // 1
+        var a = await _repo.CreateCardAsync(todo.Id, "A", _ownerId);
+        await _repo.CreateCardAsync(doing.Id, "X", _ownerId);  // 0
+        await _repo.CreateCardAsync(doing.Id, "Y", _ownerId);  // 1
 
-        Assert.That(await _repo.MoveCardAsync(a.Id, doing.Id, 0), Is.EqualTo(CardMoveResult.Moved));
+        Assert.That(await _repo.MoveCardAsync(a.Id, doing.Id, 0, _ownerId), Is.EqualTo(CardMoveResult.Moved));
 
-        var doingCards = await _repo.GetCardsForListAsync(doing.Id);
+        var doingCards = await _repo.GetCardsForListAsync(doing.Id, _ownerId);
         Assert.That(doingCards.Select(c => c.Title), Is.EqualTo(new[] { "A", "X", "Y" }));
         Assert.That(doingCards.Select(c => c.Position), Is.EqualTo(new[] { 0, 1, 2 }));
     }
@@ -254,9 +254,9 @@ public class CardRepositoryTests
     public async Task Move_reports_a_missing_target_list()
     {
         var listId = await NewListAsync();
-        var card = await _repo.CreateCardAsync(listId, "A");
+        var card = await _repo.CreateCardAsync(listId, "A", _ownerId);
 
-        Assert.That(await _repo.MoveCardAsync(card.Id, 9999, 0), Is.EqualTo(CardMoveResult.NotFound));
+        Assert.That(await _repo.MoveCardAsync(card.Id, 9999, 0, _ownerId), Is.EqualTo(CardMoveResult.NotFound));
     }
 
     [Test]
@@ -264,51 +264,51 @@ public class CardRepositoryTests
     {
         var boardA = await _boards.CreateBoardAsync("A", _ownerId);
         var listA = await _lists.CreateListAsync(boardA.Id, "A-list", _ownerId);
-        var card = await _repo.CreateCardAsync(listA.Id, "Card");
+        var card = await _repo.CreateCardAsync(listA.Id, "Card", _ownerId);
 
         var boardB = await _boards.CreateBoardAsync("B", _ownerId);
         var listB = await _lists.CreateListAsync(boardB.Id, "B-list", _ownerId);
 
-        Assert.That(await _repo.MoveCardAsync(card.Id, listB.Id, 0), Is.EqualTo(CardMoveResult.CrossBoard));
+        Assert.That(await _repo.MoveCardAsync(card.Id, listB.Id, 0, _ownerId), Is.EqualTo(CardMoveResult.CrossBoard));
     }
 
     [Test]
     public async Task Set_completed_marks_a_card_done()
     {
         var listId = await NewListAsync();
-        var card = await _repo.CreateCardAsync(listId, "Ship Plan 6");
+        var card = await _repo.CreateCardAsync(listId, "Ship Plan 6", _ownerId);
 
-        Assert.That(await _repo.SetCardCompletedAsync(card.Id, true), Is.True);
-        Assert.That((await _repo.GetCardAsync(card.Id))!.CompletedAt, Is.Not.Null);
+        Assert.That(await _repo.SetCardCompletedAsync(card.Id, true, _ownerId), Is.True);
+        Assert.That((await _repo.GetCardAsync(card.Id, _ownerId))!.CompletedAt, Is.Not.Null);
     }
 
     [Test]
     public async Task Set_completed_false_clears_the_done_mark()
     {
         var listId = await NewListAsync();
-        var card = await _repo.CreateCardAsync(listId, "Ship Plan 6");
-        await _repo.SetCardCompletedAsync(card.Id, true);
+        var card = await _repo.CreateCardAsync(listId, "Ship Plan 6", _ownerId);
+        await _repo.SetCardCompletedAsync(card.Id, true, _ownerId);
 
-        Assert.That(await _repo.SetCardCompletedAsync(card.Id, false), Is.True);
-        Assert.That((await _repo.GetCardAsync(card.Id))!.CompletedAt, Is.Null);
+        Assert.That(await _repo.SetCardCompletedAsync(card.Id, false, _ownerId), Is.True);
+        Assert.That((await _repo.GetCardAsync(card.Id, _ownerId))!.CompletedAt, Is.Null);
     }
 
     [Test]
     public async Task Set_completed_reports_a_missing_card()
     {
-        Assert.That(await _repo.SetCardCompletedAsync(9999, true), Is.False);
+        Assert.That(await _repo.SetCardCompletedAsync(9999, true, _ownerId), Is.False);
     }
 
     [Test]
     public async Task Delete_soft_deletes_so_the_row_survives_for_undo()
     {
         var listId = await NewListAsync();
-        var card = await _repo.CreateCardAsync(listId, "Temp");
+        var card = await _repo.CreateCardAsync(listId, "Temp", _ownerId);
 
-        Assert.That(await _repo.DeleteCardAsync(card.Id), Is.True);
+        Assert.That(await _repo.DeleteCardAsync(card.Id, _ownerId), Is.True);
 
         // Hidden from normal queries…
-        Assert.That(await _repo.GetCardsForListAsync(listId), Is.Empty);
+        Assert.That(await _repo.GetCardsForListAsync(listId, _ownerId), Is.Empty);
         // …but the row still exists with DeletedAt set, so undo can bring it back.
         var row = await _db.Cards.IgnoreQueryFilters().SingleAsync(c => c.Id == card.Id);
         Assert.That(row.DeletedAt, Is.Not.Null);
@@ -318,24 +318,24 @@ public class CardRepositoryTests
     public async Task Deleting_an_already_deleted_card_reports_missing()
     {
         var listId = await NewListAsync();
-        var card = await _repo.CreateCardAsync(listId, "Temp");
-        await _repo.DeleteCardAsync(card.Id);
+        var card = await _repo.CreateCardAsync(listId, "Temp", _ownerId);
+        await _repo.DeleteCardAsync(card.Id, _ownerId);
 
-        Assert.That(await _repo.DeleteCardAsync(card.Id), Is.False);
+        Assert.That(await _repo.DeleteCardAsync(card.Id, _ownerId), Is.False);
     }
 
     [Test]
     public async Task Restore_brings_a_deleted_card_back_to_its_original_position()
     {
         var listId = await NewListAsync();
-        await _repo.CreateCardAsync(listId, "A");          // 0
-        var b = await _repo.CreateCardAsync(listId, "B");  // 1
-        await _repo.CreateCardAsync(listId, "C");          // 2
+        await _repo.CreateCardAsync(listId, "A", _ownerId);          // 0
+        var b = await _repo.CreateCardAsync(listId, "B", _ownerId);  // 1
+        await _repo.CreateCardAsync(listId, "C", _ownerId);          // 2
 
-        await _repo.DeleteCardAsync(b.Id);                 // survivors resequence to A(0), C(1)
-        Assert.That(await _repo.RestoreCardAsync(b.Id), Is.True);
+        await _repo.DeleteCardAsync(b.Id, _ownerId);                 // survivors resequence to A(0), C(1)
+        Assert.That(await _repo.RestoreCardAsync(b.Id, _ownerId), Is.True);
 
-        var cards = await _repo.GetCardsForListAsync(listId);
+        var cards = await _repo.GetCardsForListAsync(listId, _ownerId);
         Assert.That(cards.Select(c => c.Title), Is.EqualTo(new[] { "A", "B", "C" }));
         Assert.That(cards.Select(c => c.Position), Is.EqualTo(new[] { 0, 1, 2 })); // gapless, B back in the middle
     }
@@ -344,27 +344,27 @@ public class CardRepositoryTests
     public async Task Restore_is_idempotent_for_a_card_that_is_not_deleted()
     {
         var listId = await NewListAsync();
-        var card = await _repo.CreateCardAsync(listId, "Here");
+        var card = await _repo.CreateCardAsync(listId, "Here", _ownerId);
 
-        Assert.That(await _repo.RestoreCardAsync(card.Id), Is.True); // no-op, still reports found
-        Assert.That((await _repo.GetCardsForListAsync(listId)).Single().Title, Is.EqualTo("Here"));
+        Assert.That(await _repo.RestoreCardAsync(card.Id, _ownerId), Is.True); // no-op, still reports found
+        Assert.That((await _repo.GetCardsForListAsync(listId, _ownerId)).Single().Title, Is.EqualTo("Here"));
     }
 
     [Test]
     public async Task Restore_reports_a_missing_card()
     {
-        Assert.That(await _repo.RestoreCardAsync(9999), Is.False);
+        Assert.That(await _repo.RestoreCardAsync(9999, _ownerId), Is.False);
     }
 
     [Test]
     public async Task Restoring_a_done_card_keeps_it_done()
     {
         var listId = await NewListAsync();
-        var card = await _repo.CreateCardAsync(listId, "Shipped");
-        await _repo.SetCardCompletedAsync(card.Id, true);
-        await _repo.DeleteCardAsync(card.Id);
+        var card = await _repo.CreateCardAsync(listId, "Shipped", _ownerId);
+        await _repo.SetCardCompletedAsync(card.Id, true, _ownerId);
+        await _repo.DeleteCardAsync(card.Id, _ownerId);
 
-        Assert.That(await _repo.RestoreCardAsync(card.Id), Is.True);
+        Assert.That(await _repo.RestoreCardAsync(card.Id, _ownerId), Is.True);
         var row = await _db.Cards.IgnoreQueryFilters().SingleAsync(c => c.Id == card.Id);
         Assert.That(row.DeletedAt, Is.Null);
         Assert.That(row.CompletedAt, Is.Not.Null); // still done after undo
@@ -374,22 +374,22 @@ public class CardRepositoryTests
     public async Task Get_card_hides_a_soft_deleted_card()
     {
         var listId = await NewListAsync();
-        var card = await _repo.CreateCardAsync(listId, "Temp");
-        await _repo.DeleteCardAsync(card.Id);
+        var card = await _repo.CreateCardAsync(listId, "Temp", _ownerId);
+        await _repo.DeleteCardAsync(card.Id, _ownerId);
 
-        Assert.That(await _repo.GetCardAsync(card.Id), Is.Null);
+        Assert.That(await _repo.GetCardAsync(card.Id, _ownerId), Is.Null);
     }
 
     [Test]
     public async Task Restore_works_from_a_fresh_context_not_only_a_tracked_one()
     {
         var listId = await NewListAsync();
-        var card = await _repo.CreateCardAsync(listId, "Temp");
-        await _repo.DeleteCardAsync(card.Id);
+        var card = await _repo.CreateCardAsync(listId, "Temp", _ownerId);
+        await _repo.DeleteCardAsync(card.Id, _ownerId);
 
         _db.ChangeTracker.Clear(); // force a DB read, as a new HTTP request would — no tracked entity
 
-        Assert.That(await _repo.RestoreCardAsync(card.Id), Is.True);
-        Assert.That((await _repo.GetCardsForListAsync(listId)).Select(c => c.Title), Is.EqualTo(new[] { "Temp" }));
+        Assert.That(await _repo.RestoreCardAsync(card.Id, _ownerId), Is.True);
+        Assert.That((await _repo.GetCardsForListAsync(listId, _ownerId)).Select(c => c.Title), Is.EqualTo(new[] { "Temp" }));
     }
 }

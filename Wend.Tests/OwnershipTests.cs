@@ -101,6 +101,95 @@ public class OwnershipTests
         Assert.That(posted.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
     }
 
+    [Test]
+    public async Task A_card_is_invisible_to_another_user()
+    {
+        using var factory = new WendApiFactory();
+        var client = factory.CreateClient();
+
+        var board = await (await client.PostAsJsonAsync("/api/boards", new { Title = "Mine" }))
+            .Content.ReadFromJsonAsync<Board>();
+        var list = await (await client.PostAsJsonAsync($"/api/boards/{board!.Id}/lists", new { Title = "To do" }))
+            .Content.ReadFromJsonAsync<Wend.Core.List>();
+        var card = await (await client.PostAsJsonAsync($"/api/lists/{list!.Id}/cards", new { Title = "A card" }))
+            .Content.ReadFromJsonAsync<Card>();
+        await client.DeleteAsync($"/api/cards/{card!.Id}");   // soft-deleted, restorable by its owner
+
+        factory.CurrentUser.UserId = await SeedOtherUserAsync(factory);
+        Assert.That(factory.CurrentUser.UserId, Is.Not.EqualTo(factory.DefaultUserId));
+
+        // Restore is the important one: it reaches soft-deleted rows via IgnoreQueryFilters(),
+        // which must NOT widen the boundary. Ownership is a Where clause, so it survives.
+        Assert.That((await client.PostAsync($"/api/cards/{card.Id}/restore", null)).StatusCode,
+            Is.EqualTo(HttpStatusCode.NotFound));
+        Assert.That((await client.GetAsync($"/api/cards/{card.Id}")).StatusCode,
+            Is.EqualTo(HttpStatusCode.NotFound));
+        Assert.That((await client.PutAsJsonAsync($"/api/cards/{card.Id}",
+            new { Title = "Theirs", Description = (string?)null, DueDate = (DateOnly?)null })).StatusCode,
+            Is.EqualTo(HttpStatusCode.NotFound));
+        Assert.That((await client.PutAsJsonAsync($"/api/cards/{card.Id}/complete", new { Completed = true })).StatusCode,
+            Is.EqualTo(HttpStatusCode.NotFound));
+        Assert.That((await client.DeleteAsync($"/api/cards/{card.Id}")).StatusCode,
+            Is.EqualTo(HttpStatusCode.NotFound));
+
+        // ...and its owner can still restore it, so the boundary blocked the intruder, not the feature.
+        factory.CurrentUser.UserId = factory.DefaultUserId;
+        Assert.That((await client.PostAsync($"/api/cards/{card.Id}/restore", null)).StatusCode,
+            Is.EqualTo(HttpStatusCode.NoContent));
+    }
+
+    [Test]
+    public async Task Posting_a_card_into_another_users_list_is_404()
+    {
+        using var factory = new WendApiFactory();
+        var client = factory.CreateClient();
+
+        var board = await (await client.PostAsJsonAsync("/api/boards", new { Title = "Mine" }))
+            .Content.ReadFromJsonAsync<Board>();
+        var list = await (await client.PostAsJsonAsync($"/api/boards/{board!.Id}/lists", new { Title = "To do" }))
+            .Content.ReadFromJsonAsync<Wend.Core.List>();
+
+        factory.CurrentUser.UserId = await SeedOtherUserAsync(factory);
+
+        var posted = await client.PostAsJsonAsync($"/api/lists/{list!.Id}/cards", new { Title = "Intruder" });
+        Assert.That(posted.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+    }
+
+    [Test]
+    public async Task Moving_a_card_into_another_users_list_is_404_not_400()
+    {
+        using var factory = new WendApiFactory();
+        var client = factory.CreateClient();
+
+        // User A's board, list and card.
+        var boardA = await (await client.PostAsJsonAsync("/api/boards", new { Title = "A" }))
+            .Content.ReadFromJsonAsync<Board>();
+        var listA = await (await client.PostAsJsonAsync($"/api/boards/{boardA!.Id}/lists", new { Title = "A list" }))
+            .Content.ReadFromJsonAsync<Wend.Core.List>();
+        var cardA = await (await client.PostAsJsonAsync($"/api/lists/{listA!.Id}/cards", new { Title = "A card" }))
+            .Content.ReadFromJsonAsync<Card>();
+
+        // User B's own board and list.
+        factory.CurrentUser.UserId = await SeedOtherUserAsync(factory);
+        Assert.That(factory.CurrentUser.UserId, Is.Not.EqualTo(factory.DefaultUserId));
+        var boardB = await (await client.PostAsJsonAsync("/api/boards", new { Title = "B" }))
+            .Content.ReadFromJsonAsync<Board>();
+        var listB = await (await client.PostAsJsonAsync($"/api/boards/{boardB!.Id}/lists", new { Title = "B list" }))
+            .Content.ReadFromJsonAsync<Wend.Core.List>();
+
+        // B moving A's card anywhere: the card is not B's, so it is simply missing.
+        var moveAsB = await client.PutAsJsonAsync($"/api/cards/{cardA!.Id}/move",
+            new { ListId = listB!.Id, Position = 0 });
+        Assert.That(moveAsB.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+
+        // A moving their own card into B's list: the target is not A's, so it is missing too —
+        // 404, never 400, which would confirm B's list exists on another board.
+        factory.CurrentUser.UserId = factory.DefaultUserId;
+        var moveAsA = await client.PutAsJsonAsync($"/api/cards/{cardA.Id}/move",
+            new { ListId = listB.Id, Position = 0 });
+        Assert.That(moveAsA.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+    }
+
     /// <summary>
     /// Seeds a second user. Callers assign the result to factory.CurrentUser.UserId — never call
     /// CreateClient() again afterwards, or ConfigureClient silently reverts to the default user.
