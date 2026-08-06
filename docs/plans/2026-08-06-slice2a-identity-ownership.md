@@ -32,6 +32,27 @@ app answers 401 to everything and the test suite is the only consumer.
 
 ## Notes for the implementer
 
+> ### ⚠️ This branch destroys your local board data, and `git switch` will not undo it
+>
+> `Program.cs` runs `Database.Migrate()` at **startup**, and the `AddBoardOwner` migration opens
+> with `DELETE FROM "Boards"`. Merely running `dotnet run` on this branch — or `dotnet test`, which
+> boots the app — wipes every board, list, card, label and checklist item in the `wend` dev
+> database. There is no prompt. This is the accepted cost of the clean-slate decision (see the
+> design spec), not a bug.
+>
+> **It is also not reversible by switching branches.** Back on `main`, `Board` has no `OwnerId`,
+> but the column still exists in the database as `NOT NULL` with no default, so every board insert
+> fails. To return to `main`:
+>
+> ```powershell
+> dotnet ef database drop --force --project Wend.Core --startup-project Wend.Api
+> git switch main
+> dotnet run --project Wend.Api    # rebuilds the schema from main's migrations
+> ```
+>
+> **Say this in the PR description.** Henry has not reviewed the design spec and will otherwise
+> lose his boards the first time he checks the branch out.
+
 - **Start PostgreSQL first.** The service is `Manual` start: `Start-Service postgresql-x64-17`. Connection refused or an EF timeout means the service is stopped, not a code bug.
 - **Stop the app before building.** The process is `Wend.Api`, *not* `Wend`:
   `Get-Process Wend.Api -ErrorAction SilentlyContinue | Stop-Process -Force`. Skipping this gives MSB3021/3027 copy-lock errors that look like test failures.
@@ -41,6 +62,15 @@ app answers 401 to everything and the test suite is the only consumer.
 - **`IgnoreQueryFilters()` stays safe.** `EfCardRepository.RestoreCardAsync` and `EfChecklistItemRepository.RestoreItemAsync` need it to reach soft-deleted rows. Ownership lives in the `Where` clause, not a query filter, so it survives — do **not** move ownership into a global query filter.
 - **Endpoint logic does not change.** Only the repository lookups gain an `ownerId` argument. Every existing validation, ordering rule and status code stays exactly as it is; the green suite is the proof.
 - **Create-into endpoints scope for free.** `POST /api/boards/{boardId}/lists` already does `if (await boards.GetBoardAsync(boardId) is null) return NotFound()`. Once that call takes an owner id, another user's board is `null` and the endpoint returns 404 unchanged. The same pattern covers cards-into-lists, labels-into-boards and items-into-cards.
+- **Create the HTTP client once, *then* switch users.** `WendApiFactory.ConfigureClient` runs on every `CreateClient()` call and ends by setting `CurrentUser.UserId` back to `DefaultUserId`. Calling `CreateClient()` after switching to user B silently reverts you to user A, and the isolation test then passes for the wrong reason — the worst possible failure for a security test, because green means nothing. Pattern for every isolation test in Tasks 3–7:
+
+```csharp
+var client = factory.CreateClient();          // once, as the default user
+// ... create user A's data ...
+factory.CurrentUser.UserId = otherUserId;     // switch AFTER, never CreateClient() again
+Assert.That(factory.CurrentUser.UserId, Is.EqualTo(otherUserId));   // cheap guard against the trap
+```
+
 - **Task order is dependency-driven, not thematic.** Task 3 makes `OwnerId` required, which is the moment every repository test needs a seeded user. Task 2 exists to put that seam in place first.
 
 ---
@@ -527,14 +557,22 @@ Ordering matters: EF adds the required column with `defaultValue: ""`, and the f
 then fail against rows whose owner does not exist.
 
 - [ ] **Step 9 — give every repository test an owner.** In **each** of the five
-`Wend.Tests/*RepositoryTests.cs` files, add a field and seed it at the end of `SetUp`:
+`Wend.Tests/*RepositoryTests.cs` files, add a field:
 
 ```csharp
     private string _ownerId = null!;
 ```
 
+Then make `SetUp` async and seed the owner as its last statement. NUnit awaits an
+`async Task` setup properly — do **not** block on the seed with `.GetAwaiter().GetResult()`:
+
 ```csharp
-        _ownerId = TestUsers.SeedAsync(_db).GetAwaiter().GetResult();
+    [SetUp]
+    public async Task SetUp()
+    {
+        // ... existing connection / context / repository construction, unchanged ...
+        _ownerId = await TestUsers.SeedAsync(_db);
+    }
 ```
 
 Then update each file's `NewBoardAsync` helper to pass it, for example in `ListRepositoryTests`:
@@ -676,8 +714,52 @@ becomes owner-scoped too, so a target list belonging to another user resolves as
 - [ ] **Step 6** — `Wend.Tests/CardRepositoryTests.cs`: `_ownerId` on every `_repo.*` call (28 tests).
 - [ ] **Step 7** — add to `OwnershipTests.cs`: user B gets 404 reading, editing, moving, completing,
 deleting **and restoring** user A's card. The restore case is the regression test for Step 3.
-- [ ] **Step 8** — `dotnet test`. Expected **161** (155 + 6 new).
-- [ ] **Step 9** — commit: `Scope card queries to the board owner`
+- [ ] **Step 8 — pin the move endpoint's enumeration resistance.** `MoveCardAsync` distinguishes
+"target list missing" (404) from "target list on another board" (400). A **400 would confirm that
+another user's list exists** and sits on a different board — exactly the leak 404-not-403 exists to
+prevent. Prose in Step 4 is not enough; pin it:
+
+```csharp
+    [Test]
+    public async Task Moving_a_card_into_another_users_list_is_404_not_400()
+    {
+        using var factory = new WendApiFactory();
+        var client = factory.CreateClient();
+
+        // User A's board, list and card.
+        var boardA = await (await client.PostAsJsonAsync("/api/boards", new { Title = "A" }))
+            .Content.ReadFromJsonAsync<Board>();
+        var listA = await (await client.PostAsJsonAsync($"/api/boards/{boardA!.Id}/lists", new { Title = "A list" }))
+            .Content.ReadFromJsonAsync<Wend.Core.List>();
+        var cardA = await (await client.PostAsJsonAsync($"/api/lists/{listA!.Id}/cards", new { Title = "A card" }))
+            .Content.ReadFromJsonAsync<Card>();
+
+        // User B's own board and list.
+        factory.CurrentUser.UserId = await SeedOtherUserAsync(factory);
+        Assert.That(factory.CurrentUser.UserId, Is.Not.EqualTo(factory.DefaultUserId));
+        var boardB = await (await client.PostAsJsonAsync("/api/boards", new { Title = "B" }))
+            .Content.ReadFromJsonAsync<Board>();
+        var listB = await (await client.PostAsJsonAsync($"/api/boards/{boardB!.Id}/lists", new { Title = "B list" }))
+            .Content.ReadFromJsonAsync<Wend.Core.List>();
+
+        // B moving A's card anywhere: the card is not B's, so it is simply missing.
+        var moveAsB = await client.PutAsJsonAsync($"/api/cards/{cardA!.Id}/move",
+            new { ListId = listB!.Id, Position = 0 });
+        Assert.That(moveAsB.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+
+        // A moving their own card into B's list: the target is not A's, so it is missing too —
+        // 404, never 400, which would confirm B's list exists on another board.
+        factory.CurrentUser.UserId = factory.DefaultUserId;
+        var moveAsA = await client.PutAsJsonAsync($"/api/cards/{cardA.Id}/move",
+            new { ListId = listB.Id, Position = 0 });
+        Assert.That(moveAsA.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+    }
+```
+
+(`MoveCardRequest` is `(int ListId, int Position)` — the target list is `ListId`, not `TargetListId`.)
+
+- [ ] **Step 9** — `dotnet test`. Expected **162** (155 + 7 new).
+- [ ] **Step 10** — commit: `Scope card queries to the board owner`
 
 ### Task 6 — labels
 
@@ -709,7 +791,7 @@ validation exactly as it is** — it now runs after ownership has already exclud
 - [ ] **Step 6** — `Wend.Tests/LabelRepositoryTests.cs`: `_ownerId` on every `_repo.*` call (16 tests).
 - [ ] **Step 7** — add to `OwnershipTests.cs`: user B gets 404 reading, editing and deleting user A's
 label, and cannot attach their own label to user A's card.
-- [ ] **Step 8** — `dotnet test`. Expected **165** (161 + 4 new).
+- [ ] **Step 8** — `dotnet test`. Expected **166** (162 + 4 new).
 - [ ] **Step 9** — commit: `Scope label queries to the board owner`
 
 ### Task 7 — checklist items
@@ -760,7 +842,7 @@ helper, and leave the test in place as the guard.
 - [ ] **Step 5** — `Wend.Tests/ChecklistItemRepositoryTests.cs`: `_ownerId` on every `_repo.*` call (14 tests).
 - [ ] **Step 6** — add to `OwnershipTests.cs`: user B gets 404 reading, renaming, checking, moving,
 deleting and restoring user A's checklist item.
-- [ ] **Step 7** — `dotnet test`. Expected **172** (165 + 6 isolation + 1 from Step 2).
+- [ ] **Step 7** — `dotnet test`. Expected **173** (166 + 6 isolation + 1 from Step 2).
 - [ ] **Step 8** — commit: `Scope checklist item queries to the board owner`
 
 ---
@@ -771,27 +853,49 @@ deleting and restoring user A's checklist item.
 
 ```csharp
     [Test]
-    public async Task Deleting_a_user_erases_their_boards_lists_cards_and_items()
+    public async Task Deleting_a_user_erases_every_table_their_data_touches()
     {
         using var factory = new WendApiFactory();
         var client = factory.CreateClient();
 
+        // Populate ALL six tables. Labels and CardLabels reach the user through a different FK
+        // path (Board → Label → CardLabel) than cards do (Board → List → Card), so they are
+        // exactly the rows that could survive unnoticed — and the GDPR erasure claim rests on them.
         var board = await (await client.PostAsJsonAsync("/api/boards", new { Title = "Mine" }))
             .Content.ReadFromJsonAsync<Board>();
         var list = await (await client.PostAsJsonAsync($"/api/boards/{board!.Id}/lists", new { Title = "To do" }))
             .Content.ReadFromJsonAsync<Wend.Core.List>();
-        await client.PostAsJsonAsync($"/api/lists/{list!.Id}/cards", new { Title = "A card" });
+        var card = await (await client.PostAsJsonAsync($"/api/lists/{list!.Id}/cards", new { Title = "A card" }))
+            .Content.ReadFromJsonAsync<Card>();
+        var label = await (await client.PostAsJsonAsync($"/api/boards/{board.Id}/labels",
+            new { Name = "Urgent", Colour = "red" })).Content.ReadFromJsonAsync<LabelDto>();
+        await client.PostAsJsonAsync($"/api/cards/{card!.Id}/labels", new { LabelId = label!.Id });
+        await client.PostAsJsonAsync($"/api/cards/{card.Id}/checklist-items", new { Text = "Step one" });
 
         using var scope = factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<WendDbContext>();
+
+        // Sanity: everything really is there before the delete, or the assertions below prove nothing.
+        Assert.That(db.CardLabels.Any(), Is.True, "join row was not created — the test proves nothing");
+        Assert.That(db.ChecklistItems.IgnoreQueryFilters().Any(), Is.True);
+
         db.Users.Remove(db.Users.Single(u => u.Id == factory.DefaultUserId));
         await db.SaveChangesAsync();
 
-        Assert.That(db.Boards.IgnoreQueryFilters().Any(), Is.False);
-        Assert.That(db.Lists.IgnoreQueryFilters().Any(), Is.False);
-        Assert.That(db.Cards.IgnoreQueryFilters().Any(), Is.False);
+        Assert.That(db.Boards.Any(), Is.False, "boards survived");
+        Assert.That(db.Lists.Any(), Is.False, "lists survived");
+        Assert.That(db.Cards.IgnoreQueryFilters().Any(), Is.False, "cards survived");
+        Assert.That(db.Labels.Any(), Is.False, "labels survived");
+        Assert.That(db.CardLabels.Any(), Is.False, "card-label join rows survived");
+        Assert.That(db.ChecklistItems.IgnoreQueryFilters().Any(), Is.False, "checklist items survived");
     }
 ```
+
+`LabelDto` comes from `Wend.Api`; the colour must be a valid palette key (`Wend.Core.LabelColours`),
+so use one the existing label tests already use rather than inventing one.
+
+If any of the last three assertions fail, the cascade path is genuinely incomplete — fix the FK
+configuration in `WendDbContext`, do **not** weaken the test.
 
 - [ ] **Step 2 — sweep every endpoint group for 401.** Routes below are the real ones; `/api/health`
 is deliberately *not* owner-scoped and must stay `200`.
@@ -865,7 +969,7 @@ dotnet build
 dotnet test
 ```
 
-Expected: 0 warnings; **176 passed, 0 failed** (172 + 4 new).
+Expected: 0 warnings; **177 passed, 0 failed** (173 + 4 new).
 
 - [ ] **Step 6 — manual acceptance.** Start the app and confirm the honest, expected end state:
 
@@ -878,11 +982,22 @@ dotnet run --project Wend.Api
 `GET http://127.0.0.1:5174/api/boards` → **401**. The board UI is dead until Plan 3 — this is the
 accepted consequence of the clean-slate decision, not a bug.
 
+**Confirm how it is dead, and write down what you see.** `MapFallbackToFile("index.html")` still
+serves the SPA, and `js/api.js` has no 401 handling until Plan 3, so open
+`http://127.0.0.1:5174` in a browser (hard-reload — dev static files carry no `Cache-Control`) and
+check the console. Expected: the app shell renders, the board list stays empty, and the console
+shows the failed `/api/boards` fetch. What you are ruling out is a **JavaScript crash** — an
+unhandled exception that leaves the page half-rendered is a real regression that Plan 3 would
+inherit, whereas an empty list plus a logged 401 is the intended dead state. If it crashes, note
+the exact error in the PR description so Plan 3's auth gate is written against it.
+
 Sanity-check the schema: `psql -U postgres -d wend -c "\dt"` lists the Wend tables, the seven
 `AspNet*` tables and `__EFMigrationsHistory`.
 
-- [ ] **Step 7 — README.** Add one line to dev setup: the app returns 401 for all `/api/*` until
-Plan 3 lands authentication.
+- [ ] **Step 7 — README.** Add two lines to dev setup: (1) every `/api/*` route returns 401 until
+Plan 3 lands authentication, so the board UI renders an empty shell and logs a failed fetch —
+expected, not a bug; (2) checking out this branch destroys local board data, and returning to
+`main` needs `dotnet ef database drop --force` (link the warning at the top of this plan).
 
 - [ ] **Step 8 — commit and open the PR**
 
@@ -892,11 +1007,24 @@ git commit -m "Prove ownership cascade and anonymous 401 across every endpoint g
 git push -u origin feature/slice2a-plan2-ownership
 ```
 
+**The PR description must open with the data-loss warning**, in these words or close to them, so
+the reviewer reads it before checking the branch out:
+
+> ⚠️ **This branch destroys local board data.** The `AddBoardOwner` migration deletes all boards,
+> and `Migrate()` runs on app startup — so `dotnet run` or `dotnet test` wipes your `wend` dev
+> database with no prompt. This is the accepted clean-slate decision from the design spec.
+> Switching back to `main` afterwards needs
+> `dotnet ef database drop --force --project Wend.Core --startup-project Wend.Api`, because
+> `main`'s `Board` has no `OwnerId` while the column remains `NOT NULL`.
+>
+> Also expected on this branch: every `/api/*` route returns 401 and the board UI renders empty.
+> Authentication is Plan 3.
+
 ---
 
 ## Definition of done
 
-- `dotnet test` green at **176**; `dotnet build` clean at 0 warnings.
+- `dotnet test` green at **177**; `dotnet build` clean at 0 warnings.
 - `WendUser` exists, `WendDbContext` is an `IdentityDbContext<WendUser>`, and Identity's seven tables are created by a committed migration.
 - `Board.OwnerId` is required and cascades from `WendUser`; deleting a user erases every board, list, card, label, join row and checklist item they own, proven by test.
 - All **34** repository methods take an explicit `ownerId`; all **22** former `FindAsync` call sites are owner-scoped lookups.
