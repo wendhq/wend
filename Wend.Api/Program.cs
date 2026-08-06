@@ -16,6 +16,9 @@ builder.Services.AddScoped<ICardRepository, EfCardRepository>();
 builder.Services.AddScoped<ILabelRepository, EfLabelRepository>();
 builder.Services.AddScoped<IChecklistItemRepository, EfChecklistItemRepository>();
 
+// No authentication until Plan 3 — every request is anonymous, so /api/* answers 401.
+builder.Services.AddScoped<ICurrentUser, NullCurrentUser>();
+
 
 // Keep request paths and bodies out of the framework logs; quiet the startup banner.
 builder.Logging.AddFilter("Microsoft.AspNetCore", LogLevel.Warning);
