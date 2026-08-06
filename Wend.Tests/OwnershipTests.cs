@@ -243,6 +243,64 @@ public class OwnershipTests
         Assert.That(reverse.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
     }
 
+    [Test]
+    public async Task A_checklist_item_is_invisible_to_another_user()
+    {
+        using var factory = new WendApiFactory();
+        var client = factory.CreateClient();
+
+        var board = await (await client.PostAsJsonAsync("/api/boards", new { Title = "Mine" }))
+            .Content.ReadFromJsonAsync<Board>();
+        var list = await (await client.PostAsJsonAsync($"/api/boards/{board!.Id}/lists", new { Title = "To do" }))
+            .Content.ReadFromJsonAsync<Wend.Core.List>();
+        var card = await (await client.PostAsJsonAsync($"/api/lists/{list!.Id}/cards", new { Title = "A card" }))
+            .Content.ReadFromJsonAsync<Card>();
+        var item = await (await client.PostAsJsonAsync($"/api/cards/{card!.Id}/checklist-items",
+            new { Text = "Step one" })).Content.ReadFromJsonAsync<ChecklistItem>();
+        await client.DeleteAsync($"/api/checklist-items/{item!.Id}");  // soft-deleted, restorable by its owner
+
+        factory.CurrentUser.UserId = await SeedOtherUserAsync(factory);
+        Assert.That(factory.CurrentUser.UserId, Is.Not.EqualTo(factory.DefaultUserId));
+
+        // Restore is the important one: it reaches soft-deleted rows through the ignore-filtered
+        // ownership helper, which must not widen the boundary while it widens the delete state.
+        Assert.That((await client.PostAsync($"/api/checklist-items/{item.Id}/restore", null)).StatusCode,
+            Is.EqualTo(HttpStatusCode.NotFound));
+        Assert.That((await client.PutAsJsonAsync($"/api/checklist-items/{item.Id}",
+            new { Text = "Theirs" })).StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+        Assert.That((await client.PutAsJsonAsync($"/api/checklist-items/{item.Id}/check",
+            new { Checked = true })).StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+        Assert.That((await client.PutAsJsonAsync($"/api/checklist-items/{item.Id}/move",
+            new { Position = 0 })).StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+        Assert.That((await client.DeleteAsync($"/api/checklist-items/{item.Id}")).StatusCode,
+            Is.EqualTo(HttpStatusCode.NotFound));
+
+        // ...and its owner can still restore it, so the boundary blocked the intruder, not the feature.
+        factory.CurrentUser.UserId = factory.DefaultUserId;
+        Assert.That((await client.PostAsync($"/api/checklist-items/{item.Id}/restore", null)).StatusCode,
+            Is.EqualTo(HttpStatusCode.NoContent));
+    }
+
+    [Test]
+    public async Task Posting_a_checklist_item_into_another_users_card_is_404()
+    {
+        using var factory = new WendApiFactory();
+        var client = factory.CreateClient();
+
+        var board = await (await client.PostAsJsonAsync("/api/boards", new { Title = "Mine" }))
+            .Content.ReadFromJsonAsync<Board>();
+        var list = await (await client.PostAsJsonAsync($"/api/boards/{board!.Id}/lists", new { Title = "To do" }))
+            .Content.ReadFromJsonAsync<Wend.Core.List>();
+        var card = await (await client.PostAsJsonAsync($"/api/lists/{list!.Id}/cards", new { Title = "A card" }))
+            .Content.ReadFromJsonAsync<Card>();
+
+        factory.CurrentUser.UserId = await SeedOtherUserAsync(factory);
+
+        var posted = await client.PostAsJsonAsync($"/api/cards/{card!.Id}/checklist-items",
+            new { Text = "Intruder" });
+        Assert.That(posted.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+    }
+
     /// <summary>
     /// Seeds a second user. Callers assign the result to factory.CurrentUser.UserId — never call
     /// CreateClient() again afterwards, or ConfigureClient silently reverts to the default user.

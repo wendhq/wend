@@ -38,7 +38,7 @@ public static class BoardEndpoints
             var palette = (await labels.GetBoardLabelsAsync(id, ownerId))
                 .Select(l => new LabelDto(l.Id, l.Name, l.Colour)).ToList();
             var labelIdsByCard = await labels.GetLabelIdsByCardAsync(id, ownerId);
-            var counts = await checklist.GetCountsByCardAsync(id);
+            var counts = await checklist.GetCountsByCardAsync(id, ownerId);
 
             var summaries = new List<ListSummary>();
             foreach (var l in await lists.GetListsForBoardAsync(id, ownerId))

@@ -51,6 +51,44 @@ public class ChecklistItemRepositoryTests
     }
 
     [Test]
+    public async Task Another_users_item_is_invisible_and_untouchable()
+    {
+        // Pinned at the repository layer as well as over HTTP: this repository's ownership helper
+        // is the only one that turns query filters off, so its boundary is worth proving directly.
+        var cardId = await NewCardAsync();
+        var item = await _repo.AddItemAsync(cardId, "Mine", _ownerId);
+        var intruder = await TestUsers.SeedAsync(_db);
+
+        Assert.That(await _repo.GetItemsForCardAsync(cardId, intruder), Is.Empty);
+        Assert.That(await _repo.RenameItemAsync(item.Id, "Theirs", intruder), Is.False);
+        Assert.That(await _repo.SetCheckedAsync(item.Id, true, intruder), Is.False);
+        Assert.That(await _repo.MoveItemAsync(item.Id, 0, intruder), Is.False);
+        Assert.That(await _repo.DeleteItemAsync(item.Id, intruder), Is.False);
+
+        // Soft-delete it as the owner, then confirm the intruder cannot reach it through the
+        // ignore-filtered restore path either.
+        Assert.That(await _repo.DeleteItemAsync(item.Id, _ownerId), Is.True);
+        Assert.That(await _repo.RestoreItemAsync(item.Id, intruder), Is.False);
+        Assert.That(await _repo.RestoreItemAsync(item.Id, _ownerId), Is.True);
+    }
+
+    [Test]
+    public async Task Items_survive_their_cards_soft_delete()
+    {
+        // Traversing i.Card for ownership must NOT drag Card's soft-delete filter along:
+        // card undo restores the card AND its checklist, so the items have to still be there.
+        var board = await _boards.CreateBoardAsync("Board", _ownerId);
+        var list = await _lists.CreateListAsync(board.Id, "To do", _ownerId);
+        var card = await _cards.CreateCardAsync(list.Id, "A card", _ownerId);
+        await _repo.AddItemAsync(card.Id, "Step one", _ownerId);
+
+        await _cards.DeleteCardAsync(card.Id, _ownerId);   // soft delete
+
+        var items = await _repo.GetItemsForCardAsync(card.Id, _ownerId);
+        Assert.That(items, Has.Count.EqualTo(1));
+    }
+
+    [Test]
     public async Task Saved_item_belongs_to_its_card_and_keeps_its_position()
     {
         var cardId = await NewCardAsync();
@@ -97,8 +135,8 @@ public class ChecklistItemRepositoryTests
     {
         var cardId = await NewCardAsync();
 
-        var first = await _repo.AddItemAsync(cardId, "First");
-        var second = await _repo.AddItemAsync(cardId, "Second");
+        var first = await _repo.AddItemAsync(cardId, "First", _ownerId);
+        var second = await _repo.AddItemAsync(cardId, "Second", _ownerId);
 
         Assert.That(first.Position, Is.EqualTo(0));
         Assert.That(second.Position, Is.EqualTo(1));
@@ -110,8 +148,8 @@ public class ChecklistItemRepositoryTests
         var cardA = await NewCardAsync();
         var cardB = await NewCardAsync();
 
-        var a1 = await _repo.AddItemAsync(cardA, "A1");
-        var b1 = await _repo.AddItemAsync(cardB, "B1");
+        var a1 = await _repo.AddItemAsync(cardA, "A1", _ownerId);
+        var b1 = await _repo.AddItemAsync(cardB, "B1", _ownerId);
 
         Assert.That(a1.Position, Is.EqualTo(0));
         Assert.That(b1.Position, Is.EqualTo(0));
@@ -121,10 +159,10 @@ public class ChecklistItemRepositoryTests
     public async Task Get_items_for_card_returns_them_in_position_order()
     {
         var cardId = await NewCardAsync();
-        await _repo.AddItemAsync(cardId, "First");
-        await _repo.AddItemAsync(cardId, "Second");
+        await _repo.AddItemAsync(cardId, "First", _ownerId);
+        await _repo.AddItemAsync(cardId, "Second", _ownerId);
 
-        var items = await _repo.GetItemsForCardAsync(cardId);
+        var items = await _repo.GetItemsForCardAsync(cardId, _ownerId);
 
         Assert.That(items.Select(i => i.Text), Is.EqualTo(new[] { "First", "Second" }));
     }
@@ -133,70 +171,70 @@ public class ChecklistItemRepositoryTests
     public async Task Rename_updates_the_text_and_reports_missing()
     {
         var cardId = await NewCardAsync();
-        var item = await _repo.AddItemAsync(cardId, "Old");
+        var item = await _repo.AddItemAsync(cardId, "Old", _ownerId);
 
-        Assert.That(await _repo.RenameItemAsync(item.Id, "New"), Is.True);
-        Assert.That((await _repo.GetItemsForCardAsync(cardId)).Single().Text, Is.EqualTo("New"));
+        Assert.That(await _repo.RenameItemAsync(item.Id, "New", _ownerId), Is.True);
+        Assert.That((await _repo.GetItemsForCardAsync(cardId, _ownerId)).Single().Text, Is.EqualTo("New"));
 
-        Assert.That(await _repo.RenameItemAsync(9999, "X"), Is.False);
+        Assert.That(await _repo.RenameItemAsync(9999, "X", _ownerId), Is.False);
     }
 
     [Test]
     public async Task Set_checked_stamps_checkedAt_and_clears_it()
     {
         var cardId = await NewCardAsync();
-        var item = await _repo.AddItemAsync(cardId, "Do it");
+        var item = await _repo.AddItemAsync(cardId, "Do it", _ownerId);
 
-        Assert.That(await _repo.SetCheckedAsync(item.Id, true), Is.True);
-        Assert.That((await _repo.GetItemsForCardAsync(cardId)).Single().CheckedAt, Is.Not.Null);
+        Assert.That(await _repo.SetCheckedAsync(item.Id, true, _ownerId), Is.True);
+        Assert.That((await _repo.GetItemsForCardAsync(cardId, _ownerId)).Single().CheckedAt, Is.Not.Null);
 
-        Assert.That(await _repo.SetCheckedAsync(item.Id, false), Is.True);
-        Assert.That((await _repo.GetItemsForCardAsync(cardId)).Single().CheckedAt, Is.Null);
+        Assert.That(await _repo.SetCheckedAsync(item.Id, false, _ownerId), Is.True);
+        Assert.That((await _repo.GetItemsForCardAsync(cardId, _ownerId)).Single().CheckedAt, Is.Null);
     }
 
     [Test]
     public async Task Set_checked_reports_a_missing_item()
     {
-        Assert.That(await _repo.SetCheckedAsync(9999, true), Is.False);
+        Assert.That(await _repo.SetCheckedAsync(9999, true, _ownerId), Is.False);
     }
 
     [Test]
     public async Task Move_reorders_within_the_card_and_clamps_an_overshoot()
     {
         var cardId = await NewCardAsync();
-        var a = await _repo.AddItemAsync(cardId, "A");   // 0
-        await _repo.AddItemAsync(cardId, "B");           // 1
-        var c = await _repo.AddItemAsync(cardId, "C");   // 2
+        var a = await _repo.AddItemAsync(cardId, "A", _ownerId);   // 0
+        await _repo.AddItemAsync(cardId, "B", _ownerId);           // 1
+        var c = await _repo.AddItemAsync(cardId, "C", _ownerId);   // 2
 
-        Assert.That(await _repo.MoveItemAsync(c.Id, 0), Is.True);
-        var items = await _repo.GetItemsForCardAsync(cardId);
+        Assert.That(await _repo.MoveItemAsync(c.Id, 0, _ownerId), Is.True);
+        var items = await _repo.GetItemsForCardAsync(cardId, _ownerId);
         Assert.That(items.Select(i => i.Text), Is.EqualTo(new[] { "C", "A", "B" }));
         Assert.That(items.Select(i => i.Position), Is.EqualTo(new[] { 0, 1, 2 })); // gapless
 
         // Position 99 overshoots — it should clamp to the bottom.
-        Assert.That(await _repo.MoveItemAsync(a.Id, 99), Is.True);
-        items = await _repo.GetItemsForCardAsync(cardId);
+        Assert.That(await _repo.MoveItemAsync(a.Id, 99, _ownerId), Is.True);
+        items = await _repo.GetItemsForCardAsync(cardId, _ownerId);
         Assert.That(items.Select(i => i.Text), Is.EqualTo(new[] { "C", "B", "A" }));
     }
 
     [Test]
     public async Task Move_reports_a_missing_item()
     {
-        Assert.That(await _repo.MoveItemAsync(9999, 0), Is.False);
+        Assert.That(await _repo.MoveItemAsync(9999, 0, _ownerId), Is.False);
     }
 
     [Test]
     public async Task Delete_soft_deletes_and_resequences_the_rest()
     {
         var cardId = await NewCardAsync();
-        await _repo.AddItemAsync(cardId, "A");           // 0
-        var b = await _repo.AddItemAsync(cardId, "B");   // 1
-        await _repo.AddItemAsync(cardId, "C");           // 2
+        await _repo.AddItemAsync(cardId, "A", _ownerId);           // 0
+        var b = await _repo.AddItemAsync(cardId, "B", _ownerId);   // 1
+        await _repo.AddItemAsync(cardId, "C", _ownerId);           // 2
 
-        Assert.That(await _repo.DeleteItemAsync(b.Id), Is.True);
+        Assert.That(await _repo.DeleteItemAsync(b.Id, _ownerId), Is.True);
 
         // Hidden from normal queries and the survivors close the gap…
-        var items = await _repo.GetItemsForCardAsync(cardId);
+        var items = await _repo.GetItemsForCardAsync(cardId, _ownerId);
         Assert.That(items.Select(i => i.Text), Is.EqualTo(new[] { "A", "C" }));
         Assert.That(items.Select(i => i.Position), Is.EqualTo(new[] { 0, 1 }));
         // …but the row still exists with DeletedAt set, so undo can bring it back.
@@ -208,14 +246,14 @@ public class ChecklistItemRepositoryTests
     public async Task Restore_brings_an_item_back_to_its_original_position()
     {
         var cardId = await NewCardAsync();
-        await _repo.AddItemAsync(cardId, "A");           // 0
-        var b = await _repo.AddItemAsync(cardId, "B");   // 1
-        await _repo.AddItemAsync(cardId, "C");           // 2
+        await _repo.AddItemAsync(cardId, "A", _ownerId);           // 0
+        var b = await _repo.AddItemAsync(cardId, "B", _ownerId);   // 1
+        await _repo.AddItemAsync(cardId, "C", _ownerId);           // 2
 
-        await _repo.DeleteItemAsync(b.Id);               // survivors resequence to A(0), C(1)
-        Assert.That(await _repo.RestoreItemAsync(b.Id), Is.True);
+        await _repo.DeleteItemAsync(b.Id, _ownerId);               // survivors resequence to A(0), C(1)
+        Assert.That(await _repo.RestoreItemAsync(b.Id, _ownerId), Is.True);
 
-        var items = await _repo.GetItemsForCardAsync(cardId);
+        var items = await _repo.GetItemsForCardAsync(cardId, _ownerId);
         Assert.That(items.Select(i => i.Text), Is.EqualTo(new[] { "A", "B", "C" }));
         Assert.That(items.Select(i => i.Position), Is.EqualTo(new[] { 0, 1, 2 })); // gapless, B back in the middle
     }
@@ -224,12 +262,12 @@ public class ChecklistItemRepositoryTests
     public async Task Restore_works_from_a_fresh_context_not_only_a_tracked_one()
     {
         var cardId = await NewCardAsync();
-        var item = await _repo.AddItemAsync(cardId, "Temp");
-        await _repo.DeleteItemAsync(item.Id);
+        var item = await _repo.AddItemAsync(cardId, "Temp", _ownerId);
+        await _repo.DeleteItemAsync(item.Id, _ownerId);
 
         _db.ChangeTracker.Clear(); // force a DB read, as a new HTTP request would — no tracked entity
 
-        Assert.That(await _repo.RestoreItemAsync(item.Id), Is.True);
-        Assert.That((await _repo.GetItemsForCardAsync(cardId)).Select(i => i.Text), Is.EqualTo(new[] { "Temp" }));
+        Assert.That(await _repo.RestoreItemAsync(item.Id, _ownerId), Is.True);
+        Assert.That((await _repo.GetItemsForCardAsync(cardId, _ownerId)).Select(i => i.Text), Is.EqualTo(new[] { "Temp" }));
     }
 }

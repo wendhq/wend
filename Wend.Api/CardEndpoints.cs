@@ -30,7 +30,7 @@ public static class CardEndpoints
             var list = await lists.GetListAsync(c.ListId, ownerId);
             var attached = (await labels.GetCardLabelsAsync(c.Id, ownerId))
                 .Select(l => new LabelDto(l.Id, l.Name, l.Colour)).ToList();
-            var items = (await checklist.GetItemsForCardAsync(c.Id))
+            var items = (await checklist.GetItemsForCardAsync(c.Id, ownerId))
                 .Select(i => new ChecklistItemDto(i.Id, i.Text, i.CheckedAt, i.Position)).ToList();
             return Results.Ok(new CardDetail(c.Id, c.ListId, list?.Title ?? "", list?.BoardId ?? 0,
                 c.Title, c.Description, c.DueDate, c.Position, c.CompletedAt, attached, items));
