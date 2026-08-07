@@ -1,9 +1,11 @@
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace Wend.Core;
 
-/// <summary>EF Core context for Wend's SQLite database.</summary>
-public class WendDbContext(DbContextOptions<WendDbContext> options) : DbContext(options)
+/// <summary>EF Core context for Wend's PostgreSQL database, including ASP.NET Identity's schema.</summary>
+public class WendDbContext(DbContextOptions<WendDbContext> options)
+    : IdentityDbContext<WendUser>(options)
 {
     public DbSet<Board> Boards => Set<Board>();
     public DbSet<List> Lists => Set<List>();
@@ -14,6 +16,22 @@ public class WendDbContext(DbContextOptions<WendDbContext> options) : DbContext(
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        // Identity's own mapping must run first; Wend's configuration layers on top.
+        base.OnModelCreating(modelBuilder);
+
+        // DisplayName is user-controlled content rendered on other users' boards in Slice 2b.
+        // The column is capped here; the write-time validation and escaping arrive with
+        // registration in Plan 3, which is the first thing that can write it.
+        modelBuilder.Entity<WendUser>().Property(u => u.DisplayName).HasMaxLength(100);
+
+        // Every board belongs to one user; deleting the user erases their boards and everything
+        // beneath them via the existing required FKs.
+        modelBuilder.Entity<Board>()
+            .HasOne<WendUser>()
+            .WithMany()
+            .HasForeignKey(b => b.OwnerId)
+            .OnDelete(DeleteBehavior.Cascade);
+
         // Hide soft-deleted / archived cards from every query. Plans 6-7 set these timestamps;
         // until then the filter is inert (no card ever has them set).
         modelBuilder.Entity<Card>().HasQueryFilter(c => c.DeletedAt == null && c.ArchivedAt == null);

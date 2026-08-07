@@ -7,14 +7,14 @@ namespace Wend.Core;
 /// </summary>
 public interface IChecklistItemRepository
 {
-    Task<IReadOnlyList<ChecklistItem>> GetItemsForCardAsync(int cardId);
-    Task<ChecklistItem> AddItemAsync(int cardId, string text);
-    Task<bool> RenameItemAsync(int id, string text);
-    Task<bool> SetCheckedAsync(int id, bool isChecked);
-    Task<bool> MoveItemAsync(int id, int position);
-    Task<bool> DeleteItemAsync(int id);
-    Task<bool> RestoreItemAsync(int id);
-    Task<IReadOnlyDictionary<int, ChecklistCounts>> GetCountsByCardAsync(int boardId);
+    Task<IReadOnlyList<ChecklistItem>> GetItemsForCardAsync(int cardId, string ownerId);
+    Task<ChecklistItem> AddItemAsync(int cardId, string text, string ownerId);
+    Task<bool> RenameItemAsync(int id, string text, string ownerId);
+    Task<bool> SetCheckedAsync(int id, bool isChecked, string ownerId);
+    Task<bool> MoveItemAsync(int id, int position, string ownerId);
+    Task<bool> DeleteItemAsync(int id, string ownerId);
+    Task<bool> RestoreItemAsync(int id, string ownerId);
+    Task<IReadOnlyDictionary<int, ChecklistCounts>> GetCountsByCardAsync(int boardId, string ownerId);
 }
 
 public record ChecklistCounts(int Done, int Total);

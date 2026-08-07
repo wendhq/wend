@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Wend.Core;
 
 /// <summary>One entry in a card's checklist — a miniature Card: the same 0-based gapless
@@ -12,4 +14,9 @@ public class ChecklistItem
     public int Position { get; set; }
     public DateTime? CheckedAt { get; set; }
     public DateTime? DeletedAt { get; set; }
+
+    // Upward navigation — ownership is reached via Card → List → Board → OwnerId.
+    // [JsonIgnore]: EF fixup would otherwise make Card.ChecklistItems → ChecklistItem.Card a cycle.
+    [JsonIgnore]
+    public Card Card { get; set; } = null!;
 }

@@ -9,52 +9,65 @@ public static class LabelEndpoints
     public static IEndpointRouteBuilder MapLabelEndpoints(this IEndpointRouteBuilder app)
     {
         app.MapGet("/api/boards/{boardId:int}/labels",
-            async (int boardId, IBoardRepository boards, ILabelRepository labels) =>
+            async (int boardId, IBoardRepository boards, ILabelRepository labels,
+                ICurrentUser currentUser) =>
             {
-                if (await boards.GetBoardAsync(boardId) is null) return Results.NotFound();
-                var palette = (await labels.GetBoardLabelsAsync(boardId))
+                if (currentUser.UserId is not { } ownerId) return Results.Unauthorized();
+                if (await boards.GetBoardAsync(boardId, ownerId) is null) return Results.NotFound();
+                var palette = (await labels.GetBoardLabelsAsync(boardId, ownerId))
                     .Select(l => new LabelDto(l.Id, l.Name, l.Colour));
                 return Results.Ok(palette);
             });
 
         app.MapPost("/api/boards/{boardId:int}/labels",
-            async (int boardId, CreateLabelRequest req, IBoardRepository boards, ILabelRepository labels) =>
+            async (int boardId, CreateLabelRequest req, IBoardRepository boards, ILabelRepository labels,
+                ICurrentUser currentUser) =>
             {
+                if (currentUser.UserId is not { } ownerId) return Results.Unauthorized();
                 var name = req.Name?.Trim() ?? "";
                 if (name.Length is 0 or > MaxNameLength) return Results.BadRequest();
                 if (!LabelColours.IsValid(req.Colour)) return Results.BadRequest();
-                if (await boards.GetBoardAsync(boardId) is null) return Results.NotFound();
-                var label = await labels.CreateLabelAsync(boardId, name, req.Colour);
+                if (await boards.GetBoardAsync(boardId, ownerId) is null) return Results.NotFound();
+                var label = await labels.CreateLabelAsync(boardId, name, req.Colour, ownerId);
                 return Results.Created($"/api/labels/{label.Id}", new LabelDto(label.Id, label.Name, label.Colour));
             });
 
-        app.MapPut("/api/labels/{id:int}", async (int id, EditLabelRequest req, ILabelRepository labels) =>
+        app.MapPut("/api/labels/{id:int}", async (int id, EditLabelRequest req, ILabelRepository labels,
+            ICurrentUser currentUser) =>
         {
+            if (currentUser.UserId is not { } ownerId) return Results.Unauthorized();
             var name = req.Name?.Trim() ?? "";
             if (name.Length is 0 or > MaxNameLength) return Results.BadRequest();
             if (!LabelColours.IsValid(req.Colour)) return Results.BadRequest();
-            return await labels.EditLabelAsync(id, name, req.Colour)
+            return await labels.EditLabelAsync(id, name, req.Colour, ownerId)
                 ? Results.NoContent() : Results.NotFound();
         });
 
-        app.MapDelete("/api/labels/{id:int}", async (int id, ILabelRepository labels) =>
-            await labels.DeleteLabelAsync(id) ? Results.NoContent() : Results.NotFound());
+        app.MapDelete("/api/labels/{id:int}", async (int id, ILabelRepository labels,
+            ICurrentUser currentUser) =>
+        {
+            if (currentUser.UserId is not { } ownerId) return Results.Unauthorized();
+            return await labels.DeleteLabelAsync(id, ownerId) ? Results.NoContent() : Results.NotFound();
+        });
         
         app.MapPost("/api/cards/{cardId:int}/labels",
-            async (int cardId, AttachLabelRequest req, ICardRepository cards, IListRepository lists, ILabelRepository labels) =>
+            async (int cardId, AttachLabelRequest req, ICardRepository cards, IListRepository lists,
+                ILabelRepository labels, ICurrentUser currentUser) =>
             {
-                if (await cards.GetCardAsync(cardId) is not { } card) return Results.NotFound();
-                if (await labels.GetLabelAsync(req.LabelId) is not { } label) return Results.NotFound();
-                var list = await lists.GetListAsync(card.ListId);
+                if (currentUser.UserId is not { } ownerId) return Results.Unauthorized();
+                if (await cards.GetCardAsync(cardId, ownerId) is not { } card) return Results.NotFound();
+                if (await labels.GetLabelAsync(req.LabelId, ownerId) is not { } label) return Results.NotFound();
+                var list = await lists.GetListAsync(card.ListId, ownerId);
                 if (list is null || list.BoardId != label.BoardId) return Results.BadRequest(); // cross-board
-                await labels.AttachAsync(cardId, req.LabelId); // idempotent
+                await labels.AttachAsync(cardId, req.LabelId, ownerId); // idempotent
                 return Results.NoContent();
             });
 
         app.MapDelete("/api/cards/{cardId:int}/labels/{labelId:int}",
-            async (int cardId, int labelId, ILabelRepository labels) =>
+            async (int cardId, int labelId, ILabelRepository labels, ICurrentUser currentUser) =>
             {
-                await labels.DetachAsync(cardId, labelId); // idempotent — always 204
+                if (currentUser.UserId is not { } ownerId) return Results.Unauthorized();
+                await labels.DetachAsync(cardId, labelId, ownerId); // idempotent — always 204
                 return Results.NoContent();
             });
         

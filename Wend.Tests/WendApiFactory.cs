@@ -1,18 +1,30 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
+using Wend.Api;
+using Wend.Core;
 
 namespace Wend.Tests;
 
 /// <summary>
 /// Boots the real app against a throwaway PostgreSQL database on the local/CI server. Each factory
 /// instance creates its OWN empty database and drops it on dispose, so tests stay isolated exactly
-/// as they were with per-test SQLite files. The app builds the schema on startup (EnsureCreated now,
-/// Migrate from Task 2).
+/// as they were with per-test SQLite files. The app builds the schema on startup (Migrate).
+///
+/// The app registers NullCurrentUser, which would make every /api/* call 401, so tests override
+/// ICurrentUser with a mutable TestCurrentUser and act as DefaultUserId by default.
 /// </summary>
 public sealed class WendApiFactory : WebApplicationFactory<Program>
 {
     private readonly string _dbName = $"wend_test_{Guid.NewGuid():N}";
+
+    /// <summary>The user every API test acts as by default. Boards created over HTTP belong to it.</summary>
+    public string DefaultUserId { get; } = Guid.NewGuid().ToString();
+
+    /// <summary>Swap UserId to act as somebody else (or null for anonymous) inside a test.</summary>
+    public TestCurrentUser CurrentUser { get; } = new();
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -31,6 +43,37 @@ public sealed class WendApiFactory : WebApplicationFactory<Program>
             Database = _dbName,
         };
         builder.UseSetting("ConnectionStrings:WendDb", perTest.ConnectionString);
+
+        // Tests supply their own current user; the app's NullCurrentUser would make everything 401.
+        builder.ConfigureTestServices(services =>
+            services.AddScoped<ICurrentUser>(_ => CurrentUser));
+    }
+
+    protected override void ConfigureClient(HttpClient client)
+    {
+        base.ConfigureClient(client);
+
+        // First client creation boots the app; seed the default user and start acting as them.
+        // NOTE: this runs on EVERY CreateClient() call, so create the client once and switch
+        // CurrentUser.UserId afterwards — calling CreateClient() again silently reverts to the
+        // default user, and an isolation test would then pass for the wrong reason.
+        using var scope = Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<WendDbContext>();
+        if (!db.Users.Any(u => u.Id == DefaultUserId))
+        {
+            db.Users.Add(new WendUser
+            {
+                Id = DefaultUserId,
+                UserName = "default@example.test",
+                NormalizedUserName = "DEFAULT@EXAMPLE.TEST",
+                Email = "default@example.test",
+                NormalizedEmail = "DEFAULT@EXAMPLE.TEST",
+                DisplayName = "Default Test User",
+                SecurityStamp = Guid.NewGuid().ToString(),
+            });
+            db.SaveChanges();
+        }
+        CurrentUser.UserId = DefaultUserId;
     }
 
     protected override void Dispose(bool disposing)
