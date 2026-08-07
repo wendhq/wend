@@ -4,18 +4,24 @@ namespace Wend.Core;
 
 public class EfCardRepository(WendDbContext db) : ICardRepository
 {
-    public async Task<IReadOnlyList<Card>> GetCardsForListAsync(int listId) =>
-        await db.Cards.Where(c => c.ListId == listId)
+    // The single place card ownership is expressed: a card belongs to whoever owns the board its
+    // list sits on. Ownership lives in this Where clause, NOT in a global query filter — which is
+    // why IgnoreQueryFilters() in RestoreCardAsync cannot accidentally drop it.
+    private IQueryable<Card> Owned(string ownerId) => db.Cards.Where(c => c.List.Board.OwnerId == ownerId);
+
+    public async Task<IReadOnlyList<Card>> GetCardsForListAsync(int listId, string ownerId) =>
+        await Owned(ownerId).Where(c => c.ListId == listId)
             .OrderBy(c => c.Position)
             .ToListAsync();
 
-    public async Task<Card?> GetCardAsync(int id) =>
-        await db.Cards.FirstOrDefaultAsync(c => c.Id == id); // goes through the filter → deleted cards read as gone
+    public async Task<Card?> GetCardAsync(int id, string ownerId) =>
+        await Owned(ownerId).FirstOrDefaultAsync(c => c.Id == id); // goes through the filter → deleted cards read as gone
 
-    public async Task<Card> CreateCardAsync(int listId, string title)
+    public async Task<Card> CreateCardAsync(int listId, string title, string ownerId)
     {
+        // The list is ownership-checked by the endpoint before we get here; this scopes the count.
         // Append: the next position is the current card count for this list.
-        var position = await db.Cards.CountAsync(c => c.ListId == listId);
+        var position = await Owned(ownerId).CountAsync(c => c.ListId == listId);
         var card = new Card
         {
             ListId = listId,
@@ -28,9 +34,10 @@ public class EfCardRepository(WendDbContext db) : ICardRepository
         return card;
     }
 
-    public async Task<bool> EditCardAsync(int id, string title, string? description, DateOnly? dueDate)
+    public async Task<bool> EditCardAsync(int id, string title, string? description, DateOnly? dueDate,
+        string ownerId)
     {
-        var card = await db.Cards.FindAsync(id);
+        var card = await Owned(ownerId).FirstOrDefaultAsync(c => c.Id == id);
         if (card is null) return false;
         card.Title = title;
         card.Description = description;
@@ -39,9 +46,9 @@ public class EfCardRepository(WendDbContext db) : ICardRepository
         return true;
     }
 
-    public async Task<bool> DeleteCardAsync(int id)
+    public async Task<bool> DeleteCardAsync(int id, string ownerId)
     {
-        var card = await db.Cards.FindAsync(id);
+        var card = await Owned(ownerId).FirstOrDefaultAsync(c => c.Id == id);
         if (card is null || card.DeletedAt is not null) return false; // missing or already gone
         card.DeletedAt = DateTime.UtcNow;   // soft delete — the row survives for undo
         await db.SaveChangesAsync();
@@ -49,12 +56,13 @@ public class EfCardRepository(WendDbContext db) : ICardRepository
         return true;
     }
 
-    public async Task<bool> RestoreCardAsync(int id)
+    public async Task<bool> RestoreCardAsync(int id, string ownerId)
     {
         // IgnoreQueryFilters so the soft-deleted row is found from ANY context. FindAsync only
         // returns it while it's still tracked in the same context — the API's per-request contexts
         // read from the DB, where the filter hides it (that was the restore 404 the repo tests missed).
-        var card = await db.Cards.IgnoreQueryFilters().FirstOrDefaultAsync(c => c.Id == id);
+        // Ownership survives this call because it is an explicit Where, not a query filter.
+        var card = await Owned(ownerId).IgnoreQueryFilters().FirstOrDefaultAsync(c => c.Id == id);
         if (card is null) return false;
         if (card.DeletedAt is null) return true;   // already active — idempotent no-op
 
@@ -69,13 +77,16 @@ public class EfCardRepository(WendDbContext db) : ICardRepository
         return true;
     }
 
-    public async Task<CardMoveResult> MoveCardAsync(int id, int targetListId, int position)
+    public async Task<CardMoveResult> MoveCardAsync(int id, int targetListId, int position, string ownerId)
     {
-        var card = await db.Cards.FindAsync(id);
+        var card = await Owned(ownerId).FirstOrDefaultAsync(c => c.Id == id);
         if (card is null) return CardMoveResult.NotFound;
 
-        var targetList = await db.Lists.FindAsync(targetListId);
-        var sourceList = await db.Lists.FindAsync(card.ListId);
+        // Owner-scoped list lookups: another user's list resolves as MISSING, so the caller gets
+        // NotFound rather than CrossBoard. A 400 here would confirm that their list exists on a
+        // different board — the enumeration leak the 404-not-403 rule exists to prevent.
+        var targetList = await db.Lists.FirstOrDefaultAsync(l => l.Id == targetListId && l.Board.OwnerId == ownerId);
+        var sourceList = await db.Lists.FirstOrDefaultAsync(l => l.Id == card.ListId && l.Board.OwnerId == ownerId);
         if (targetList is null || sourceList is null) return CardMoveResult.NotFound;
         if (targetList.BoardId != sourceList.BoardId) return CardMoveResult.CrossBoard;
 
@@ -108,9 +119,9 @@ public class EfCardRepository(WendDbContext db) : ICardRepository
         return CardMoveResult.Moved;
     }
 
-    public async Task<bool> SetCardCompletedAsync(int id, bool completed)
+    public async Task<bool> SetCardCompletedAsync(int id, bool completed, string ownerId)
     {
-        var card = await db.Cards.FindAsync(id);
+        var card = await Owned(ownerId).FirstOrDefaultAsync(c => c.Id == id);
         if (card is null) return false;
         card.CompletedAt = completed ? DateTime.UtcNow : null;
         await db.SaveChangesAsync();
@@ -118,6 +129,7 @@ public class EfCardRepository(WendDbContext db) : ICardRepository
     }
 
     // Rewrites a list's card positions to a gapless 0-based sequence in current order.
+    // No ownerId: only reached after an owner-scoped lookup has already succeeded.
     private async Task ResequenceAsync(int listId)
     {
         var cards = await db.Cards.Where(c => c.ListId == listId)
