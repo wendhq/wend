@@ -17,9 +17,15 @@ public class EfListRepository(WendDbContext db) : IListRepository
 
     public async Task<List> CreateListAsync(int boardId, string title, string ownerId)
     {
-        // Callers reach this only after the board itself has been ownership-checked (the endpoint
-        // 404s on someone else's board first), so this scopes the position count rather than
-        // re-authorising. Append: the next position is the current count for this board.
+        // Defence in depth, matching CreateLabelAsync. The endpoint 404s on someone else's board
+        // before reaching here, so the throw means a caller skipped that check — a programming
+        // error, not a user-reachable state. Scoping the position count is not enough on its own:
+        // a foreign board simply counts 0 and the list would be created on it.
+        var ownsBoard = await db.Boards.AnyAsync(b => b.Id == boardId && b.OwnerId == ownerId);
+        if (!ownsBoard)
+            throw new InvalidOperationException($"Board {boardId} does not belong to this owner.");
+
+        // Append: the next position is the current count for this board.
         var position = await Owned(ownerId).CountAsync(l => l.BoardId == boardId);
         var list = new List { BoardId = boardId, Title = title, Position = position };
         db.Lists.Add(list);

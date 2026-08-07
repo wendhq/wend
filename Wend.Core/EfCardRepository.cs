@@ -19,7 +19,15 @@ public class EfCardRepository(WendDbContext db) : ICardRepository
 
     public async Task<Card> CreateCardAsync(int listId, string title, string ownerId)
     {
-        // The list is ownership-checked by the endpoint before we get here; this scopes the count.
+        // Defence in depth, matching CreateLabelAsync. The endpoint 404s on someone else's list
+        // before reaching here, so the throw means a caller skipped that check — a programming
+        // error, not a user-reachable state. Scoping the position count is not enough on its own:
+        // a foreign list simply counts 0 and the card would be created in it. Lists carry no query
+        // filter, so this traversal reaches every list its owner really has.
+        var ownsList = await db.Lists.AnyAsync(l => l.Id == listId && l.Board.OwnerId == ownerId);
+        if (!ownsList)
+            throw new InvalidOperationException($"List {listId} does not belong to this owner.");
+
         // Append: the next position is the current card count for this list.
         var position = await Owned(ownerId).CountAsync(c => c.ListId == listId);
         var card = new Card
