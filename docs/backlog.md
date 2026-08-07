@@ -43,6 +43,14 @@ Things we've consciously chosen to do *later*, each with the reason and the trig
   sharing the cards' toast primitive and retention behaviour.
 - **Originally decided:** 2026-07-07 (Malin & Henry, Plan 7 acceptance).
 
+### Unmatched `/api/*` routes returned the SPA shell instead of 404
+
+- **Resolved (2026-08-07, before Plan 3):** `app.Map("/api/{**path}", () => Results.NotFound())` now sits between the API endpoints and `MapFallbackToFile` in [`Program.cs`](../Wend.Api/Program.cs). Literal segments outrank a catch-all, so every real endpoint still matches first, and deep links like `/boards/42` still reach the shell.
+- **The trap:** `MapFallbackToFile("index.html")` claims *everything* no endpoint matched, `/api/*` included. A typo'd or not-yet-wired API route therefore answered `200 text/html`. Because `api()` in `js/api.js` treats any 2xx as success and calls `res.json()`, the client failed with `JsonException: input does not contain any JSON tokens` — the same misleading symptom that cost 38 red tests in Plan 2 — and any check of the form "did this 401?" read the shell as success.
+- **Why it was fixed rather than deferred:** Plan 3 adds `/api/auth/*` and a frontend auth gate keyed on 401, so this would have misfired exactly where it is hardest to diagnose.
+- **Keep the catch-all.** Deleting it silently restores the old behaviour; `ApiSmokeTests.An_unmatched_api_route_is_404_not_the_shell` is the guard.
+- **Found:** 2026-08-06 (Plan 2 Task 8 401 sweep).
+
 ### Dev static-file caching — a no-cache header for local development
 
 - **Now:** `UseStaticFiles` sends no `Cache-Control`, so a dev browser can serve stale JS/CSS from earlier `127.0.0.1:5174` sessions and a normal reload won't revalidate ES-module imports — two "bugs" in the 2026-07-08 a11y sweep were cache ghosts. Workaround: hard-reload / disable cache before every browser check.
