@@ -18,6 +18,15 @@ const announce = createAnnouncer(document.getElementById("status"));
 const toast = createToast(document.getElementById("toast-region"));
 const app = document.getElementById("app");
 
+// A failed first load has no control to return focus to and no state to keep, so it is
+// announced and nothing else happens. Without this the rejection is unhandled and the
+// screen just stays empty with no explanation.
+// Plan 3 replaces the 401 branch with the auth gate: redirect to the login screen.
+function reportLoadFailure(error) {
+  if (error?.status === 401) announce("You're not signed in, so there's nothing to show.");
+  else announce("Couldn't load — please try again.");
+}
+
 // Each navigation mounts its module on a FRESH root element. The previous module's
 // delegated listeners are discarded with the old element — no cross-talk, no leaks.
 function mount(build) {
@@ -36,7 +45,7 @@ function showOverview(focusBoardId, focusInput = false) {
     model.load().then(() => {
       if (focusBoardId) view.focusOpen(focusBoardId);
       else if (focusInput) view.focusNewBoardInput();
-    });
+    }).catch(reportLoadFailure);
   });
 }
 
@@ -51,7 +60,7 @@ function showBoard(boardId, focusCardId) {
     model.load().then(() => {
       if (focusCardId) view.focusCard(focusCardId);
       else view.focusHeading();
-    });
+    }).catch(reportLoadFailure);
   });
 }
 
@@ -85,7 +94,7 @@ function showCard(cardId, boardId, focusItemId) {
         model.load().then(() => {
             if (focusItemId) view.focusItem(focusItemId);
             else view.focusHeading();
-        });
+        }).catch(reportLoadFailure);
     });
 }
 
