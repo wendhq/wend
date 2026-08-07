@@ -174,4 +174,23 @@ public class ListRepositoryTests
     {
         Assert.That(await _repo.MoveListAsync(9999, 0, _ownerId), Is.False);
     }
+
+    [Test]
+    public async Task Create_refuses_a_board_owned_by_someone_else()
+    {
+        var stranger = await TestUsers.SeedAsync(_db);
+        var theirBoard = (await _boards.CreateBoardAsync("Theirs", stranger)).Id;
+
+        Assert.That(async () => await _repo.CreateListAsync(theirBoard, "Sneaky", _ownerId),
+            Throws.InstanceOf<InvalidOperationException>());
+        Assert.That(await _db.Lists.CountAsync(), Is.Zero);
+    }
+
+    [Test]
+    public async Task Create_refuses_a_board_that_does_not_exist()
+    {
+        Assert.That(async () => await _repo.CreateListAsync(9999, "Nowhere", _ownerId),
+            Throws.InstanceOf<InvalidOperationException>());
+        Assert.That(await _db.Lists.CountAsync(), Is.Zero);
+    }
 }

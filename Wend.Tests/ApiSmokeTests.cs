@@ -31,4 +31,31 @@ public class ApiSmokeTests
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(response.Content.Headers.ContentType?.MediaType, Is.EqualTo("text/html"));
     }
+
+    [Test]
+    public async Task An_unmatched_api_route_is_404_not_the_shell()
+    {
+        await using var factory = new WendApiFactory();
+        using var client = factory.CreateClient();
+
+        var response = await client.GetAsync("/api/definitely-not-a-route");
+
+        // Without the API catch-all this falls through to MapFallbackToFile and returns the SPA
+        // shell at 200, so a typo'd route reads as success and api() chokes parsing HTML as JSON.
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+        Assert.That(response.Content.Headers.ContentType?.MediaType, Is.Not.EqualTo("text/html"));
+    }
+
+    [Test]
+    public async Task An_unmatched_non_api_route_still_serves_the_shell()
+    {
+        await using var factory = new WendApiFactory();
+        using var client = factory.CreateClient();
+
+        // Client-side routing depends on deep links falling through to the shell.
+        var response = await client.GetAsync("/boards/42");
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(response.Content.Headers.ContentType?.MediaType, Is.EqualTo("text/html"));
+    }
 }

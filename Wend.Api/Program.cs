@@ -48,6 +48,12 @@ app.MapCardEndpoints();
 app.MapLabelEndpoints();
 app.MapChecklistItemEndpoints();
 
+// Anything under /api that no endpoint above claimed is a missing API route, not a client route.
+// Without this it reaches the fallback below and returns the SPA shell at 200, so a typo'd or
+// not-yet-wired route reads as success and the client throws parsing HTML as JSON. Literal
+// segments outrank a catch-all, so every real endpoint above still matches first.
+app.Map("/api/{**path}", () => Results.NotFound());
+
 // Any non-API path renders the SPA shell; the client handles routing from there.
 app.MapFallbackToFile("index.html");
 

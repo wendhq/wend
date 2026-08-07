@@ -392,4 +392,24 @@ public class CardRepositoryTests
         Assert.That(await _repo.RestoreCardAsync(card.Id, _ownerId), Is.True);
         Assert.That((await _repo.GetCardsForListAsync(listId, _ownerId)).Select(c => c.Title), Is.EqualTo(new[] { "Temp" }));
     }
+
+    [Test]
+    public async Task Create_refuses_a_list_owned_by_someone_else()
+    {
+        var stranger = await TestUsers.SeedAsync(_db);
+        var theirBoard = await _boards.CreateBoardAsync("Theirs", stranger);
+        var theirList = await _lists.CreateListAsync(theirBoard.Id, "Theirs", stranger);
+
+        Assert.That(async () => await _repo.CreateCardAsync(theirList.Id, "Sneaky", _ownerId),
+            Throws.InstanceOf<InvalidOperationException>());
+        Assert.That(await _db.Cards.CountAsync(), Is.Zero);
+    }
+
+    [Test]
+    public async Task Create_refuses_a_list_that_does_not_exist()
+    {
+        Assert.That(async () => await _repo.CreateCardAsync(9999, "Nowhere", _ownerId),
+            Throws.InstanceOf<InvalidOperationException>());
+        Assert.That(await _db.Cards.CountAsync(), Is.Zero);
+    }
 }
