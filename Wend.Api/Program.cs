@@ -43,7 +43,8 @@ app.UseStaticFiles();
 
 var api = app.MapGroup("/api");
 api.MapGet("/health", () => Results.Ok(new { status = "ok" }));
-app.MapGroup("/api/boards").MapBoardEndpoints();app.MapListEndpoints();
+app.MapGroup("/api/boards").MapBoardEndpoints();
+app.MapListEndpoints();
 app.MapCardEndpoints();
 app.MapLabelEndpoints();
 app.MapChecklistItemEndpoints();
