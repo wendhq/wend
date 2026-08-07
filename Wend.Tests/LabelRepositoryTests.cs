@@ -259,4 +259,23 @@ public class LabelRepositoryTests
         Assert.That(map.Keys, Is.EquivalentTo(new[] { card.Id }));
         Assert.That(map[card.Id], Is.EquivalentTo(new[] { a.Id, b.Id }));
     }
+
+    [Test]
+    public async Task Create_refuses_a_board_owned_by_someone_else()
+    {
+        var stranger = await TestUsers.SeedAsync(_db);
+        var theirBoard = await _boards.CreateBoardAsync("Theirs", stranger);
+
+        Assert.That(async () => await _labels.CreateLabelAsync(theirBoard.Id, "Sneaky", "rose", _ownerId),
+            Throws.InstanceOf<InvalidOperationException>());
+        Assert.That(await _db.Labels.CountAsync(), Is.Zero);
+    }
+
+    [Test]
+    public async Task Create_refuses_a_board_that_does_not_exist()
+    {
+        Assert.That(async () => await _labels.CreateLabelAsync(9999, "Nowhere", "mint", _ownerId),
+            Throws.InstanceOf<InvalidOperationException>());
+        Assert.That(await _db.Labels.CountAsync(), Is.Zero);
+    }
 }
