@@ -16,4 +16,18 @@ public static class WendPaths
         Directory.CreateDirectory(dir);
         return Path.Combine(dir, "data.db");
     }
+
+    /// <summary>
+    /// Where the dev email sender writes confirmation links: <c>%LOCALAPPDATA%\Wend\auth-emails.log</c>.
+    /// Not a mailbox — a developer's click-through log. It contains live tokens, so it stays out of
+    /// the repo (AppData, like the database) and is never shipped to a real environment.
+    /// </summary>
+    public static string AuthEmailLogPath()
+    {
+        var dir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "Wend");
+        Directory.CreateDirectory(dir);
+        return Path.Combine(dir, "auth-emails.log");
+    }
 }
