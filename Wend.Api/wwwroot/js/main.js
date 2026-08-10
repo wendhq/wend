@@ -16,6 +16,9 @@ import { createSettingsController } from "./settings/controller.js";
 import { createRegisterModel } from "./auth/register/model.js";
 import { createRegisterView } from "./auth/register/view.js";
 import { createRegisterController } from "./auth/register/controller.js";
+import { createVerifyModel } from "./auth/verify/model.js";
+import { createVerifyView } from "./auth/verify/view.js";
+import { createVerifyController } from "./auth/verify/controller.js";
 
 const announce = createAnnouncer(document.getElementById("status"));
 const toast = createToast(document.getElementById("toast-region"));
@@ -151,12 +154,33 @@ function showRegister() {
   });
 }
 
+function showVerify() {
+  hideAppChrome();
+  const params = new URLSearchParams(location.search);
+  const userId = params.get("userId") ?? "";
+  const code = params.get("code") ?? "";
+
+  // Drop the live token out of the address bar and the history entry as soon as it is read. It
+  // still reached the server in the POST body, but it no longer sits in the URL a user might
+  // screenshot, bookmark, or paste into a support chat.
+  history.replaceState(null, "", "/verify");
+
+  mount((root) => {
+    const model = createVerifyModel();
+    const view = createVerifyView(root);
+    createVerifyController(model, view, announce, { userId, code });
+  });
+}
+
 // The server renders the SPA shell for every non-API path, so the client owns routing. Auth
 // screens are reached by URL because an emailed link has to land somewhere. Plan 4 replaces this
 // with the real auth gate, which decides between the app and the login screen on boot.
 switch (location.pathname) {
   case "/register":
     showRegister();
+    break;
+  case "/verify":
+    showVerify();
     break;
   default:
     showOverview(); // first paint: no forced focus, skip link is available
