@@ -99,6 +99,23 @@ public static class AuthEndpoints
             return result.Succeeded ? Results.NoContent() : Results.BadRequest();
         });
 
+        // Every branch — unconfirmed, confirmed, unknown, malformed — falls out of the same 204.
+        // Note there is no `return BadRequest` for a bad address: telling the caller their input
+        // was malformed is fine, but it is not worth a second response shape on an endpoint whose
+        // whole job is to look identical from outside.
+        group.MapPost("/resend-verification", async (ResendRequest req, UserManager<WendUser> users,
+            IAuthEmailSender email, HttpRequest http) =>
+        {
+            var address = req.Email?.Trim() ?? "";
+            if (address.Length is > 0 and <= MaxEmailLength &&
+                await users.FindByEmailAsync(address) is { EmailConfirmed: false } user)
+            {
+                await SendConfirmationAsync(user, users, email, http, publicBaseUrl);
+            }
+
+            return Results.NoContent();
+        });
+
         return group;
     }
 
@@ -126,3 +143,5 @@ public static class AuthEndpoints
 public record RegisterRequest(string Email, string Password, string DisplayName);
 
 public record VerifyRequest(string UserId, string Code);
+
+public record ResendRequest(string Email);
