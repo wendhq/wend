@@ -11,7 +11,8 @@ var connectionString = builder.Configuration.GetConnectionString("WendDb")
 var port = int.TryParse(builder.Configuration["Wend:Port"], out var p) ? p : 5174;
 
 builder.Services.AddDbContext<WendDbContext>(options => options.UseNpgsql(connectionString));
-builder.Services.AddScoped<IBoardRepository, EfBoardRepository>();builder.Services.AddScoped<IListRepository, EfListRepository>();
+builder.Services.AddScoped<IBoardRepository, EfBoardRepository>();
+builder.Services.AddScoped<IListRepository, EfListRepository>();
 builder.Services.AddScoped<ICardRepository, EfCardRepository>();
 builder.Services.AddScoped<ILabelRepository, EfLabelRepository>();
 builder.Services.AddScoped<IChecklistItemRepository, EfChecklistItemRepository>();
