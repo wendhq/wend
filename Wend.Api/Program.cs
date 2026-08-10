@@ -76,6 +76,11 @@ else
         + "until the deployment plan wires a transactional email provider.");
 }
 
+// Outside the environment guard above on purpose: releasing a squatted address is a data-retention
+// concern, not a dev-email one. Registered inside that branch it would silently stop running the
+// day Plan 9 supplies a real sender.
+builder.Services.AddHostedService<UnverifiedAccountPurgeService>();
+
 
 // Keep request paths and bodies out of the framework logs; quiet the startup banner.
 builder.Logging.AddFilter("Microsoft.AspNetCore", LogLevel.Warning);
