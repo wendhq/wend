@@ -422,3 +422,47 @@
   margin: 0 0 1rem;
   white-space: pre-wrap; /* keep the user's line breaks in read-only notes */
 }
+
+/* Auth screens — mobile-first: a single column that simply gets a max width on larger screens.
+   Every custom property below is a real design-system token (checked against
+   design-system/tokens/): the scale is --space-1..9, radii are --radius-sm/md/lg/xl/pill,
+   --text-muted and --danger are colours, and --text-sm is a font size. */
+.auth-view {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-4);
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.auth-form label {
+  margin-block-start: var(--space-3);
+}
+
+.auth-form button[type="submit"] {
+  margin-block-start: var(--space-4);
+}
+
+.field-hint {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+/* Looks come from the design system's .alert .alert-danger; this only trims the list spacing
+   and takes the focus ring the controller's focusFirstError() depends on. */
+.auth-errors ul {
+  margin-block-end: 0;
+}
+
+@media (min-width: 768px) {
+  .auth-view {
+    max-width: 32rem;
+    margin-inline: auto;
+  }
+}

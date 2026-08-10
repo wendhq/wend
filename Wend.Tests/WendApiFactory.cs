@@ -26,8 +26,14 @@ public sealed class WendApiFactory : WebApplicationFactory<Program>
     /// <summary>Swap UserId to act as somebody else (or null for anonymous) inside a test.</summary>
     public TestCurrentUser CurrentUser { get; } = new();
 
+    /// <summary>Captured outbound auth email. Assert on Email.Sent instead of reading a log file.</summary>
+    public FakeAuthEmailSender Email { get; } = new();
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        // Both of Program.cs's environment-guarded branches must take their Development path here.
+        builder.UseEnvironment("Development");
+
         // Create this instance's empty database on the shared server.
         using (var admin = new NpgsqlConnection(DatabaseFixture.AdminConnectionString))
         {
@@ -45,8 +51,12 @@ public sealed class WendApiFactory : WebApplicationFactory<Program>
         builder.UseSetting("ConnectionStrings:WendDb", perTest.ConnectionString);
 
         // Tests supply their own current user; the app's NullCurrentUser would make everything 401.
+        // They also swap the file-writing dev sender for one that records in memory.
         builder.ConfigureTestServices(services =>
-            services.AddScoped<ICurrentUser>(_ => CurrentUser));
+        {
+            services.AddScoped<ICurrentUser>(_ => CurrentUser);
+            services.AddSingleton<IAuthEmailSender>(Email);
+        });
     }
 
     protected override void ConfigureClient(HttpClient client)

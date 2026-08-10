@@ -13,6 +13,12 @@ import { createToast } from "./toast.js";
 import { createSettingsModel } from "./settings/model.js";
 import { createSettingsView } from "./settings/view.js";
 import { createSettingsController } from "./settings/controller.js";
+import { createRegisterModel } from "./auth/register/model.js";
+import { createRegisterView } from "./auth/register/view.js";
+import { createRegisterController } from "./auth/register/controller.js";
+import { createVerifyModel } from "./auth/verify/model.js";
+import { createVerifyView } from "./auth/verify/view.js";
+import { createVerifyController } from "./auth/verify/controller.js";
 
 const announce = createAnnouncer(document.getElementById("status"));
 const toast = createToast(document.getElementById("toast-region"));
@@ -131,4 +137,51 @@ function showSettings() {
 }
 document.getElementById("settings-link").addEventListener("click", showSettings);
 
-showOverview(); // first paint: no forced focus, skip link is available
+// index.html's header belongs to the signed-in app. Left visible on an auth screen, Settings is a
+// trap: it mounts the boards settings over the auth screen, and its Back goes to the board
+// overview, which 401s. It is also the first thing after the skip link in the tab order, so a
+// keyboard user meets it before the form they came for.
+function hideAppChrome() {
+  document.getElementById("settings-link").hidden = true;
+}
+
+function showRegister() {
+  hideAppChrome();
+  mount((root) => {
+    const model = createRegisterModel();
+    const view = createRegisterView(root);
+    createRegisterController(model, view, announce);
+  });
+}
+
+function showVerify() {
+  hideAppChrome();
+  const params = new URLSearchParams(location.search);
+  const userId = params.get("userId") ?? "";
+  const code = params.get("code") ?? "";
+
+  // Drop the live token out of the address bar and the history entry as soon as it is read. It
+  // still reached the server in the POST body, but it no longer sits in the URL a user might
+  // screenshot, bookmark, or paste into a support chat.
+  history.replaceState(null, "", "/verify");
+
+  mount((root) => {
+    const model = createVerifyModel();
+    const view = createVerifyView(root);
+    createVerifyController(model, view, announce, { userId, code });
+  });
+}
+
+// The server renders the SPA shell for every non-API path, so the client owns routing. Auth
+// screens are reached by URL because an emailed link has to land somewhere. Plan 4 replaces this
+// with the real auth gate, which decides between the app and the login screen on boot.
+switch (location.pathname) {
+  case "/register":
+    showRegister();
+    break;
+  case "/verify":
+    showVerify();
+    break;
+  default:
+    showOverview(); // first paint: no forced focus, skip link is available
+}

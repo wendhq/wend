@@ -58,3 +58,43 @@ Things we've consciously chosen to do *later*, each with the reason and the trig
 - **Why deferred:** out of Plan 8's frontend-only scope; the hard-reload habit is a working stopgap and this touches server startup config.
 - **Revisit when:** the next housekeeping pass, or if stale-cache ghosts keep biting acceptance runs.
 - **Decided:** 2026-07-08 (Malin, Plan 8).
+
+### Register leaks account existence through timing
+
+- **Now:** `POST /api/auth/register` returns the same `204` whether or not the address is taken, but the taken path skips password hashing and so returns measurably faster.
+- **Later:** dummy-hash the skipped path, as login will.
+- **Why deferred:** the spec requires equalised timing for *login*; register was left as-is because the app is unreachable from another machine until deployment.
+- **Revisit when:** **Plan 8 (security hardening) must close this.**
+- **Decided:** 2026-08-10 (Slice 2a Plan 3).
+
+### `/api/auth/*` is not rate limited
+
+- **Now:** neither register nor resend-verification is rate limited. Both trigger outbound email, so both are email-bombing vectors, and register is a credential-stuffing surface.
+- **Later:** rate limiting across `/api/auth/*`.
+- **Why deferred:** deferred to Plan 8 per the spec's sequencing; the endpoints are unreachable from another machine until deployment.
+- **Revisit when:** **This is a launch gate: Plan 9 must not deploy before Plan 8 lands.**
+- **Decided:** 2026-08-10 (Slice 2a Plan 3).
+
+### The registration form gives no Art. 13 notice
+
+- **Now:** Wend collects an email address and a display name from members of the public, with no privacy policy or terms linked from the registration form.
+- **Later:** the spec makes the privacy policy and terms a launch deliverable, linked *from the registration form*.
+- **Why deferred:** it is lawful today only because registration is unreachable.
+- **Revisit when:** **Launch gate for Plan 9: policy and terms exist, and the form links to them, before public sign-up opens.**
+- **Decided:** 2026-08-10 (Slice 2a Plan 3).
+
+### Verify tokens travel in a query string
+
+- **Now:** the emailed link carries `userId` and `code` as query parameters. The SPA strips them from the address bar with `history.replaceState`, and Kestrel logs nothing at Information.
+- **Later:** exclude `/verify` query strings from access logging.
+- **Why deferred:** essentially every reverse proxy logs query strings by default, and there is no proxy until deployment.
+- **Revisit when:** **Plan 9 must do this**, per the spec's "path-logging exclusion extends to query strings".
+- **Decided:** 2026-08-10 (Slice 2a Plan 3).
+
+### Inactive-account retention has no stance
+
+- **Now:** no retention period is set for inactive (confirmed) accounts. The 7-day purge covers *unverified* accounts only.
+- **Later:** a retention period, or a documented decision to keep accounts indefinitely.
+- **Why deferred:** the spec allows setting one at plan time *or* explicitly deferring; this is a legal-posture decision that belongs with the privacy policy rather than with registration code.
+- **Revisit when:** **Plan 9 decides it.**
+- **Decided:** 2026-08-10 (Slice 2a Plan 3).
