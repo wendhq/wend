@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Wend.Core;
@@ -11,9 +12,11 @@ using Wend.Core;
 namespace Wend.Core.Migrations
 {
     [DbContext(typeof(WendDbContext))]
-    partial class WendDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260810083931_AddUserCreatedAt")]
+    partial class AddUserCreatedAt
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

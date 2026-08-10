@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Wend.Api;
 using Wend.Core;
@@ -19,6 +20,52 @@ builder.Services.AddScoped<IChecklistItemRepository, EfChecklistItemRepository>(
 
 // No authentication until Plan 3 — every request is anonymous, so /api/* answers 401.
 builder.Services.AddScoped<ICurrentUser, NullCurrentUser>();
+
+// Identity's token providers are data protectors, and nothing else in Wend had needed data
+// protection before now — no cookies, no antiforgery, no session — so IDataProtectionProvider is
+// not in the container until this line. Without it the app fails DI validation at startup.
+builder.Services.AddDataProtection();
+
+// Identity, headless: AddIdentityCore gives UserManager and the token providers with no cookie
+// scheme and no SignInManager. Plan 4 adds AddSignInManager() + AddIdentityCookies() on top.
+builder.Services.AddIdentityCore<WendUser>(options =>
+    {
+        // Length over composition, per current NIST guidance — every switch set explicitly
+        // because Identity's defaults are 6 characters with all four character classes required.
+        options.Password.RequiredLength = 12;
+        options.Password.RequireDigit = false;
+        options.Password.RequireLowercase = false;
+        options.Password.RequireUppercase = false;
+        options.Password.RequireNonAlphanumeric = false;
+
+        // Email is the login credential, so it has to be unique. This also switches on
+        // UserValidator's email-format check.
+        options.User.RequireUniqueEmail = true;
+
+        options.Tokens.ProviderMap.Add("WendEmailConfirmation",
+            new TokenProviderDescriptor(typeof(EmailConfirmationTokenProvider<WendUser>)));
+        options.Tokens.EmailConfirmationTokenProvider = "WendEmailConfirmation";
+    })
+    .AddEntityFrameworkStores<WendDbContext>()
+    .AddDefaultTokenProviders();
+
+builder.Services.AddTransient<EmailConfirmationTokenProvider<WendUser>>();
+
+// The only sender that exists writes to a local file. Registering it unconditionally would mean a
+// deployed Wend "works" — registrations succeed, nobody ever receives a link, and the server quietly
+// accumulates a file of email addresses paired with live tokens. Refusing to boot is the correct
+// behaviour for an auth system with no way to send mail; Plan 9 wires a transactional provider here.
+if (builder.Environment.IsDevelopment())
+{
+    builder.Services.AddSingleton<IAuthEmailSender>(_ =>
+        new FileAuthEmailSender(WendPaths.AuthEmailLogPath()));
+}
+else
+{
+    throw new InvalidOperationException(
+        "No production IAuthEmailSender is configured. Wend will not start outside Development "
+        + "until the deployment plan wires a transactional email provider.");
+}
 
 
 // Keep request paths and bodies out of the framework logs; quiet the startup banner.
