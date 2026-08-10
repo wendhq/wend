@@ -71,6 +71,34 @@ public static class AuthEndpoints
             return Results.NoContent();
         });
 
+        // POST, not GET, even though this arrives from an emailed link. Corporate mail scanners and
+        // link-preview bots follow GET links automatically, so a GET that confirms would be fired by
+        // a robot before the human ever clicked — and could confirm an address nobody opened. The
+        // link therefore points at the SPA shell, which posts the code back from the browser.
+        group.MapPost("/verify", async (VerifyRequest req, UserManager<WendUser> users) =>
+        {
+            if (req.UserId is not { Length: > 0 } id) return Results.BadRequest();
+            if (await users.FindByIdAsync(id) is not { } user) return Results.BadRequest();
+
+            // Identity's data-protector tokens are time-limited and stamp-bound, NOT single-use.
+            // This check is what makes a replayed link resolve to "already verified" rather than
+            // silently re-confirming — the user-visible single-use guarantee.
+            if (user.EmailConfirmed) return Results.Conflict();
+
+            string token;
+            try
+            {
+                token = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(req.Code ?? ""));
+            }
+            catch (FormatException)
+            {
+                return Results.BadRequest();
+            }
+
+            var result = await users.ConfirmEmailAsync(user, token);
+            return result.Succeeded ? Results.NoContent() : Results.BadRequest();
+        });
+
         return group;
     }
 
@@ -96,3 +124,5 @@ public static class AuthEndpoints
 }
 
 public record RegisterRequest(string Email, string Password, string DisplayName);
+
+public record VerifyRequest(string UserId, string Code);
