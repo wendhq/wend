@@ -11,6 +11,15 @@ var connectionString = builder.Configuration.GetConnectionString("WendDb")
         "ConnectionStrings:WendDb is not configured. Set it via user-secrets (dev) or environment (prod).");
 var port = int.TryParse(builder.Configuration["Wend:Port"], out var p) ? p : 5174;
 
+// Emailed links are built from this, never from the request's Host header — see
+// AuthEndpoints.SendConfirmationAsync. Development has no configured origin and falls back to the
+// request host, which on localhost is the only thing it can be.
+var publicBaseUrl = builder.Configuration["Wend:PublicBaseUrl"];
+if (publicBaseUrl is null && !builder.Environment.IsDevelopment())
+    throw new InvalidOperationException(
+        "Wend:PublicBaseUrl is not configured. Set it via environment variables so confirmation "
+        + "links cannot be forged through the Host header.");
+
 builder.Services.AddDbContext<WendDbContext>(options => options.UseNpgsql(connectionString));
 builder.Services.AddScoped<IBoardRepository, EfBoardRepository>();
 builder.Services.AddScoped<IListRepository, EfListRepository>();
@@ -92,6 +101,7 @@ app.UseStaticFiles();
 var api = app.MapGroup("/api");
 api.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 app.MapGroup("/api/boards").MapBoardEndpoints();
+app.MapGroup("/api/auth").MapAuthEndpoints(publicBaseUrl);
 app.MapListEndpoints();
 app.MapCardEndpoints();
 app.MapLabelEndpoints();
