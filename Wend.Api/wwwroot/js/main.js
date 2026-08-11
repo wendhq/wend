@@ -22,6 +22,12 @@ import { createVerifyController } from "./auth/verify/controller.js";
 import { createLoginModel } from "./auth/login/model.js";
 import { createLoginView } from "./auth/login/view.js";
 import { createLoginController } from "./auth/login/controller.js";
+import { createForgotModel } from "./auth/forgot/model.js";
+import { createForgotView } from "./auth/forgot/view.js";
+import { createForgotController } from "./auth/forgot/controller.js";
+import { createResetModel } from "./auth/reset/model.js";
+import { createResetView } from "./auth/reset/view.js";
+import { createResetController } from "./auth/reset/controller.js";
 
 const announce = createAnnouncer(document.getElementById("status"));
 const toast = createToast(document.getElementById("toast-region"));
@@ -183,6 +189,38 @@ function showLogin(reason) {
   });
 }
 
+function showReset() {
+  hideAppChrome();
+  const params = new URLSearchParams(location.search);
+  const userId = params.get("userId") ?? "";
+  const code = params.get("code") ?? "";
+
+  // Drop the live token out of the address bar and the history entry as soon as it is read — it
+  // still reached the server in the POST body, but it no longer sits in a URL a user might
+  // screenshot, bookmark, or paste into a support chat. A reload after this point has no token,
+  // which is what the screen's no-link state is for.
+  history.replaceState(null, "", "/reset-password");
+
+  mount((root) => {
+    const model = createResetModel();
+    const view = createResetView(root);
+    createResetController(model, view, announce, {
+      userId,
+      code,
+      onDone: () => showLogin("Your password has been changed — please sign in."),
+    });
+  });
+}
+
+function showForgot() {
+  hideAppChrome();
+  mount((root) => {
+    const model = createForgotModel();
+    const view = createForgotView(root);
+    createForgotController(model, view, announce);
+  });
+}
+
 function showRegister() {
   hideAppChrome();
   mount((root) => {
@@ -218,6 +256,8 @@ async function boot() {
     case "/register": showRegister(); return;
     case "/verify": showVerify(); return;
     case "/login": showLogin(); return;
+    case "/forgot-password": showForgot(); return;
+    case "/reset-password": showReset(); return;
   }
 
   // The gate: one call decides between the app and the login screen. /me answering 401 here is an

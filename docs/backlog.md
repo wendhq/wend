@@ -61,15 +61,15 @@ Things we've consciously chosen to do *later*, each with the reason and the trig
 
 ### Register leaks account existence through timing
 
-- **Now:** `POST /api/auth/register` returns the same `204` whether or not the address is taken, but the taken path skips password hashing and so returns measurably faster.
-- **Later:** dummy-hash the skipped path, as login will.
+- **Now:** `POST /api/auth/register` returns the same `204` whether or not the address is taken, but the taken path skips password hashing and so returns measurably faster. **`POST /api/auth/forgot-password` (Plan 5) has the same shape: the unknown-address branch generates no token and sends no mail, so it returns faster than a confirmed one.**
+- **Later:** dummy-hash the skipped path on register, as login does, and equalise the forgot-password branches.
 - **Why deferred:** the spec requires equalised timing for *login*; register was left as-is because the app is unreachable from another machine until deployment.
 - **Revisit when:** **Plan 8 (security hardening) must close this.**
 - **Decided:** 2026-08-10 (Slice 2a Plan 3).
 
 ### `/api/auth/*` is not rate limited
 
-- **Now:** none of register, resend-verification, login or logout is rate limited. Register, resend and the unconfirmed-account nudge on login all trigger outbound email, so all three are email-bombing vectors, and login is the credential-stuffing surface.
+- **Now:** none of register, resend-verification, login, logout, forgot-password or reset-password is rate limited. Register, resend, the unconfirmed-account nudge on login and **forgot-password** all trigger outbound email, and login is the credential-stuffing surface. **`/api/auth/forgot-password` (Plan 5) is the cheapest of them to abuse: one anonymous request, no password needed, and the mail goes to a third party whose address is the only thing the caller has to know.**
 - **Later:** rate limiting across `/api/auth/*`.
 - **Why deferred:** deferred to Plan 8 per the spec's sequencing; the endpoints are unreachable from another machine until deployment.
 - **Revisit when:** **This is a launch gate: Plan 9 must not deploy before Plan 8 lands.**
@@ -83,10 +83,10 @@ Things we've consciously chosen to do *later*, each with the reason and the trig
 - **Revisit when:** **Launch gate for Plan 9: policy and terms exist, and the form links to them, before public sign-up opens.**
 - **Decided:** 2026-08-10 (Slice 2a Plan 3).
 
-### Verify tokens travel in a query string
+### Verify and reset tokens travel in a query string
 
-- **Now:** the emailed link carries `userId` and `code` as query parameters. The SPA strips them from the address bar with `history.replaceState`, and Kestrel logs nothing at Information.
-- **Later:** exclude `/verify` query strings from access logging.
+- **Now:** both emailed links — `/verify` (Plan 3) and `/reset-password` (Plan 5) — carry `userId` and `code` as query parameters. Both screens strip them from the address bar with `history.replaceState`, and Kestrel logs nothing at Information.
+- **Later:** exclude `/verify` **and `/reset-password`** query strings from access logging.
 - **Why deferred:** essentially every reverse proxy logs query strings by default, and there is no proxy until deployment.
 - **Revisit when:** **Plan 9 must do this**, per the spec's "path-logging exclusion extends to query strings".
 - **Decided:** 2026-08-10 (Slice 2a Plan 3).
