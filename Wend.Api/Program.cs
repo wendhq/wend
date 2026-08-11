@@ -68,12 +68,19 @@ builder.Services.AddIdentityCore<WendUser>(options =>
         options.Tokens.ProviderMap.Add("WendEmailConfirmation",
             new TokenProviderDescriptor(typeof(EmailConfirmationTokenProvider<WendUser>)));
         options.Tokens.EmailConfirmationTokenProvider = "WendEmailConfirmation";
+
+        // One provider per token type, so the hour a reset link lives cannot become the hour a
+        // confirmation link lives. That is the whole reason the pair of classes exists.
+        options.Tokens.ProviderMap.Add("WendPasswordReset",
+            new TokenProviderDescriptor(typeof(PasswordResetTokenProvider<WendUser>)));
+        options.Tokens.PasswordResetTokenProvider = "WendPasswordReset";
     })
     .AddEntityFrameworkStores<WendDbContext>()
     .AddSignInManager()
     .AddDefaultTokenProviders();
 
 builder.Services.AddTransient<EmailConfirmationTokenProvider<WendUser>>();
+builder.Services.AddTransient<PasswordResetTokenProvider<WendUser>>();
 
 // Cookie authentication. AddIdentityCookies supplies the application cookie that AddIdentityCore
 // deliberately left out in Plan 3; no login-redirect events are configured because .NET 10's cookie

@@ -12,4 +12,6 @@ namespace Wend.Core;
 public interface IAuthEmailSender
 {
     Task SendEmailConfirmationAsync(string email, string link);
+
+    Task SendPasswordResetAsync(string email, string link);
 }

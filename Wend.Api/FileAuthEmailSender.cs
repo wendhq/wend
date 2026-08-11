@@ -15,4 +15,11 @@ public sealed class FileAuthEmailSender(string path) : IAuthEmailSender
         await File.AppendAllTextAsync(path, entry);
         Console.WriteLine(entry);
     }
+
+    public async Task SendPasswordResetAsync(string email, string link)
+    {
+        var entry = $"[{DateTime.UtcNow:u}] reset {email}{Environment.NewLine}  {link}{Environment.NewLine}";
+        await File.AppendAllTextAsync(path, entry);
+        Console.WriteLine(entry);
+    }
 }

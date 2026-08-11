@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using Wend.Api;
 
 namespace Wend.Tests;
 
@@ -77,6 +78,27 @@ public class AuthConfigurationTests
         // Zero, not the 30-minute default: a password reset (Plan 5) and an account deletion
         // (Plan 7) must evict a live session on its NEXT request, not within half an hour.
         Assert.That(options.ValidationInterval, Is.EqualTo(TimeSpan.Zero));
+    }
+
+    [Test]
+    public void Reset_tokens_last_an_hour_and_confirmation_tokens_still_last_a_day()
+    {
+        var identity = _factory.Services.GetRequiredService<IOptions<IdentityOptions>>().Value;
+        var confirmation = _factory.Services
+            .GetRequiredService<IOptions<EmailConfirmationTokenProviderOptions>>().Value;
+        var reset = _factory.Services
+            .GetRequiredService<IOptions<PasswordResetTokenProviderOptions>>().Value;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(reset.TokenLifespan, Is.EqualTo(TimeSpan.FromHours(1)));
+            // Both, in one test, on purpose: the failure this pairing exists to prevent is a
+            // change to either lifespan silently dragging the other with it.
+            Assert.That(confirmation.TokenLifespan, Is.EqualTo(TimeSpan.FromHours(24)));
+            Assert.That(identity.Tokens.PasswordResetTokenProvider, Is.EqualTo("WendPasswordReset"));
+            Assert.That(identity.Tokens.EmailConfirmationTokenProvider,
+                Is.EqualTo("WendEmailConfirmation"));
+        });
     }
 
     [Test]
