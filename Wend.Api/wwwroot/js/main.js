@@ -22,6 +22,9 @@ import { createVerifyController } from "./auth/verify/controller.js";
 import { createLoginModel } from "./auth/login/model.js";
 import { createLoginView } from "./auth/login/view.js";
 import { createLoginController } from "./auth/login/controller.js";
+import { createForgotModel } from "./auth/forgot/model.js";
+import { createForgotView } from "./auth/forgot/view.js";
+import { createForgotController } from "./auth/forgot/controller.js";
 
 const announce = createAnnouncer(document.getElementById("status"));
 const toast = createToast(document.getElementById("toast-region"));
@@ -183,6 +186,15 @@ function showLogin(reason) {
   });
 }
 
+function showForgot() {
+  hideAppChrome();
+  mount((root) => {
+    const model = createForgotModel();
+    const view = createForgotView(root);
+    createForgotController(model, view, announce);
+  });
+}
+
 function showRegister() {
   hideAppChrome();
   mount((root) => {
@@ -218,6 +230,7 @@ async function boot() {
     case "/register": showRegister(); return;
     case "/verify": showVerify(); return;
     case "/login": showLogin(); return;
+    case "/forgot-password": showForgot(); return;
   }
 
   // The gate: one call decides between the app and the login screen. /me answering 401 here is an

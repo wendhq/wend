@@ -13,7 +13,7 @@ export function createLoginView(root) {
       <ul>
         <li>Several wrong tries in a row pause sign-in for about fifteen minutes.</li>
         <li>A new account needs its email address confirmed first — check your inbox for the link.</li>
-        <li>Forgotten the password? Password reset arrives in the next release.</li>
+        <li>Forgotten the password? <a href="/forgot-password">Reset it</a>.</li>
       </ul>
     </div>`;
 
@@ -42,6 +42,7 @@ export function createLoginView(root) {
           <button type="submit" class="btn btn-primary" data-role="submit">Sign in</button>
         </form>
         ${(state.failures ?? 0) >= 3 ? HELP : ""}
+        <p class="auth-links"><a href="/forgot-password">Forgotten your password?</a></p>
         <p class="auth-links">No account yet? <a href="/register">Create one</a>.</p>
       </div>`;
   }
