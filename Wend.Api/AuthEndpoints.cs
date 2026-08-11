@@ -133,6 +133,37 @@ public static class AuthEndpoints
             return Results.NoContent();
         });
 
+        // Anonymous, and one response for every input — unknown, malformed, unconfirmed and
+        // confirmed alike. No 400 branch, for the same reason resend-verification has none: telling
+        // a caller their address is malformed is harmless, but a second response shape on an
+        // endpoint whose whole job is looking identical from outside is a liability nobody needs.
+        group.MapPost("/forgot-password", async (ForgotPasswordRequest req,
+            UserManager<WendUser> users, IAuthEmailSender email, HttpRequest http) =>
+        {
+            var address = req.Email?.Trim() ?? "";
+            if (address.Length is 0 or > MaxEmailLength) return Results.NoContent();
+
+            if (await users.FindByEmailAsync(address) is { } user)
+            {
+                if (!user.EmailConfirmed)
+                {
+                    // A reset would succeed and leave them unable to log in anyway, with the
+                    // enumeration rules forbidding any explanation. Send the mail that unblocks
+                    // them instead. No reset token is minted for an unconfirmed account, ever.
+                    await SendConfirmationAsync(user, users, email, http, publicBaseUrl);
+                }
+                else
+                {
+                    // Locked out falls through here on purpose: a reset is how a locked-out owner
+                    // gets back in.
+                    var link = await BuildResetLinkAsync(user, users, http, publicBaseUrl);
+                    await email.SendPasswordResetAsync(user.Email!, link);
+                }
+            }
+
+            return Results.NoContent();
+        });
+
         // Anonymous, like the rest of this group bar /me and /logout. Every failure below answers
         // with the same empty 401 — unknown address, wrong password, unconfirmed account and
         // locked-out account alike. A response that distinguishes them enumerates the user table.
@@ -225,6 +256,22 @@ public static class AuthEndpoints
                $"?userId={Uri.EscapeDataString(user.Id)}&code={Uri.EscapeDataString(code)}";
     }
 
+    /// <summary>
+    /// Mints a password-reset token and builds the link to the SPA's /reset-password screen. Same
+    /// Base64Url encoding and the same configured origin as the confirmation link: building it from
+    /// http.Host would let an attacker who can set that header get Wend to email a victim a
+    /// genuine-looking link pointing at the attacker's server, carrying a live reset token.
+    /// </summary>
+    private static async Task<string> BuildResetLinkAsync(WendUser user,
+        UserManager<WendUser> users, HttpRequest http, string? publicBaseUrl)
+    {
+        var token = await users.GeneratePasswordResetTokenAsync(user);
+        var code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
+        var origin = publicBaseUrl?.TrimEnd('/') ?? $"{http.Scheme}://{http.Host}";
+        return $"{origin}/reset-password" +
+               $"?userId={Uri.EscapeDataString(user.Id)}&code={Uri.EscapeDataString(code)}";
+    }
+
     /// <summary>Builds the link and sends it. Used by register and resend, which have no timing
     /// commitment to keep — register's side channel is Plan 8's, recorded in the backlog.</summary>
     private static async Task SendConfirmationAsync(WendUser user, UserManager<WendUser> users,
@@ -242,3 +289,5 @@ public record VerifyRequest(string UserId, string Code);
 public record ResendRequest(string Email);
 
 public record LoginRequest(string Email, string Password);
+
+public record ForgotPasswordRequest(string Email);
