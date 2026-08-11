@@ -8,10 +8,11 @@ export function createVerifyView(root) {
       <p>One moment.</p>`,
     confirmed: `
       <h2 class="auth-heading" tabindex="-1">Address confirmed</h2>
-      <p>Your email address is confirmed. Signing in arrives in the next release.</p>`,
+      <p>Your email address is confirmed. <a href="/login">Sign in</a> to start using Wend.</p>`,
     already: `
       <h2 class="auth-heading" tabindex="-1">Already confirmed</h2>
-      <p>This address was confirmed already, so this link has done its job. You don't need to do anything.</p>`,
+      <p>This address was confirmed already, so this link has done its job.
+        <a href="/login">Sign in</a> whenever you're ready.</p>`,
     // A link with no parameters is not the same as a broken one — most often it is someone
     // reloading this page after confirming, and telling them their link expired would be a lie.
     nothing: `
