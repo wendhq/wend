@@ -136,7 +136,8 @@ public static class AuthEndpoints
         // with the same empty 401 — unknown address, wrong password, unconfirmed account and
         // locked-out account alike. A response that distinguishes them enumerates the user table.
         group.MapPost("/login", async (LoginRequest req, SignInManager<WendUser> signIn,
-            UserManager<WendUser> users, IPasswordHasher<WendUser> hasher) =>
+            UserManager<WendUser> users, IPasswordHasher<WendUser> hasher, IAuthEmailSender email,
+            HttpRequest http, HttpResponse response) =>
         {
             var address = req.Email?.Trim() ?? "";
             var password = req.Password ?? "";
@@ -153,14 +154,45 @@ public static class AuthEndpoints
 
             // isPersistent: false — the cookie dies with the browser session. Remember-me is Plan 6,
             // and until it exists an opt-in nobody asked for is not the safe default.
-            return result.Succeeded ? Results.NoContent() : Results.Unauthorized();
+            if (result.Succeeded) return Results.NoContent();
+
+            // NotAllowed is the unconfirmed case. Identity returns it from PreSignInCheck BEFORE it
+            // looks at the password AND before it evaluates lockout, which has two consequences and
+            // both are load-bearing:
+            //
+            //   * SignInManager.CheckPasswordSignInAsync runs that same PreSignInCheck, so it would
+            //     answer NotAllowed forever and never verify anything. UserManager.CheckPasswordAsync
+            //     is the pure password check and the only one that works here.
+            //   * Lockout never increments on this path, so without the accounting below an
+            //     unconfirmed account accepts unlimited password guesses.
+            if (result.IsNotAllowed && !await users.IsLockedOutAsync(user))
+            {
+                if (await users.CheckPasswordAsync(user, password))
+                {
+                    await users.ResetAccessFailedCountAsync(user);
+
+                    // Build the link now — it needs the scoped UserManager — but send it AFTER the
+                    // response. Awaiting a transactional provider inline would make this branch
+                    // measurably slower than every other outcome, which is the timing oracle this
+                    // endpoint exists to avoid.
+                    var link = await BuildConfirmationLinkAsync(user, users, http, publicBaseUrl);
+                    response.OnCompleted(async () =>
+                        await email.SendEmailConfirmationAsync(user.Email!, link));
+                }
+                else
+                {
+                    await users.AccessFailedAsync(user);
+                }
+            }
+
+            return Results.Unauthorized();
         });
 
         return group;
     }
 
     /// <summary>
-    /// Mints a confirmation token and emails a link to the SPA's /verify screen. The token is
+    /// Mints a confirmation token and builds the link to the SPA's /verify screen. The token is
     /// Base64Url-encoded because Identity's raw token is not URL-safe.
     ///
     /// The origin comes from configuration, NOT from the request. Building it from http.Host would
@@ -168,14 +200,22 @@ public static class AuthEndpoints
     /// link pointing at the attacker's server — handing over a live confirmation token. Development
     /// falls back to the request host because there is no configured origin on localhost.
     /// </summary>
-    private static async Task SendConfirmationAsync(WendUser user, UserManager<WendUser> users,
-        IAuthEmailSender email, HttpRequest http, string? publicBaseUrl)
+    private static async Task<string> BuildConfirmationLinkAsync(WendUser user,
+        UserManager<WendUser> users, HttpRequest http, string? publicBaseUrl)
     {
         var token = await users.GenerateEmailConfirmationTokenAsync(user);
         var code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
         var origin = publicBaseUrl?.TrimEnd('/') ?? $"{http.Scheme}://{http.Host}";
-        var link = $"{origin}/verify" +
-                   $"?userId={Uri.EscapeDataString(user.Id)}&code={Uri.EscapeDataString(code)}";
+        return $"{origin}/verify" +
+               $"?userId={Uri.EscapeDataString(user.Id)}&code={Uri.EscapeDataString(code)}";
+    }
+
+    /// <summary>Builds the link and sends it. Used by register and resend, which have no timing
+    /// commitment to keep — register's side channel is Plan 8's, recorded in the backlog.</summary>
+    private static async Task SendConfirmationAsync(WendUser user, UserManager<WendUser> users,
+        IAuthEmailSender email, HttpRequest http, string? publicBaseUrl)
+    {
+        var link = await BuildConfirmationLinkAsync(user, users, http, publicBaseUrl);
         await email.SendEmailConfirmationAsync(user.Email!, link);
     }
 }
