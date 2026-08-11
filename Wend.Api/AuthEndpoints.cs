@@ -11,6 +11,22 @@ public static class AuthEndpoints
     // RFC 5321's maximum path length — an outer bound before anything else looks at the value.
     private const int MaxEmailLength = 254;
 
+    // An unknown address must cost the same as a real one. Without this, "no such user" returns in
+    // the time of a database read while a real user costs a full password hash — a timing oracle
+    // that enumerates the user table however generic the response body is.
+    //
+    // Built from a directly-constructed hasher rather than the container's: IPasswordHasher<TUser>
+    // is registered SCOPED, so a singleton holding one fails startup DI validation. The verify call
+    // in the handler still uses the injected hasher; only this fixed hash is built here.
+    private static readonly WendUser DummyUser = new()
+    {
+        UserName = "unknown@example.invalid",
+        Email = "unknown@example.invalid",
+    };
+
+    private static readonly string DummyPasswordHash =
+        new PasswordHasher<WendUser>().HashPassword(DummyUser, "the password of an account that does not exist");
+
     /// <param name="publicBaseUrl">
     /// Origin to build emailed links from, e.g. "https://wend.example". Null only in Development,
     /// where the request's host is used instead. See the Host-header note on SendConfirmationAsync.
@@ -116,6 +132,30 @@ public static class AuthEndpoints
             return Results.NoContent();
         });
 
+        // Anonymous, like the rest of this group bar /me and /logout. Every failure below answers
+        // with the same empty 401 — unknown address, wrong password, unconfirmed account and
+        // locked-out account alike. A response that distinguishes them enumerates the user table.
+        group.MapPost("/login", async (LoginRequest req, SignInManager<WendUser> signIn,
+            UserManager<WendUser> users, IPasswordHasher<WendUser> hasher) =>
+        {
+            var address = req.Email?.Trim() ?? "";
+            var password = req.Password ?? "";
+
+            if (await users.FindByEmailAsync(address) is not { } user)
+            {
+                // Do the work anyway, then answer as everyone else does.
+                hasher.VerifyHashedPassword(DummyUser, DummyPasswordHash, password);
+                return Results.Unauthorized();
+            }
+
+            var result = await signIn.PasswordSignInAsync(
+                user, password, isPersistent: false, lockoutOnFailure: true);
+
+            // isPersistent: false — the cookie dies with the browser session. Remember-me is Plan 6,
+            // and until it exists an opt-in nobody asked for is not the safe default.
+            return result.Succeeded ? Results.NoContent() : Results.Unauthorized();
+        });
+
         return group;
     }
 
@@ -145,3 +185,5 @@ public record RegisterRequest(string Email, string Password, string DisplayName)
 public record VerifyRequest(string UserId, string Code);
 
 public record ResendRequest(string Email);
+
+public record LoginRequest(string Email, string Password);
