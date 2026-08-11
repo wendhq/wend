@@ -104,6 +104,23 @@ builder.Services.ConfigureApplicationCookie(options =>
     // Plan 6 adds remember-me as a deliberate opt-in. ExpireTimeSpan still bounds the ticket.
     options.ExpireTimeSpan = TimeSpan.FromDays(7);
     options.SlidingExpiration = true;
+
+    // Answer the challenge with a status code instead of redirecting to /Account/Login, which does
+    // not exist here. VERIFIED against the running app, not assumed: the handler redirects even for
+    // Accept: application/json, so without this an anonymous /api/boards answers 302 → the SPA
+    // shell at 200. The client would then parse HTML as JSON, and the auth gate would never see the
+    // 401 it is built on. Safe as a blanket rule because nothing outside /api is authorized — the
+    // static files and the SPA fallback are anonymous, so this only ever fires for the API.
+    options.Events.OnRedirectToLogin = ctx =>
+    {
+        ctx.Response.StatusCode = StatusCodes.Status401Unauthorized;
+        return Task.CompletedTask;
+    };
+    options.Events.OnRedirectToAccessDenied = ctx =>
+    {
+        ctx.Response.StatusCode = StatusCodes.Status403Forbidden;
+        return Task.CompletedTask;
+    };
 });
 
 // Zero, not the 30-minute default. The stamp is re-checked on every authenticated request, so a
