@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.WebUtilities;
@@ -187,6 +188,20 @@ public static class AuthEndpoints
 
             return Results.Unauthorized();
         });
+
+        // The SPA's boot check. Its 401 is an ordinary expected answer — the signal to mount the
+        // login screen — not a failure to report to the user.
+        group.MapGet("/me", async (UserManager<WendUser> users, ClaimsPrincipal principal) =>
+            await users.GetUserAsync(principal) is { } user
+                ? Results.Ok(new { displayName = user.DisplayName, email = user.Email })
+                : Results.Unauthorized())
+            .RequireAuthorization();
+
+        group.MapPost("/logout", async (SignInManager<WendUser> signIn) =>
+        {
+            await signIn.SignOutAsync();
+            return Results.NoContent();
+        }).RequireAuthorization();
 
         return group;
     }
