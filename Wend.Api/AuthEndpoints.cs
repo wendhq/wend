@@ -164,6 +164,67 @@ public static class AuthEndpoints
             return Results.NoContent();
         });
 
+        // Anonymous. 204, or 400 saying which of the two things went wrong. Neither code mentions
+        // an account, so this is not an enumeration surface — it exists because a single 400 for
+        // both cases produces a screen that says "this link has expired" when the link is fine and
+        // the password was eleven characters.
+        group.MapPost("/reset-password", async (ResetPasswordRequest req,
+            UserManager<WendUser> users, ILoggerFactory loggerFactory) =>
+        {
+            var password = req.Password ?? "";
+
+            // Policy first, before any lookup or token work. It depends only on the caller's own
+            // input, and checking it here is what lets the screen name the real problem. (A future
+            // custom validator that reads the user would have to move below the lookup; none does.)
+            var candidate = new WendUser
+            {
+                UserName = "policy@example.invalid",
+                Email = "policy@example.invalid",
+            };
+            foreach (var validator in users.PasswordValidators)
+            {
+                if (!(await validator.ValidateAsync(users, candidate, password)).Succeeded)
+                    return Results.BadRequest(new { error = "password" });
+            }
+
+            if (req.UserId is not { Length: > 0 } id) return Results.BadRequest(new { error = "token" });
+            if (await users.FindByIdAsync(id) is not { } user) return Results.BadRequest(new { error = "token" });
+
+            string token;
+            try
+            {
+                token = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(req.Code ?? ""));
+            }
+            catch (FormatException)
+            {
+                return Results.BadRequest(new { error = "token" });
+            }
+
+            // Rotates the security stamp, which is what evicts every live cookie for this user on
+            // its next request — SecurityStampValidator runs at TimeSpan.Zero — and kills every
+            // outstanding reset token bound to the old stamp. Nothing here says so out loud; the
+            // tests are the documentation.
+            if (!(await users.ResetPasswordAsync(user, token, password)).Succeeded)
+                return Results.BadRequest(new { error = "token" });
+
+            // Both, not one: LockoutEnd and AccessFailedCount are separate columns. The same `user`
+            // instance throughout — ResetPasswordAsync refreshed its concurrency stamp, and
+            // reloading here would work from a stale one.
+            var lockoutCleared = await users.SetLockoutEndDateAsync(user, null);
+            var countCleared = await users.ResetAccessFailedCountAsync(user);
+            if (!lockoutCleared.Succeeded || !countCleared.Succeeded)
+            {
+                // Still 204: the password genuinely changed, and sending the user round the loop
+                // again would not fix a lockout row. Error CODES only, never the address.
+                loggerFactory.CreateLogger("Wend.Api.AuthEndpoints")
+                    .LogWarning("Password reset succeeded but the lockout was not cleared: {Errors}",
+                        string.Join("; ", lockoutCleared.Errors.Concat(countCleared.Errors)
+                            .Select(e => e.Code)));
+            }
+
+            return Results.NoContent();
+        });
+
         // Anonymous, like the rest of this group bar /me and /logout. Every failure below answers
         // with the same empty 401 — unknown address, wrong password, unconfirmed account and
         // locked-out account alike. A response that distinguishes them enumerates the user table.
@@ -291,3 +352,5 @@ public record ResendRequest(string Email);
 public record LoginRequest(string Email, string Password);
 
 public record ForgotPasswordRequest(string Email);
+
+public record ResetPasswordRequest(string UserId, string Code, string Password);
