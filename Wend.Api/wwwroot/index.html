@@ -29,9 +29,14 @@
        straight to the boards. Hidden until focused; the design-system styles .skip-link. -->
   <a class="skip-link" href="#app">Skip to content</a>
 
+  <!-- Both controls belong to the signed-in app, so both start hidden and main.js's
+       showAppChrome() reveals them once the gate has confirmed a session. On an auth screen they
+       are a trap: Settings mounts the board settings over the login form, and both sit ahead of
+       that form in the tab order. -->
   <header class="app-header">
     <h1>Wend</h1>
-    <button type="button" id="settings-link">Settings</button>
+    <button type="button" class="btn btn-ghost" id="settings-link" hidden>Settings</button>
+    <button type="button" class="btn btn-ghost" id="logout-link" hidden>Sign out</button>
   </header>
 
   <!-- Transient "Deleted · Undo" toast. Fixed at the bottom via the design-system .toast-region,

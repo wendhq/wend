@@ -19,17 +19,20 @@ import { createRegisterController } from "./auth/register/controller.js";
 import { createVerifyModel } from "./auth/verify/model.js";
 import { createVerifyView } from "./auth/verify/view.js";
 import { createVerifyController } from "./auth/verify/controller.js";
+import { createLoginModel } from "./auth/login/model.js";
+import { createLoginView } from "./auth/login/view.js";
+import { createLoginController } from "./auth/login/controller.js";
 
 const announce = createAnnouncer(document.getElementById("status"));
 const toast = createToast(document.getElementById("toast-region"));
 const app = document.getElementById("app");
 
-// A failed first load has no control to return focus to and no state to keep, so it is
-// announced and nothing else happens. Without this the rejection is unhandled and the
-// screen just stays empty with no explanation.
-// Plan 3 replaces the 401 branch with the auth gate: redirect to the login screen.
+// A 401 mid-session is not a load failure to report — it is a session that ended, so the user goes
+// back to the login screen with the reason announced and focus on the heading. Anything else is a
+// genuine failure with no control to return focus to and no state to keep, so it is announced and
+// nothing else happens.
 function reportLoadFailure(error) {
-  if (error?.status === 401) announce("You're not signed in, so there's nothing to show.");
+  if (error?.status === 401) showLogin("Your session expired — please sign in again.");
   else announce("Couldn't load — please try again.");
 }
 
@@ -139,10 +142,45 @@ document.getElementById("settings-link").addEventListener("click", showSettings)
 
 // index.html's header belongs to the signed-in app. Left visible on an auth screen, Settings is a
 // trap: it mounts the boards settings over the auth screen, and its Back goes to the board
-// overview, which 401s. It is also the first thing after the skip link in the tab order, so a
-// keyboard user meets it before the form they came for.
+// overview, which 401s. Both controls also sit between the skip link and the form the user came
+// for. They start hidden in index.html; the gate reveals them and every auth screen re-hides them.
+const APP_CHROME = ["settings-link", "logout-link"];
+
 function hideAppChrome() {
-  document.getElementById("settings-link").hidden = true;
+  for (const id of APP_CHROME) document.getElementById(id).hidden = true;
+}
+
+function showAppChrome() {
+  for (const id of APP_CHROME) document.getElementById(id).hidden = false;
+}
+
+async function signOut() {
+  try {
+    await api("/api/auth/logout", { method: "POST" });
+  } catch {
+    // The session may already be gone — that is the state we were heading for anyway. Moving the
+    // user to the login screen is what matters, so this failure changes nothing.
+  }
+  showLogin("You're signed out.");
+}
+document.getElementById("logout-link").addEventListener("click", signOut);
+
+function showLogin(reason) {
+  hideAppChrome();
+  mount((root) => {
+    const model = createLoginModel();
+    const view = createLoginView(root);
+    createLoginController(model, view, announce, {
+      onSignedIn: () => {
+        showAppChrome();
+        showOverview(null, true); // focus the new-board input: the first thing to do here
+      },
+    });
+    // Focus the screen the user has just been moved to, whether they asked to come here or were
+    // bounced. Never left on <body>.
+    view.focusHeading();
+    if (reason) announce(reason);
+  });
 }
 
 function showRegister() {
@@ -172,16 +210,26 @@ function showVerify() {
   });
 }
 
-// The server renders the SPA shell for every non-API path, so the client owns routing. Auth
-// screens are reached by URL because an emailed link has to land somewhere. Plan 4 replaces this
-// with the real auth gate, which decides between the app and the login screen on boot.
-switch (location.pathname) {
-  case "/register":
-    showRegister();
-    break;
-  case "/verify":
-    showVerify();
-    break;
-  default:
+// The server renders the SPA shell for every non-API path, so the client owns routing. Auth screens
+// are reached by URL because an emailed link has to land somewhere, and because /login has to be
+// linkable from the register and verify screens.
+async function boot() {
+  switch (location.pathname) {
+    case "/register": showRegister(); return;
+    case "/verify": showVerify(); return;
+    case "/login": showLogin(); return;
+  }
+
+  // The gate: one call decides between the app and the login screen. /me answering 401 here is an
+  // ordinary expected outcome, not an error to report.
+  try {
+    await api("/api/auth/me");
+    showAppChrome();
     showOverview(); // first paint: no forced focus, skip link is available
+  } catch (error) {
+    if (error?.status === 401) showLogin();
+    else announce("Couldn't load — please try again.");
+  }
 }
+
+boot();

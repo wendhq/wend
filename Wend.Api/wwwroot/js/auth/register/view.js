@@ -47,6 +47,7 @@ export function createRegisterView(root) {
                control at the 44x44 minimum target size. A bare <button> here measures 28px high. -->
           <button type="submit" class="btn btn-primary" data-role="submit">Create account</button>
         </form>
+        <p class="auth-links">Already have an account? <a href="/login">Sign in</a>.</p>
       </div>`;
   }
 

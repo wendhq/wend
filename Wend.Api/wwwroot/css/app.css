@@ -56,13 +56,15 @@
   .list-columns > .list-card { display: flex; } /* every column visible on desktop */
 }
 
+/* The heading takes the free space so the chrome controls stay grouped at the end. With
+   space-between and three children, adding Sign out pushed Settings into the middle of the bar. */
 .app-header {
   padding: 1rem;
   border-bottom: 1px solid;
   border-color: color-mix(in srgb, currentColor 15%, transparent);
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: 0.5rem;
 }
 
 /* Settings screen. */
@@ -80,8 +82,11 @@
   margin: 0.25rem 0 1rem;
 }
 
+/* The auto end-margin takes the free space, so the chrome controls stay grouped at the end of the
+   bar. This replaced justify-content: space-between, which scattered them once Sign out made a
+   third child. */
 .app-header h1 {
-  margin: 0;
+  margin: 0 auto 0 0;
   font-size: 1.5rem;
 }
 
@@ -458,6 +463,23 @@
    and takes the focus ring the controller's focusFirstError() depends on. */
 .auth-errors ul {
   margin-block-end: 0;
+}
+
+/* Revealed after three consecutive failures. Uses the same muted-text token as .field-hint so it
+   reads as guidance rather than a second error, and takes the focus ring the controller's
+   focusHelp() depends on. */
+.auth-help {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.auth-help ul {
+  margin-block-end: 0;
+}
+
+.auth-links {
+  margin: 0;
+  font-size: var(--text-sm);
 }
 
 @media (min-width: 768px) {

@@ -69,7 +69,7 @@ Things we've consciously chosen to do *later*, each with the reason and the trig
 
 ### `/api/auth/*` is not rate limited
 
-- **Now:** neither register nor resend-verification is rate limited. Both trigger outbound email, so both are email-bombing vectors, and register is a credential-stuffing surface.
+- **Now:** none of register, resend-verification, login or logout is rate limited. Register, resend and the unconfirmed-account nudge on login all trigger outbound email, so all three are email-bombing vectors, and login is the credential-stuffing surface.
 - **Later:** rate limiting across `/api/auth/*`.
 - **Why deferred:** deferred to Plan 8 per the spec's sequencing; the endpoints are unreachable from another machine until deployment.
 - **Revisit when:** **This is a launch gate: Plan 9 must not deploy before Plan 8 lands.**
@@ -98,3 +98,42 @@ Things we've consciously chosen to do *later*, each with the reason and the trig
 - **Why deferred:** the spec allows setting one at plan time *or* explicitly deferring; this is a legal-posture decision that belongs with the privacy policy rather than with registration code.
 - **Revisit when:** **Plan 9 decides it.**
 - **Decided:** 2026-08-10 (Slice 2a Plan 3).
+
+### A mid-session 401 discards unsaved input
+
+- **Now:** a 401 during an in-flight edit bounces the user to the login screen with the reason
+  announced. Whatever they had typed is gone.
+- **Later:** the spec asks that unsaved input be preserved "where feasible" — re-authenticate, then
+  resume or return the user to what they were doing.
+- **Why deferred:** every module would have to learn to stash and restore draft state, which is a
+  larger job than the auth gate itself and does not belong in the plan whose job was to make login
+  exist. The interruption is always announced meanwhile, never silent.
+- **Revisit when:** an editing-heavy slice touches these modules anyway, or daily use shows real
+  work being lost.
+- **Decided:** 2026-08-10 (Slice 2a Plan 4).
+
+### Lockout is a denial-of-service against any address someone knows
+
+- **Now:** five wrong passwords lock an account for fifteen minutes, new accounts included, and
+  nothing is rate limited. Six requests every fifteen minutes keep a named user permanently locked
+  out.
+- **Later:** per-IP rate limiting on `/api/auth/login`, so the attempts cost the attacker something.
+- **Why deferred:** this is the inherent cost of per-account lockout, and the answer is rate
+  limiting rather than a weaker threshold — raising the count just makes credential stuffing
+  cheaper. Nothing is reachable from another machine until deployment.
+- **Revisit when:** **Plan 8 must close this, alongside the other `/api/auth/*` limits. Launch gate.**
+- **Decided:** 2026-08-10 (Slice 2a Plan 4).
+
+### Auth-form text inputs are 32px high, under the 44×44 target minimum
+
+- **Now:** every `.auth-form` text input — register (Plan 3) and login (Plan 4) alike — measures
+  32px high at 375px wide. The submit buttons and the header chrome clear 44×44; the inputs do not.
+  Measured in the browser during Plan 4's Task 7 walk.
+- **Later:** raise the inputs to the same 2.75rem floor `.btn` uses, in the design system or in
+  `.auth-form`, so the whole form clears the minimum.
+- **Why deferred:** it predates this plan — the login screen inherited the register screen's
+  styling, so it is consistent rather than a regression, and the fix restyles every auth form,
+  which is a change that deserves its own review rather than riding along in the auth gate.
+- **Revisit when:** the next slice touches auth styling, or sooner if a real device makes them
+  awkward to hit.
+- **Decided:** 2026-08-11 (Slice 2a Plan 4).

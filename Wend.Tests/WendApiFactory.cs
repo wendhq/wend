@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -13,12 +14,16 @@ namespace Wend.Tests;
 /// instance creates its OWN empty database and drops it on dispose, so tests stay isolated exactly
 /// as they were with per-test SQLite files. The app builds the schema on startup (Migrate).
 ///
-/// The app registers NullCurrentUser, which would make every /api/* call 401, so tests override
-/// ICurrentUser with a mutable TestCurrentUser and act as DefaultUserId by default.
+/// Authorization runs for real, so tests authenticate through a Test scheme that issues a ticket
+/// for CurrentUser.UserId — set it to act as somebody else, or null to act anonymously. Pass
+/// useTestAuth: false to get the genuine Identity cookie scheme instead (see RealCookieAuthTests).
 /// </summary>
 public sealed class WendApiFactory : WebApplicationFactory<Program>
 {
     private readonly string _dbName = $"wend_test_{Guid.NewGuid():N}";
+    private readonly bool _useTestAuth;
+
+    public WendApiFactory(bool useTestAuth = true) => _useTestAuth = useTestAuth;
 
     /// <summary>The user every API test acts as by default. Boards created over HTTP belong to it.</summary>
     public string DefaultUserId { get; } = Guid.NewGuid().ToString();
@@ -50,12 +55,19 @@ public sealed class WendApiFactory : WebApplicationFactory<Program>
         };
         builder.UseSetting("ConnectionStrings:WendDb", perTest.ConnectionString);
 
-        // Tests supply their own current user; the app's NullCurrentUser would make everything 401.
-        // They also swap the file-writing dev sender for one that records in memory.
         builder.ConfigureTestServices(services =>
         {
-            services.AddScoped<ICurrentUser>(_ => CurrentUser);
+            // The file-writing dev sender, swapped for one that records in memory.
             services.AddSingleton<IAuthEmailSender>(Email);
+
+            if (!_useTestAuth) return;
+
+            // AddAuthentication(scheme) sets DefaultScheme through a Configure action, and
+            // ConfigureTestServices runs after the app's own registration, so this one wins.
+            services.AddSingleton(CurrentUser);
+            services.AddAuthentication(TestAuthHandler.SchemeName)
+                .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(
+                    TestAuthHandler.SchemeName, _ => { });
         });
     }
 
@@ -66,7 +78,8 @@ public sealed class WendApiFactory : WebApplicationFactory<Program>
         // First client creation boots the app; seed the default user and start acting as them.
         // NOTE: this runs on EVERY CreateClient() call, so create the client once and switch
         // CurrentUser.UserId afterwards — calling CreateClient() again silently reverts to the
-        // default user, and an isolation test would then pass for the wrong reason.
+        // default user, and an isolation test would then pass for the wrong reason. With
+        // useTestAuth: false this dial does nothing; those tests sign in over HTTP instead.
         using var scope = Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<WendDbContext>();
         if (!db.Users.Any(u => u.Id == DefaultUserId))
