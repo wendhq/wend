@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Wend.Api;
@@ -27,16 +28,18 @@ builder.Services.AddScoped<ICardRepository, EfCardRepository>();
 builder.Services.AddScoped<ILabelRepository, EfLabelRepository>();
 builder.Services.AddScoped<IChecklistItemRepository, EfChecklistItemRepository>();
 
-// No authentication until Plan 3 — every request is anonymous, so /api/* answers 401.
-builder.Services.AddScoped<ICurrentUser, NullCurrentUser>();
+// The signed-in user comes off the request principal now. Every repository call still takes an
+// explicit ownerId; this is only where that id is read from.
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ICurrentUser, HttpContextCurrentUser>();
 
 // Identity's token providers are data protectors, and nothing else in Wend had needed data
 // protection before now — no cookies, no antiforgery, no session — so IDataProtectionProvider is
 // not in the container until this line. Without it the app fails DI validation at startup.
 builder.Services.AddDataProtection();
 
-// Identity, headless: AddIdentityCore gives UserManager and the token providers with no cookie
-// scheme and no SignInManager. Plan 4 adds AddSignInManager() + AddIdentityCookies() on top.
+// Identity: AddIdentityCore gives UserManager and the token providers; AddSignInManager here and
+// AddIdentityCookies below supply the sign-in half that Plan 3 deliberately left out.
 builder.Services.AddIdentityCore<WendUser>(options =>
     {
         // Length over composition, per current NIST guidance — every switch set explicitly
@@ -51,14 +54,63 @@ builder.Services.AddIdentityCore<WendUser>(options =>
         // UserValidator's email-format check.
         options.User.RequireUniqueEmail = true;
 
+        // A confirmed address is the gate on signing in at all — this is what makes Plan 3's
+        // verification step mean something rather than being a formality.
+        options.SignIn.RequireConfirmedAccount = true;
+
+        // Small enough to blunt credential stuffing, short enough that a real user who mistyped is
+        // not locked out for the afternoon. AllowedForNewUsers matters because otherwise a
+        // freshly-registered account — the one an attacker reaches first — is exempt.
+        options.Lockout.MaxFailedAccessAttempts = 5;
+        options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
+        options.Lockout.AllowedForNewUsers = true;
+
         options.Tokens.ProviderMap.Add("WendEmailConfirmation",
             new TokenProviderDescriptor(typeof(EmailConfirmationTokenProvider<WendUser>)));
         options.Tokens.EmailConfirmationTokenProvider = "WendEmailConfirmation";
     })
     .AddEntityFrameworkStores<WendDbContext>()
+    .AddSignInManager()
     .AddDefaultTokenProviders();
 
 builder.Services.AddTransient<EmailConfirmationTokenProvider<WendUser>>();
+
+// Cookie authentication. AddIdentityCookies supplies the application cookie that AddIdentityCore
+// deliberately left out in Plan 3; no login-redirect events are configured because .NET 10's cookie
+// handler already answers 401/403 for JSON endpoints, and Wend has no server-rendered login page to
+// redirect to — the client owns routing.
+builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme).AddIdentityCookies();
+
+// Required by UseAuthorization() and RequireAuthorization(): AddIdentityCore and AddIdentityCookies
+// register authentication only, so without this the app builds and then throws "Unable to find the
+// required services" on the first authorized route.
+builder.Services.AddAuthorization();
+
+builder.Services.ConfigureApplicationCookie(options =>
+{
+    // A name that does not announce the stack to anyone reading response headers.
+    options.Cookie.Name = "wend.session";
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SameSite = SameSiteMode.Lax;
+
+    // Dev runs plain HTTP on 127.0.0.1:5174. CookieSecurePolicy.Always there means the browser
+    // silently DROPS the cookie: login answers 204, the next request is anonymous, and it reads as
+    // a session bug rather than a config one. Always everywhere else, where HTTPS is required.
+    options.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
+        ? CookieSecurePolicy.SameAsRequest
+        : CookieSecurePolicy.Always;
+
+    // Non-persistent: every login in this plan issues a session cookie that dies with the browser.
+    // Plan 6 adds remember-me as a deliberate opt-in. ExpireTimeSpan still bounds the ticket.
+    options.ExpireTimeSpan = TimeSpan.FromDays(7);
+    options.SlidingExpiration = true;
+});
+
+// Zero, not the 30-minute default. The stamp is re-checked on every authenticated request, so a
+// password reset (Plan 5) and an account deletion (Plan 7) evict a live session on its NEXT
+// request. The cost is one user lookup and one Set-Cookie per authenticated response, bought
+// deliberately: a cache interval would turn those promises into "within half an hour".
+builder.Services.Configure<SecurityStampValidatorOptions>(o => o.ValidationInterval = TimeSpan.Zero);
 
 // The only sender that exists writes to a local file. Registering it unconditionally would mean a
 // deployed Wend "works" — registrations succeed, nobody ever receives a link, and the server quietly
@@ -103,14 +155,23 @@ app.UseExceptionHandler(b => b.Run(ctx => { ctx.Response.StatusCode = 500; retur
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
+app.UseAuthentication();
+app.UseAuthorization();
+
 var api = app.MapGroup("/api");
 api.MapGet("/health", () => Results.Ok(new { status = "ok" }));
-app.MapGroup("/api/boards").MapBoardEndpoints();
+
+// RequireAuthorization() in front, the 28 per-handler ICurrentUser guards behind. The attribute is
+// what a future endpoint inherits for free; the guard is what the compiler enforces. An empty
+// prefix adds no path segment — these routes keep the URLs they have always had.
+var authed = app.MapGroup("").RequireAuthorization();
+authed.MapGroup("/api/boards").MapBoardEndpoints();
+authed.MapListEndpoints();
+authed.MapCardEndpoints();
+authed.MapLabelEndpoints();
+authed.MapChecklistItemEndpoints();
+
 app.MapGroup("/api/auth").MapAuthEndpoints(publicBaseUrl);
-app.MapListEndpoints();
-app.MapCardEndpoints();
-app.MapLabelEndpoints();
-app.MapChecklistItemEndpoints();
 
 // Anything under /api that no endpoint above claimed is a missing API route, not a client route.
 // Without this it reaches the fallback below and returns the SPA shell at 200, so a typo'd or

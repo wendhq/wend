@@ -1,5 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Wend.Api;
@@ -14,9 +16,23 @@ namespace Wend.Tests;
 public class OwnershipTests
 {
     [Test]
-    public void No_current_user_means_no_user_id()
+    public void An_anonymous_request_has_no_current_user()
     {
-        Assert.That(new NullCurrentUser().UserId, Is.Null);
+        var accessor = new HttpContextAccessor { HttpContext = new DefaultHttpContext() };
+
+        Assert.That(new HttpContextCurrentUser(accessor).UserId, Is.Null);
+    }
+
+    [Test]
+    public void A_signed_in_request_yields_the_principals_user_id()
+    {
+        var identity = new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, "user-42")], "Test");
+        var accessor = new HttpContextAccessor
+        {
+            HttpContext = new DefaultHttpContext { User = new ClaimsPrincipal(identity) },
+        };
+
+        Assert.That(new HttpContextCurrentUser(accessor).UserId, Is.EqualTo("user-42"));
     }
 
     [Test]
