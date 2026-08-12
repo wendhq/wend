@@ -31,4 +31,9 @@
 	--accent-rgb: 14 142 153;
 	--accent-strong-rgb: 10 110 120;
 	--secondary-rgb: 43 158 124;
+
+	/* Solid-button ink — the light-mode cyan is too light for white text at
+	   AA contrast, so the button fill deepens (button-only, same hue) while
+	   --accent-solid-strong keeps its default (already passes). */
+	--accent-solid: #0c7982;
 }

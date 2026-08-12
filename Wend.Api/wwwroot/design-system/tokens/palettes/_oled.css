@@ -1,0 +1,18 @@
+/*
+ * OLED foundation — shared by the daily + ignite palettes.
+ * Both sit on a warm, near-black ground with warm ivory text; only the surface
+ * ramp, accent and type differ between them (see daily.css / ignite.css).
+ * surface-0 is reserved true black for the deepest layer (menus, overlays).
+ */
+[data-palette="daily"],
+[data-palette="ignite"] {
+	--surface-0: #000000;
+
+	--text: #faf9f5;
+	--text-muted: #beb9ad;
+	--text-faint: #8a8478;
+
+	--border: #2b2622;
+	--border-strong: #3a342c;
+	--border-soft: #1c1814;
+}

@@ -482,17 +482,8 @@
   font-size: var(--text-sm);
 }
 
-/* The `hidden` attribute has to actually hide things. `[hidden] { display: none }` lives in the
-   BROWSER's stylesheet, and any author rule beats it regardless of specificity — so the design
-   system's `.btn { display: inline-flex }` silently wins, and a `.btn hidden` stays visible AND
-   keyboard-focusable. hideAppChrome() sets exactly that attribute on the header's Settings and
-   Sign out buttons, so without this line both sit between the skip link and the form on every auth
-   screen: Settings mounts board settings over the login form, and its Back goes to the overview,
-   which 401s. Found by measurement in Plan 5; the bug dates from Plan 4. `!important` because the
-   design system is vendored read-only and cannot carry the fix itself. */
-[hidden] {
-  display: none !important;
-}
+/* The [hidden] display guard that lived here moved upstream into the design system's reset
+   (workbench#6, DS 2.0.1) — base/reset.css now carries it for every component. */
 
 @media (min-width: 768px) {
   .auth-view {

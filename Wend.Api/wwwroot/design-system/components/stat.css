@@ -4,6 +4,8 @@
 }
 .stat-value {
 	color: var(--text);
+	font-family: var(--font-display);
+	font-weight: var(--weight-display);
 	font-size: var(--text-3xl);
 	line-height: 1;
 }

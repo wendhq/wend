@@ -1,0 +1,44 @@
+/*
+ * Ignite — energetic OLED palette tuned for the Ignite app.
+ * Flame accent on a greyer, wider-spread ground; Bricolage Grotesque headings +
+ * Hanken Grotesk body, with tighter tracking and bigger stat numbers for drive.
+ * Shares the OLED foundation in _oled.css. Opt in with <html data-palette="ignite">.
+ */
+[data-palette="ignite"] {
+	/* Greyer ground, wider step spread — the layers snap more than daily. */
+	--surface-1: #0b0a0a;
+	--surface-2: #141312;
+	--surface-3: #1c1b19;
+	--surface-4: #282624;
+	--surface-5: #343230;
+
+	/* Flame accent (spiced) — single source; soft / ghost / focus derive from it. */
+	--accent-rgb: 249 110 34;
+	--accent-strong-rgb: 251 141 78;
+
+	/* Type skin — Bricolage Grotesque headings, Hanken Grotesk body. */
+	--font-sans: "Hanken Grotesk", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+	--font-display: "Bricolage Grotesque", "Hanken Grotesk", sans-serif;
+}
+
+/* Energetic headings: display face + tighter tracking, only under this palette. */
+[data-palette="ignite"] h1,
+[data-palette="ignite"] h2,
+[data-palette="ignite"] h3,
+[data-palette="ignite"] h4 {
+	font-family: var(--font-display);
+	letter-spacing: -0.03em;
+}
+
+/* Big streak / stat numbers carry the energy. */
+[data-palette="ignite"] .stat-value {
+	font-family: var(--font-display);
+	font-size: var(--text-4xl);
+	letter-spacing: -0.02em;
+}
+
+/* Light mode keeps the base light surfaces; the flame accent is tuned for contrast. */
+[data-theme="light"][data-palette="ignite"] {
+	--accent-rgb: 198 78 22;
+	--accent-strong-rgb: 168 64 16;
+}

@@ -1,0 +1,42 @@
+/*
+ * Daily — general-purpose warm-charcoal OLED palette.
+ * Ember accent on a de-purpled warm ground; Space Grotesk headings + Figtree body
+ * at the calm base scale. Shares the OLED foundation in _oled.css.
+ * Opt in with <html data-palette="daily">.
+ */
+[data-palette="daily"] {
+	/* Warm-charcoal surface ramp — pulled off purple toward warm grey. */
+	--surface-1: #0f0c09;
+	--surface-2: #17120e;
+	--surface-3: #1c1813;
+	--surface-4: #241e17;
+	--surface-5: #2e271e;
+
+	/* Ember accent — single source; soft / ghost / focus derive from it. */
+	--accent-rgb: 190 85 38;
+	--accent-strong-rgb: 210 100 50;
+
+	/* Type skin — Space Grotesk headings, Figtree body (both bundled). */
+	--font-sans: "Figtree", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+	--font-display: "Space Grotesk", "Figtree", sans-serif;
+
+	/* Solid-button ink — in dark theme, ember is mid-tone, so the fill deepens
+	   (button-only) for white text at AA; light theme resolves the base light accent below, which passes on its own. */
+	--on-accent: #ffffff;
+	--accent-solid: #943c16;
+	--accent-solid-strong: #a8481e;
+}
+
+/* Headings opt into the display face only under this palette. */
+[data-palette="daily"] h1,
+[data-palette="daily"] h2,
+[data-palette="daily"] h3,
+[data-palette="daily"] h4 {
+	font-family: var(--font-display);
+}
+
+/* Light mode keeps the base light surfaces; the ember accent is tuned for contrast. */
+[data-theme="light"][data-palette="daily"] {
+	--accent-rgb: 168 70 28;
+	--accent-strong-rgb: 140 56 20;
+}
