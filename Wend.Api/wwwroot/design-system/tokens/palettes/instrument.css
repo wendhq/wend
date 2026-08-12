@@ -1,0 +1,19 @@
+/*
+ * Instrument — sharp editorial type skin. Single-weight serif display on
+ * large headings and stats only; body stays the default sans.
+ * Opt in with <html data-typeskin="instrument">.
+ */
+[data-typeskin="instrument"] {
+	--font-display: "Instrument Serif", Georgia, serif;
+	--weight-display: 400;
+	--tracking-display: 0em;
+	--tracking-heading: 0em;
+}
+
+/* Serif reads poorly small — sub-section headings return to the body sans. */
+[data-typeskin="instrument"] h3,
+[data-typeskin="instrument"] h4 {
+	font-family: var(--font-sans);
+	font-weight: 600;
+	letter-spacing: -0.02em;
+}

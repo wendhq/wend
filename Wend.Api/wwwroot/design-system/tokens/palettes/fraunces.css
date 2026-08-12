@@ -1,0 +1,19 @@
+/*
+ * Fraunces — warm editorial type skin. Serif display on large headings and
+ * stats only; body stays the default sans. Composes with any color palette.
+ * Opt in with <html data-typeskin="fraunces">.
+ */
+[data-typeskin="fraunces"] {
+	--font-display: "Fraunces", "Palatino Linotype", Georgia, serif;
+	--weight-display: 600;
+	--tracking-display: -0.01em;
+	--tracking-heading: 0em;
+}
+
+/* Serif reads poorly small — sub-section headings return to the body sans. */
+[data-typeskin="fraunces"] h3,
+[data-typeskin="fraunces"] h4 {
+	font-family: var(--font-sans);
+	font-weight: 600;
+	letter-spacing: -0.02em;
+}

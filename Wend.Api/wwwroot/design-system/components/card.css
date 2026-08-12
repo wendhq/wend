@@ -2,7 +2,7 @@
 .panel {
 	background: var(--card-bg);
 	border: 1px solid var(--border);
-	border-radius: var(--radius-lg);
+	border-radius: var(--radius-md);
 	padding: var(--space-5);
 	box-shadow: var(--shadow-xs);
 }
@@ -22,5 +22,5 @@
 .surface {
 	background: var(--panel-bg);
 	border: 1px solid var(--border-soft);
-	border-radius: var(--radius-lg);
+	border-radius: var(--radius-md);
 }
