@@ -66,6 +66,10 @@ Things we've consciously chosen to do *later*, each with the reason and the trig
 - **Why deferred:** the spec requires equalised timing for *login*; register was left as-is because the app is unreachable from another machine until deployment.
 - **Revisit when:** **Plan 8 (security hardening) must close this.**
 - **Decided:** 2026-08-10 (Slice 2a Plan 3).
+- **Extended 2026-08-13 (Plan 6):** `POST /api/auth/change-email` has the same shape — the
+  address-already-taken branch generates no token and sends no mail, so it returns faster than the free
+  branch. It is behind a login, which makes it the least valuable of the three to an attacker, but it is
+  the same fix.
 
 ### `/api/auth/*` is not rate limited
 
@@ -74,6 +78,12 @@ Things we've consciously chosen to do *later*, each with the reason and the trig
 - **Why deferred:** deferred to Plan 8 per the spec's sequencing; the endpoints are unreachable from another machine until deployment.
 - **Revisit when:** **This is a launch gate: Plan 9 must not deploy before Plan 8 lands.**
 - **Decided:** 2026-08-10 (Slice 2a Plan 3).
+- **Extended 2026-08-13 (Plan 6):** `change-email` and `confirm-email-change` join the list. Both send
+  mail, but both sit behind a login, so neither is a cheap anonymous vector the way `forgot-password`
+  is. The sharper Plan 6 addition is that **change-password's lockout accounting sets the same lock
+  login checks** — so five deliberate wrong current passwords from a stolen session lock the real owner
+  out of the whole application for fifteen minutes, repeatably. Same answer as the lockout-DoS entry
+  below: per-IP rate limiting, not a weaker threshold.
 
 ### The registration form gives no Art. 13 notice
 
@@ -90,6 +100,9 @@ Things we've consciously chosen to do *later*, each with the reason and the trig
 - **Why deferred:** essentially every reverse proxy logs query strings by default, and there is no proxy until deployment.
 - **Revisit when:** **Plan 9 must do this**, per the spec's "path-logging exclusion extends to query strings".
 - **Decided:** 2026-08-10 (Slice 2a Plan 3).
+- **Extended 2026-08-13 (Plan 6):** `/confirm-email-change` joins the list, and it raises the stakes —
+  its query string carries **an email address as well as a token**, so a leak here discloses personal
+  data on top of a credential. The exclusion is no longer only about token safety.
 
 ### Inactive-account retention has no stance
 
@@ -123,6 +136,30 @@ Things we've consciously chosen to do *later*, each with the reason and the trig
   cheaper. Nothing is reachable from another machine until deployment.
 - **Revisit when:** **Plan 8 must close this, alongside the other `/api/auth/*` limits. Launch gate.**
 - **Decided:** 2026-08-10 (Slice 2a Plan 4).
+
+### A stolen session is a full account takeover, because change-email needs no password
+
+- **Now:** `POST /api/auth/change-email` (Plan 6) requires only a live cookie. `POST
+  /api/auth/change-password` requires the current password and counts failures against lockout, so the
+  cheaper of the two doors is the one with no lock on it.
+- **The full path:** anyone holding a session — an unlocked laptop, a borrowed browser, a session left
+  open on a shared machine — requests a change to their own address, clicks the link in their own
+  mailbox, and takes both `Email` and `UserName`. `ChangeEmailAsync` rotates the security stamp, so the
+  real owner's sessions die on their next request. The owner then has **no self-service route back**:
+  login with the old address 401s because `FindByEmailAsync` finds nothing, and forgot-password on the
+  old address answers a generic 204 with no mail, by design. The attacker runs forgot-password on the
+  new address, sets a password, and owns every board. Wend has no support desk to escalate to, so the
+  loss is permanent.
+- **The mitigation that does exist:** the notice sent to the old address after a successful change
+  (Plan 6). It is detection, not prevention — the person detecting it has no move left.
+- **Later:** `/change-email` takes `currentPassword` and verifies it before minting a token, with the
+  same locked-out → 401 / `AccessFailedAsync` / reset-count steps `/change-password` uses. Small, and
+  it makes the two endpoints symmetric.
+- **Why deferred:** raised in Plan 6's stress test and consciously left out of Plan 6's scope
+  (Malin, 2026-08-13). The endpoints are unreachable from another machine until deployment, so nothing
+  is exposed meanwhile.
+- **Revisit when:** **Plan 8 must close this. Launch gate — Plan 9 must not deploy before it.**
+- **Decided:** 2026-08-13 (Slice 2a Plan 6 stress test).
 
 ### Auth-form text inputs are 32px high, under the 44×44 target minimum
 
