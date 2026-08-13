@@ -5,13 +5,14 @@
   security / privacy / accessibility / loopholes — one critical finding, consciously deferred to Plan 8
   (see the footer and [`backlog.md`](backlog.md)); nine fixes folded in**; pending sign-off
 - **Owners:** Malin & Henry (equal ownership)
-- **Implementation:** **Henry, solo** — Malin reviews and merges. First plan in Wend built by one
-  person end to end rather than turn-based; see *Collaboration* below.
+- **Implementation:** **Malin writes it, Henry reviews and merges** (confirmed 2026-08-13). Reviewer's
+  checklist: [`2026-08-13-wend-review-guide.md`](2026-08-13-wend-review-guide.md). See
+  *Collaboration* below.
 - **Repo:** `github.com/wendhq/wend`
 - **Parent spec:** [`2026-07-08-wend-slice2a-accounts-design.md`](2026-07-08-wend-slice2a-accounts-design.md) (signed off, stress-tested)
 - **Follows:** Plan 5 — forgot & reset password ([PR #44](https://github.com/wendhq/wend/pull/44), merged; suite at **253 green** as recorded at [PR #47](https://github.com/wendhq/wend/pull/47))
-- **Depends on:** two smaller PRs landing first — the `.auth-form` input-height fix and remember-me
-  (see *Depends on* below)
+- **Depends on:** two smaller PRs landing first — the auth-input fix and remember-me (see *Depends on*
+  below)
 
 ---
 
@@ -42,9 +43,10 @@ Three inherited decisions shape this plan more than the parent spec does:
 the promise two code comments have been carrying since Plan 4 — *"Plan 6 adds remember-me as a
 deliberate opt-in"* ([`Program.cs:111`](../Wend.Api/Program.cs)) and the hard-coded
 `isPersistent: false` at [`AuthEndpoints.cs:246`](../Wend.Api/AuthEndpoints.cs). It was almost
-independent of the rest of this plan, and a first solo slice does not need to carry it. One coupling
-survives the split and this plan owns it: change-password reissues the cookie, so it has to preserve
-whatever persistence remember-me gave it. See *Risks*.
+independent of the rest of this plan, and three features in one PR is more than a reviewer who did not
+write any of it should have to hold at once. One coupling survives the split and this plan owns it:
+change-password reissues the cookie, so it has to preserve whatever persistence remember-me gave it.
+See *Risks*.
 
 ---
 
@@ -83,38 +85,55 @@ whatever persistence remember-me gave it. See *Risks*.
 
 ## Depends on
 
-The `.auth-form` text inputs measure 31.6px against the 44×44 minimum
-([`backlog.md`](backlog.md), deferred at Plan 4 with the trigger *"revisit when the next slice
-touches auth styling"*). This plan is that slice, and it adds two more `.auth-form`-shaped forms.
+The auth text inputs measure ~32px against the 44×44 minimum ([`backlog.md`](backlog.md), deferred at
+Plan 4 with the trigger *"revisit when the next slice touches auth styling"*). This plan is that slice,
+and it adds two more forms of the same shape.
 
-**Remember-me** lands as its own PR too, for the reasons in the decisions table. Its assertion that a
+**The cause is not what the backlog says**, established 2026-08-13: the inputs carry **no `class`
+attribute at all**, so they get no design-system input styling and compute `min-height: auto`. The fix
+is `class="input"` on the seven inputs across the four auth views — the design-system component already
+carries a 44px floor as of bundle 2.0.2 — not a `min-height` override in `app.css`, which would be a
+second source of truth for the same number.
+
+**It lands as its own PR before this plan starts.** Doing it first means this plan's new forms are the
+first ones built against the correct floor rather than retrofitted in the same commit, and it isolates
+the rendered-pixel measurement pass — owed since the design-system identity changed twice under Wend on
+2026-08-12 and 2026-08-13 — into a PR that is only about that.
+
+**Remember-me** lands as its own PR too, for the reasons in *Collaboration*. Its assertion that a
 reissued cookie keeps its persistence is inherited here as task 5.
-
-**The input-height fix lands as its own PR before this plan starts**, rather than inside it. Two
-reasons: it touches shared CSS at [`app.css:442`](../Wend.Api/wwwroot/css/app.css) and therefore
-restyles five existing screens, which deserves a review of its own rather than riding along inside a
-feature; and
-doing it first means this plan's new forms are the first ones built against the correct floor instead
-of being retrofitted in the same commit.
 
 ---
 
 ## Collaboration
 
-Wend's build modes have been coached turn-based or Claude-solo with both owners reviewing. This plan
-is neither: **Henry implements the whole plan solo, with his own Claude, and Malin reviews and
-merges.** Malin then starts Plan 7 on a clean `main`, so the two plans never share a working tree —
-which matters because Plan 7's account-deletion UI lands on the Account screen this plan creates.
+**Malin writes the code; Henry reviews and merges** — agreed 2026-08-13, and it replaces the
+coached turn-based mode. The two of them are no longer on the same team and Henry starts a new job at
+the end of August, so the shape that survives is the one where his half is bounded and asynchronous. A
+seven-task slice is not that; a review is.
 
-Consequences worth writing down:
+This design was brainstormed and stress-tested jointly before the split was agreed, and none of it
+changes as a result — but two things about *how it lands* do:
 
-- **Nothing runs in parallel.** Plan 7 does not start until this merges. The alternative — both
-  plans open at once — collides in `AuthEndpoints.cs`, `main.js` routing and the Account screen
-  simultaneously, which is the worst possible place for a merge conflict in this codebase.
-- **Merge, do not squash**, per the house rule: a branch carrying Henry's commits is merged so the
-  squash does not attach a co-author trailer. Then confirm the remote branch actually deleted — the
-  auto-delete has silently no-op'd once.
-- **No AI attribution** in commits or the PR body, unchanged.
+- **The review is the whole safety net now.** With one person writing all of it, nobody else has read
+  the code before it reaches `main`. That is why the four findings below are each paired with the
+  specific test that catches their absence, and why they are repeated as a reviewer's checklist in
+  [`2026-08-13-wend-review-guide.md`](2026-08-13-wend-review-guide.md) rather than living only here.
+- **Smaller PRs matter more, not less.** Remember-me was split out because a first solo slice should
+  not carry three features; that reason is gone, but the conclusion holds for a better one — a
+  reviewer who did not write any of it reviews three focused PRs more effectively than one large one.
+
+Unchanged:
+
+- **Nothing runs in parallel.** Plan 7 does not start until this merges — its account-deletion UI
+  lands on the Account screen this plan creates. Two plans open at once collide in `AuthEndpoints.cs`,
+  `main.js` routing and that screen simultaneously, which is the worst place in this codebase for a
+  merge conflict. Plan 8 is the exception worth knowing about: it is middleware and configuration where
+  this plan is handlers and screens, so those two *can* overlap if there is ever a reason.
+- **Squash** — these branches are single-author now, so squash is the default. Merge-not-squash only
+  applies to a branch carrying commits from both owners, where squashing would attach a co-author
+  trailer. Then confirm the remote branch actually deleted; the auto-delete has silently no-op'd once.
+- **No AI attribution** in commits or PR bodies.
 
 ---
 
@@ -134,7 +153,7 @@ Consequences worth writing down:
 | **Change-password errors** | Distinguishable: `{error:"password"}` for policy, `{error:"current"}` for a wrong current password | The caller is already authenticated. There is no account existence left to leak, and one error for both produces a screen that blames the new password when the old one was mistyped. |
 | **Lockout accounting on change-password** | `AccessFailedAsync` on a wrong current password, `ResetAccessFailedCountAsync` on success, refuse when locked out | `ChangePasswordAsync` does no lockout accounting, so without this the endpoint gives somebody holding a stolen session unlimited guesses at the current password — and a correct guess converts a borrowed session into permanent takeover. **Beyond the parent spec's one-line description; adjudicated in the brainstorm and recorded as a deviation.** |
 | **The acting session after a change-password** | Survives, via `RefreshSignInAsync`; every other session dies | The stamp rotation is what kills the others and that is wanted. Bouncing the user off the screen they just used is not, and Identity provides the refresh for exactly this case. Contrast Plan 5, where there is deliberately no carve-out — a reset arrives by email and may not be the owner. |
-| **Remember-me** | Out of this plan — its own PR ahead of it | Almost independent: one request field, one argument, one checkbox, two assertions. Splitting it keeps a first solo slice to two features instead of three. The one coupling it leaves behind is change-password's cookie reissue. |
+| **Remember-me** | Out of this plan — its own PR ahead of it | Almost independent: one request field, one argument, one checkbox, two assertions. Splitting it keeps this PR to two features instead of three, which matters most for the person reviewing code they did not write. The one coupling it leaves behind is change-password's cookie reissue. |
 
 ---
 
@@ -660,9 +679,9 @@ paste-driven edit once silently dropped three tests behind a green suite.
   of who is acting, and the session handling should follow the proof rather than be uniform.
 - **Notifying the old address** — the only mechanism by which the owner learns that somebody with a
   live session repointed their account.
-- **Remember-me split out ahead of this plan** — it shares no code with either feature here, and a
-  first solo slice is better at two features than three. The one coupling it leaves behind is named
-  and asserted rather than assumed away.
+- **Remember-me split out ahead of this plan** — it shares no code with either feature here, and two
+  features review better than three. The one coupling it leaves behind is named and asserted rather
+  than assumed away.
 - **No URL for the Account screen** — matching Settings keeps every route in the `switch` anonymous,
   which is the property that stops an authenticated route being added to it by pattern-match.
 
@@ -713,4 +732,12 @@ two-form accessibility rules, the validator ordering, the third-party-resource r
 that now carries PII, the POST-on-mount shape, `RefreshSignInAsync`'s failure handling, self-exclusion
 in the taken-address lookup, the non-revocation of an older token, and two understated risks.
 
-Next: the implementation plan and Henry's guide.*
+**Working split settled 2026-08-13, after the design was signed off:** Malin writes the code, Henry
+reviews and merges. The design is unchanged by it; what changed is that the review is now the only
+outside check on this code, so each of the findings above is paired with the test that catches its
+absence, and the set is repeated as a reviewer's checklist in
+[`2026-08-13-wend-review-guide.md`](2026-08-13-wend-review-guide.md).
+
+Next: the auth-input fix and remember-me as their own PRs, then Plan 6's implementation plan — written
+against the tree as it is once those land, so the *Open items* above can be verified against the .NET 10
+source rather than assumed.*
