@@ -1,7 +1,9 @@
 # Wend — Slice 2a Plan 6 design: Account settings
 
 - **Date:** 2026-08-13
-- **Status:** Draft — brainstormed with Malin 2026-08-13; pending review and sign-off
+- **Status:** Draft — brainstormed with Malin 2026-08-13; **stress-tested the same day across
+  security / privacy / accessibility / loopholes — one critical finding, consciously deferred to Plan 8
+  (see the footer and [`backlog.md`](backlog.md)); nine fixes folded in**; pending sign-off
 - **Owners:** Malin & Henry (equal ownership)
 - **Implementation:** **Henry, solo** — Malin reviews and merges. First plan in Wend built by one
   person end to end rather than turn-based; see *Collaboration* below.
@@ -221,19 +223,24 @@ Request `{ currentPassword, newPassword }`. Response `204`, or `400` with an err
 
 The handler, in order:
 
-1. **Policy first**, on the new password, before anything else — the house ordering. Failure →
-   `400 { error: "password" }`. Here the payoff is a screen that can tell the truth about which of
-   the two passwords was the problem, not enumeration resistance; the caller's identity is already
-   known.
-2. Resolve the user from the principal. `GetUserAsync` returning null on an authenticated request
+1. Resolve the user from the principal. `GetUserAsync` returning null on an authenticated request
    means the account was deleted under a live cookie → `401`, not a 500.
+2. **Policy** on the new password. Failure → `400 { error: "password" }`, before the current password
+   is checked. Note the ordering differs from reset, deliberately: reset validates policy *before* the
+   lookup because it is anonymous and an early 400 would otherwise be an existence oracle. Here the
+   caller is already known, so the user is resolved first and the validators are handed the **real**
+   user — which is what a future policy like "your password may not contain your email address" would
+   need. The error precedence the screen sees is unchanged.
 3. **Locked out → `401`**, without checking the password. A locked account is locked for this too;
    otherwise lockout is trivially sidestepped by anyone holding a session.
 4. `ChangePasswordAsync(user, currentPassword, newPassword)`.
    - Failure → `AccessFailedAsync(user)`, then `400 { error: "current" }`.
    - Success → `ResetAccessFailedCountAsync(user)`.
 5. `RefreshSignInAsync(user)` — **after** the change, so the rotated stamp lands in the reissued
-   cookie.
+   cookie. If it fails, still **204**, with a code-only warning log: the password genuinely changed,
+   and telling the user otherwise would send them round the loop for nothing. The degraded outcome is
+   that their next request 401s and they sign in again with the new password, which works. Same rule
+   Plan 5 applies to a failed lockout clear.
 6. `204`.
 
 **Step 4's accounting is the security content of this endpoint.** `ChangePasswordAsync` verifies the
@@ -241,6 +248,10 @@ current password and does no lockout bookkeeping whatsoever, so without step 3 a
 of step 4, somebody holding a stolen cookie gets unlimited attempts at the current password — and
 succeeding converts a session that dies on its own into a permanent takeover. Five attempts is the
 same budget login allows, applied to the same secret.
+
+**This endpoint is hardened against a stolen session and `/change-email` is not**, which is a known
+asymmetry, decided rather than overlooked — see the *stolen-session takeover* entry in
+[`backlog.md`](backlog.md) for the full path and the Plan 8 trigger.
 
 **Step 5 is what keeps the user on the screen.** The password write rotates the security stamp, and
 with `ValidationInterval = TimeSpan.Zero` that refuses every live cookie for this user on its next
@@ -269,10 +280,15 @@ The handler, in order:
 2. Resolve the user from the principal; null → `401`.
 3. **Same as the current address** (normalised comparison, not a raw string one) →
    `400 { error: "same" }`.
-4. `FindByEmailAsync(newEmail)` **or** `FindByNameAsync(newEmail)` finds another account → `204`,
-   having done nothing. Both lookups, because the trap above means an address can be occupied as a
-   username while free as an email — and shipping this endpoint without the `FindByNameAsync` check
-   would produce a confirmation mail for an address that then fails at confirm time.
+4. `FindByEmailAsync(newEmail)` **or** `FindByNameAsync(newEmail)` finds **another account — self
+   excluded** → `204`, having done nothing. Both lookups, because the trap above means an address can
+   be occupied as a username while free as an email — and shipping this endpoint without the
+   `FindByNameAsync` check would produce a confirmation mail for an address that then fails at confirm
+   time.
+   **Self must be excluded, and it is reachable:** in the 409 half-changed state below, `Email` is the
+   new address and `UserName` is still the old one, so `FindByNameAsync(old)` returns the caller.
+   Excluding self lets that user re-request their old address and repair the desync; not excluding it
+   hands them a silent 204 forever, on the one address they most want back.
 5. Free → `GenerateChangeEmailTokenAsync(user, newEmail)`, build the link to
    `/confirm-email-change?userId=…&newEmail=…&code=…`, send via
    `SendEmailChangeConfirmationAsync`.
@@ -286,12 +302,25 @@ would let any account holder walk the user table one address at a time from thei
 an abandoned request leaves no state to clean up and no pending-change indicator to render. That is
 the trade accepted with the query-string decision.
 
+**A second request does not revoke the first.** Nothing rotates on request, so two requests leave two
+live tokens, each good for its full hour, and whichever link is clicked first wins — the other then
+fails its token check because the first rotated the stamp. Someone who re-requests *because they think
+the first link was seen* has revoked nothing. This is the same property Plan 5 documented and tested
+for reset tokens, and it gets the same treatment here: a test asserts an older change-email token
+still works after a newer one is issued, so the behaviour is written down rather than discovered.
+
 ---
 
 ## `POST /api/auth/confirm-email-change`
 
-Request `{ userId, newEmail, code }`. Response `204`, `400 { error: "token" }`, or
+Request `{ userId, newEmail, code }`. Response `200 { email }`, `400 { error: "token" }`, or
 `409 { error: "taken" }`. **Anonymous.**
+
+**`POST`, not `GET`, even though this arrives from an emailed link** — Plan 3's reasoning for `/verify`,
+and it bites harder here. Corporate mail scanners and link-preview bots follow GET links automatically,
+so a GET that applied the change would be fired by a robot before the human ever clicked, silently
+repointing an account's login identity. The emailed link therefore points at the **SPA shell**, and the
+screen POSTs the values back from the browser on mount.
 
 The handler, in order:
 
@@ -311,7 +340,13 @@ The handler, in order:
      half-changed state this design exists to prevent, and the endpoint must not report success.
 5. Fire the old-address notice from `response.OnCompleted`, like login's nudge, so the send stays off
    the response path.
-6. `204`.
+6. **`200 { email }`**, with the address read back off the user *after* both writes.
+
+**Step 6 returns a body on purpose, and it is the only endpoint in `/api/auth/*` that does.** The
+success screen has to name the new address, and the only two other sources are the query string — a
+caller-controlled value on an anonymous page, which is the reflected-XSS shape the rule below forbids —
+and nothing at all, which leaves the user to trust that the address they typed ten minutes ago is the
+one that landed. Echoing the stored value means the screen reports what is actually in the database.
 
 **Step 3's two failure codes are not interchangeable.** A bad token means "get a new link"; a taken
 address means "pick a different address". Collapsing them produces the Plan 5 failure mode in
@@ -359,10 +394,11 @@ with remember-me, change the password, and confirm the reissued cookie still car
 - **Session eviction.** Change-email evicts every session including the acting one, because the
   acting one may be in a different browser. Change-password evicts every session *except* the acting
   one, deliberately, on the strength of having just verified the current password.
-- **Lockout.** Extended to change-password, which is a strengthening. It creates one new denial
-  surface — an attacker who can reach `/change-password` with a session can lock the owner out of
-  changing their password — but they hold a session, so they already have everything that lockout was
-  protecting.
+- **Lockout.** Extended to change-password, which is a strengthening. It also creates a new denial
+  surface, and it is wider than this endpoint: the lock it sets is the *same* lock login checks, so
+  five deliberate wrong current passwords lock the real owner out of **the whole application** for
+  fifteen minutes, repeatably. Same shape as the login-lockout DoS already in the backlog, and the
+  same answer — Plan 8's rate limiting, not a weaker threshold.
 - **Token handling.** One hour, stamp-bound, never logged. `/confirm-email-change` strips `userId`,
   `newEmail` and `code` from the address bar with `history.replaceState` on read, exactly as `/verify`
   and `/reset-password` do. **The query string now carries an email address as well as a token**, so
@@ -376,9 +412,13 @@ with remember-me, change the password, and confirm the reissued cookie still car
   renders the new one. Both are user-controlled strings reaching a template literal, so both go
   through `escapeHtml`. `newEmail` additionally arrives from a query string on an anonymous page
   anybody can link to, which makes it the same reflected-XSS shape Plan 5's `code` was — so it
-  follows Plan 5's rule: **it lives in the controller closure and the model, is never handed to the
-  view, and is never rendered.** The success state names the new address from the *response*, not
-  from the URL.
+  follows Plan 5's rule: **the query-string value lives in the controller closure and the model, is
+  never handed to the view, and is never rendered.** The success state renders the `email` field from
+  the **`200` response body** instead, escaped — which is why that endpoint returns a body at all.
+- **No third-party resources on `/confirm-email-change`**, the same rule `/verify` and
+  `/reset-password` carry so no `Referer` header can hand a live token to another origin. Restated
+  rather than inherited silently, because this screen's URL carries **an email address as well as a
+  token**, so a leak here discloses PII on top of a credential.
 
 ---
 
@@ -388,10 +428,23 @@ with remember-me, change the password, and confirm the reissued cookie still car
 `showAccount()` from inside an authenticated session.
 
 - Shows the current address (escaped) and hosts two forms: change password, change email.
-- **Two forms on one screen is the new wrinkle.** Each gets its own error region and
-  `aria-describedby`, its own disable-while-in-flight, and focus moved to its own first error or its
-  own confirmation. Announcements still go through the shared announcer outside `#app`, one message
-  at a time.
+- **Two forms on one screen is the new wrinkle**, and every auth screen so far has had exactly one, so
+  the announcer and the focus helpers have never had to disambiguate. Three rules, all three
+  load-bearing:
+  1. **Each form owns its own error region** — its own element, its own `aria-describedby`, its own
+     disable-while-in-flight. A submit in one form **never clears or rewrites the other's** error: the
+     user has not fixed it, and blanking it removes the only record of what is still wrong.
+  2. **Focus after any submit stays inside the submitting form** — its first invalid field on a
+     validation error, the announced summary on a server error that belongs to no field, and its own
+     heading on success. This is not optional bookkeeping: success clears both fields and therefore
+     repaints, and a full-`innerHTML` repaint that does not explicitly refocus drops the user on
+     `<body>`, which is the single most repeated frontend bug in this codebase.
+  3. **Each form gets its own `<h3>` and is associated with it via `aria-labelledby`.** Without it, a
+     screen-reader user landing in the second of two password-and-email-shaped forms has no way to
+     tell which one they are in.
+- Announcements still go through the shared announcer outside `#app`, which replaces rather than
+  stacks — so the most recent outcome is the one announced, and the error regions are what preserve
+  the older one.
 - `autocomplete="current-password"` and `autocomplete="new-password"` on the password form;
   `autocomplete="email"` on the email form.
 - The new-password field carries register's hint text and `minlength="12"`, wired with
@@ -412,13 +465,18 @@ with remember-me, change the password, and confirm the reissued cookie still car
 
 - Reads `userId`, `newEmail` and `code`, then `history.replaceState(null, "",
   "/confirm-email-change")` immediately.
+- **POSTs on mount**, with no button to press — the endpoint is a POST precisely so a mail scanner
+  following the emailed link cannot complete the change, and the shell-plus-JS shape is what makes that
+  true. Same as `/verify`.
 - Calls `hideAppChrome()` on mount, like every auth screen.
+- **Loads no third-party resources**, so no `Referer` can carry the token *or* the address off-site.
 - Four accessible states, each with its own message, focus and announcement:
   - **No link** — reload, bookmark or back-navigation arrives with nothing, because `replaceState`
     stripped it. Settled *before* the model subscription so it renders once, mirroring verify's
     `noLink()`: "Nothing to confirm — open the link from your email." No request is sent.
   - **Success** — "Your sign-in address is now …. Please sign in." with a link to `/login`. The
-    address is named from the response.
+    address comes from the `200` response body and is escaped on the way in — **never** from the
+    query-string value the controller is holding.
   - **Expired or used** — the accessible link-is-stale state, with a note that a new change can be
     started from Account settings. Never a raw error.
   - **Taken since** — "That address is now in use — try a different one from Account settings."
@@ -478,13 +536,22 @@ against a per-test throwaway PostgreSQL database. New files `AuthChangePasswordT
 
 - Anonymous → 401 on `/change-email`. The current address → 400 `same`. An address held by another
   account → 204 **with no mail sent**, asserted on the fake's recorded type and recipient.
-- An address held only as a `UserName` (the post-change-email state) → the same 204 with no mail.
+- An address held only as a `UserName` by **another** account → the same 204 with no mail. An address
+  held only as a `UserName` by **the caller** — the 409 half-changed state — proceeds and sends mail,
+  because that is the repair path out of the desync.
 - A free address → exactly one confirmation mail, to the **new** address, and none to the old one.
 - Confirmation applies both `Email` and `UserName`; login with the new address succeeds and login
   with the old one is 401.
 - **One notice to the old address**, after success only — not on a token failure, not on the 409.
 - A reused link → 400 `token`. A tampered `newEmail` with a valid-looking code → 400 `token`, because
   the token is bound to the address. A token minted for user A cannot change user B's address.
+- **An older change-email token still works after a newer one is issued** — the counterpart to the
+  reuse test, and the one that pins down what "single-use" does *not* mean here. Mirrors Plan 5's
+  equivalent for reset tokens; if it ever starts failing, the revocation model has changed and this
+  document is wrong.
+- **Success returns `200` with the stored address in the body**, matching what the row actually holds
+  rather than what was requested.
+- **`RefreshSignInAsync` failing still answers 204** — the password changed, so the response says so.
 - Every live session is refused after confirmation, including the one that requested the change.
 - The 409 path — a second account claims the address between request and confirmation.
 - **All three lifespans in one test** — change-email 1 hour, reset 1 hour, confirmation 24 — because
@@ -502,8 +569,13 @@ announcements, keyboard walk):
 - **Reloading `/confirm-email-change`** renders the no-link state and sends no request.
 - **A successful change-password leaves the user on the Account screen** — the `RefreshSignInAsync`
   check, and the one manual check that catches its absence.
-- **Both forms' error regions are independent** — an error in one does not steal focus from or
-  describe the other.
+- **Both forms' error regions are independent** — an error in one does not steal focus from,
+  describe, or **clear** the other. Checked in both directions: submit each form while the other is
+  showing an error.
+- **Focus lands inside the submitting form on every outcome**, and never on `<body>` — including
+  after a successful change-password, which repaints to clear its fields.
+- **Each form is reachable and identifiable by screen reader** — two `<h3>`s, each form associated
+  with its own via `aria-labelledby`.
 
 Exact per-task test totals are pinned when the plan is written, against the **253** baseline: a
 paste-driven edit once silently dropped three tests behind a green suite.
@@ -517,18 +589,20 @@ paste-driven edit once silently dropped three tests behind a green suite.
    Includes the three-lifespans assertion.
 2. **`POST /api/auth/change-password`** — validation ordering, the two 400 codes, lockout accounting,
    `RefreshSignInAsync`, and the acting-survives / others-die pair.
-3. **`POST /api/auth/change-email`** — the four branches behind one 204, including the
-   `FindByNameAsync` check.
+3. **`POST /api/auth/change-email`** — the four branches behind one 204, the `FindByNameAsync` check
+   with self excluded, and the older-token-still-works assertion.
 4. **`POST /api/auth/confirm-email-change`** — `ChangeEmailAsync` plus `SetUserNameAsync` on one
-   instance, the token/taken split, the old-address notice, and the `UserName` regression test.
-5. **The Account screen** — MVC trio, `showAccount()`, both forms, the Settings link, and the
-   persistence-survives-a-password-change assertion inherited from the remember-me PR.
-6. **The `/confirm-email-change` screen** — MVC trio, the anonymous route, `replaceState`, and the
-   four states.
-7. **Backlog and docs** — the new timing note folded into register's existing item;
-   `/confirm-email-change` added to the Plan 9 log-exclusion gate **with the note that it carries
-   PII, not only a token**; both new mail paths added to Plan 8's rate-limiting scope; the four
-   deviations recorded in the PR body.
+   instance, the token/taken split, the `200 { email }` body, the old-address notice, and the
+   `UserName` regression test.
+5. **The Account screen** — MVC trio, `showAccount()`, both forms with the three two-form rules, the
+   Settings link, and the persistence-survives-a-password-change assertion inherited from the
+   remember-me PR.
+6. **The `/confirm-email-change` screen** — MVC trio, the anonymous route, POST-on-mount,
+   `replaceState`, and the four states.
+7. **Docs** — the four deviations recorded in the PR body. **The backlog work is already done:** the
+   timing, rate-limiting and log-exclusion entries were extended on 2026-08-13, along with the
+   stolen-session entry from the stress test. Read them rather than re-deriving; nothing in
+   [`backlog.md`](backlog.md) is waiting on this plan.
 
 ---
 
@@ -555,12 +629,15 @@ paste-driven edit once silently dropped three tests behind a green suite.
 - **Lockout on change-password is a new denial surface**, mitigated only by the fact that anyone who
   can reach it already holds a session. Recorded because the reasoning must survive review rather
   than be re-derived under pressure.
-- **The Account screen has no URL, which is a deliberate loss.** A user cannot bookmark it, and a
-  refresh drops them on the board overview. Settings already behaves this way so it is consistent
-  rather than surprising, but Plan 7 puts account deletion here — and a destructive flow that
-  evaporates on refresh is more irritating than a preferences screen that does. If that turns out to
-  bite, the fix is a gated route, and the trap it opens is listed in the decisions table so whoever
-  adds it knows not to put it in the early `switch`.
+- **The Account screen has no URL, which is a deliberate loss with three edges, not one.** A user
+  cannot bookmark it; a refresh drops them on the board overview; and **a mid-flight 401 is the worst
+  of the three** — the auth gate bounces them to login, and after signing back in they land on the
+  board overview with no way back but Settings → Account, having lost whatever they had typed (the
+  unsaved-input deferral from Plan 4 applies here too). Settings already behaves this way so it is
+  consistent rather than surprising, but Plan 7 puts account deletion here, and a destructive flow that
+  evaporates on refresh is more irritating than a preferences screen that does. If it bites, the fix is
+  a gated route, and the trap that opens is in the decisions table so whoever adds it knows not to put
+  it in the early `switch`.
 
 ---
 
@@ -624,6 +701,16 @@ paste-driven edit once silently dropped three tests behind a green suite.
 2.0.1 sync. **The load-bearing finding is the `UserName` desync — verified against the `release/10.0`
 source, silent through every obvious test, and damaging to a third party rather than to the user who
 triggers it.** Two revisions after the first draft, both on review: **remember-me split out into its
-own PR ahead of the plan**, and **the Account screen given no URL**, matching Settings. Next: a stress
-test across security / privacy / accessibility / loopholes, then the implementation plan and Henry's
-guide.*
+own PR ahead of the plan**, and **the Account screen given no URL**, matching Settings.
+
+**Stress-tested 2026-08-13 across security / privacy / accessibility / loopholes — one critical
+finding, nine fixes folded in.** The critical one was that `/change-email` requires no password, so a
+stolen session becomes a permanent account takeover with no self-service recovery; **Malin's call was
+to leave it out of Plan 6**, and it is recorded in [`backlog.md`](backlog.md) as a Plan 8 launch gate
+with the full path written out. The nine folded in were the `200 { email }` response the success screen
+needs (the spec previously told the reader to render from a body that did not exist), the three
+two-form accessibility rules, the validator ordering, the third-party-resource rule restated for a URL
+that now carries PII, the POST-on-mount shape, `RefreshSignInAsync`'s failure handling, self-exclusion
+in the taken-address lookup, the non-revocation of an older token, and two understated risks.
+
+Next: the implementation plan and Henry's guide.*
