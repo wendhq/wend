@@ -35,3 +35,8 @@ a {
 	color: inherit;
 	text-decoration: none;
 }
+/* An author `display` beats the UA's [hidden] rule regardless of specificity, so any component
+   that sets display would otherwise render visible and keyboard-focusable while hidden. */
+[hidden] {
+	display: none !important;
+}

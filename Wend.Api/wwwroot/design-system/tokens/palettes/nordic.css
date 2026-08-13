@@ -1,0 +1,13 @@
+/*
+ * Nordic — Norwegian grotesk display over the Braille Institute's
+ * hyperlegible body. The accessibility-first skin; grotesk holds up at
+ * every heading size, so no small-heading exception is needed.
+ * Opt in with <html data-typeskin="nordic">.
+ */
+[data-typeskin="nordic"] {
+	--font-sans: "Atkinson Hyperlegible Next", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+	--font-display: "Schibsted Grotesk", "Atkinson Hyperlegible Next", sans-serif;
+	--weight-display: 700;
+	--tracking-display: -0.025em;
+	--tracking-heading: -0.015em;
+}

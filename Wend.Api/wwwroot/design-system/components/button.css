@@ -2,9 +2,9 @@
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	min-height: 2.75rem;
+	min-height: 2.625rem;
 	padding-inline: var(--space-4);
-	border-radius: var(--radius-md);
+	border-radius: var(--radius-sm);
 	border: 1px solid var(--border);
 	background: var(--interactive-bg);
 	color: var(--text);
@@ -23,13 +23,14 @@
 	transform: scale(0.985);
 }
 .btn-primary {
-	background: var(--accent-soft);
-	border-color: rgb(var(--accent-rgb) / 22%);
-	color: var(--text);
+	background: var(--accent-solid);
+	border-color: var(--accent-solid);
+	color: var(--on-accent);
+	font-weight: 600;
 }
 .btn-primary:hover {
-	background: rgb(var(--accent-rgb) / 20%);
-	border-color: rgb(var(--accent-strong-rgb) / 30%);
+	background: var(--accent-solid-strong);
+	border-color: var(--accent-solid-strong);
 }
 .btn-secondary {
 	background: var(--secondary-soft);
@@ -46,6 +47,6 @@
 	width: 100%;
 }
 .icon-btn {
-	width: 2.75rem;
+	width: 2.625rem;
 	padding: 0;
 }

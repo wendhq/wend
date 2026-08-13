@@ -14,7 +14,7 @@
 #>
 param(
   # Canonical design-system folder (the single source of truth).
-  [string]$Source = 'C:\Users\Nugget\Documents\Development\_template\design-system'
+  [string]$Source = 'C:\Users\Nugget\Documents\Development\workbench\libraries\design-system'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -26,8 +26,10 @@ if (-not (Test-Path $Source)) {
   Write-Error "Canonical design-system not found at '$Source'. Pass -Source <path> if it lives elsewhere."
 }
 
-# The parts Wend uses. (gallery/showcase are intentionally left out.)
-$parts = 'tokens','base','primitives','components','compositions','utilities','theme'
+# The parts Wend uses. (gallery/sandbox/docs are intentionally left out.)
+# 'assets' carries the self-hosted fonts the 2.x type identity depends on —
+# without it Sora/Figtree silently fall back to system fonts.
+$parts = 'tokens','base','primitives','components','compositions','utilities','theme','assets'
 
 # Mirror cleanly: wipe the old bundle first so files removed upstream don't linger as stale copies.
 if (Test-Path $dst) { Remove-Item $dst -Recurse -Force }

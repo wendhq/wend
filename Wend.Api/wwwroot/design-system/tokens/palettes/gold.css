@@ -12,4 +12,9 @@
 [data-theme="light"][data-palette="gold"] {
 	--accent-rgb: 168 124 26;
 	--accent-strong-rgb: 138 100 17;
+
+	/* Solid-button ink — the light-mode gold accent is too light for white
+	   text at AA contrast, so the button fill deepens (button-only, same
+	   hue) while --accent-solid-strong keeps its default (already passes). */
+	--accent-solid: #8f6916;
 }

@@ -3,5 +3,14 @@
  * A palette overrides only the channels it needs; everything else derives
  * from colors.css. Add a new brand = drop a file here + one @import line.
  */
+@import url("./_oled.css");
 @import url("./gold.css");
 @import url("./wend.css");
+@import url("./daily.css");
+@import url("./ignite.css");
+
+/* Type skins — opt-in via <html data-typeskin="NAME">; compose with any palette.
+   Imported after palettes so a skin's type tokens win on specificity ties (order decides). */
+@import url("./fraunces.css");
+@import url("./instrument.css");
+@import url("./nordic.css");

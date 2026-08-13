@@ -3,7 +3,7 @@
 	margin-inline: auto;
 	background: var(--surface-2);
 	border: 1px solid var(--border-strong);
-	border-radius: var(--radius-xl);
+	border-radius: var(--radius-lg);
 	padding: var(--space-6);
 	box-shadow: var(--shadow-md);
 }
