@@ -81,4 +81,44 @@ public class RealCookieAuthTests
             Assert.That(afterLogout.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized), "boards after logout");
         });
     }
+
+    [Test]
+    public async Task Remember_me_issues_a_cookie_that_survives_the_browser()
+    {
+        await RegisterAndConfirmAsync("remembered@example.test");
+
+        var signedIn = await _client.PostAsJsonAsync("/api/auth/login",
+            new { email = "remembered@example.test", password = GoodPassword, rememberMe = true });
+
+        // expires= is the entire difference between the two cases: a cookie carrying one is written
+        // to disk and outlives closing the browser, a cookie without one does not.
+        Assert.That(SessionCookie(signedIn), Does.Contain("expires=").IgnoreCase);
+    }
+
+    [Test]
+    public async Task Without_remember_me_the_cookie_dies_with_the_browser()
+    {
+        await RegisterAndConfirmAsync("forgotten@example.test");
+
+        // The field is omitted rather than sent as false, because that is what every client written
+        // before remember-me sends. It guards LoginRequest's default: drop it and this suite's
+        // other logins would silently start issuing persistent cookies nobody asked for.
+        var signedIn = await _client.PostAsJsonAsync("/api/auth/login",
+            new { email = "forgotten@example.test", password = GoodPassword });
+
+        Assert.That(SessionCookie(signedIn), Does.Not.Contain("expires=").IgnoreCase);
+    }
+
+    private async Task RegisterAndConfirmAsync(string address)
+    {
+        await _client.PostAsJsonAsync("/api/auth/register",
+            new { email = address, password = GoodPassword, displayName = "Malin" });
+
+        var query = HttpUtility.ParseQueryString(new Uri(_factory.Email.Sent.Single().Link).Query);
+        await _client.PostAsJsonAsync("/api/auth/verify",
+            new { userId = query["userId"], code = query["code"] });
+    }
+
+    private static string SessionCookie(HttpResponseMessage response) =>
+        response.Headers.GetValues("Set-Cookie").Single(c => c.StartsWith("wend.session="));
 }

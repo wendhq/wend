@@ -242,11 +242,13 @@ public static class AuthEndpoints
                 return Results.Unauthorized();
             }
 
+            // isPersistent decides whether the cookie carries an Expires date — so it survives
+            // closing the browser — or none at all, in which case it dies with the session. It does
+            // NOT change how long the ticket is valid: ExpireTimeSpan bounds both at seven sliding
+            // days.
             var result = await signIn.PasswordSignInAsync(
-                user, password, isPersistent: false, lockoutOnFailure: true);
+                user, password, isPersistent: req.RememberMe, lockoutOnFailure: true);
 
-            // isPersistent: false — the cookie dies with the browser session. Remember-me is Plan 6,
-            // and until it exists an opt-in nobody asked for is not the safe default.
             if (result.Succeeded) return Results.NoContent();
 
             // NotAllowed is the unconfirmed case. Identity returns it from PreSignInCheck BEFORE it
@@ -349,7 +351,9 @@ public record VerifyRequest(string UserId, string Code);
 
 public record ResendRequest(string Email);
 
-public record LoginRequest(string Email, string Password);
+// RememberMe defaults to false, so a client that omits it — every caller before this feature —
+// still gets a session cookie that dies with the browser. Opting in has to be explicit.
+public record LoginRequest(string Email, string Password, bool RememberMe = false);
 
 public record ForgotPasswordRequest(string Email);
 

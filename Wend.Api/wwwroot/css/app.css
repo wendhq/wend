@@ -453,6 +453,21 @@
   margin-block-start: var(--space-4);
 }
 
+/* Remember-me. The label wraps the box, so the whole row is the target: the box is 1.5rem, the
+   same size the checklist rows use, and the row itself keeps the 2.75rem floor every other
+   control in this form has. */
+.auth-remember {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 2.75rem;
+}
+
+.auth-remember input[type="checkbox"] {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
 .field-hint {
   margin: 0;
   font-size: var(--text-sm);

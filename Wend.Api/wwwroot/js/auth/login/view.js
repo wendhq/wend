@@ -37,6 +37,14 @@ export function createLoginView(root) {
           <input class="input" id="login-password" name="password" type="password" autocomplete="current-password"
             required />
 
+          <!-- The label wraps the box, so the words are part of the target and no for/id pairing
+               is needed. Re-rendered from state: a failed sign-in must not quietly drop the choice
+               the user already made. -->
+          <label class="auth-remember">
+            <input id="login-remember" name="rememberMe" type="checkbox"${state.rememberMe ? " checked" : ""} />
+            Keep me signed in
+          </label>
+
           <!-- .btn carries the design system's min-height: 2.75rem, which is what keeps this
                control at the 44x44 minimum target size. A bare <button> here measures 28px high. -->
           <button type="submit" class="btn btn-primary" data-role="submit">Sign in</button>
@@ -75,7 +83,12 @@ export function createLoginView(root) {
       if (!e.target.closest('form[data-action="submit"]')) return;
       e.preventDefault();
       const data = new FormData(e.target);
-      h.submit({ email: data.get("email") ?? "", password: data.get("password") ?? "" });
+      h.submit({
+        email: data.get("email") ?? "",
+        password: data.get("password") ?? "",
+        // An unchecked box is absent from FormData entirely, which is the only signal there is.
+        rememberMe: data.get("rememberMe") !== null,
+      });
     });
   }
 
