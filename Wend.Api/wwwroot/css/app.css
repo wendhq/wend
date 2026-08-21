@@ -512,6 +512,15 @@
   font-size: var(--text-sm);
 }
 
+/* These stay ordinary text links — native, and what anyone expects under a sign-in form. The
+   padding is only there to lift the clickable box to the 24px WCAG 2.5.8 (AA) minimum: a 14px
+   line of text measures 17px, and the links that sit alone in their own paragraph get no help
+   from the "inline in a sentence" exception. */
+.auth-links a {
+  display: inline-block;
+  padding-block: var(--space-1);
+}
+
 /* The [hidden] display guard that lived here moved upstream into the design system's reset
    (workbench#6, DS 2.0.1) — base/reset.css now carries it for every component. */
 
