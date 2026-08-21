@@ -163,14 +163,32 @@ Things we've consciously chosen to do *later*, each with the reason and the trig
 
 ### Auth-form text inputs are 32px high, under the 44×44 target minimum
 
-- **Now:** every `.auth-form` text input — register (Plan 3) and login (Plan 4) alike — measures
-  32px high at 375px wide. The submit buttons and the header chrome clear 44×44; the inputs do not.
-  Measured in the browser during Plan 4's Task 7 walk.
-- **Later:** raise the inputs to the same 2.75rem floor `.btn` uses, in the design system or in
-  `.auth-form`, so the whole form clears the minimum.
-- **Why deferred:** it predates this plan — the login screen inherited the register screen's
-  styling, so it is consistent rather than a regression, and the fix restyles every auth form,
-  which is a change that deserves its own review rather than riding along in the auth gate.
-- **Revisit when:** the next slice touches auth styling, or sooner if a real device makes them
-  awkward to hit.
-- **Decided:** 2026-08-11 (Slice 2a Plan 4).
+- **Resolved (2026-08-21):** the eight text inputs across the five `js/auth/*/view.js` screens now
+  carry `class="input"`, so they take the design system's `min-height: 2.75rem`. Measured against
+  the running app at 375×812 and 1280×900: every auth input is **51.59px** tall with a computed
+  `min-height: 44px`, where the same fields measured **31.59px** before.
+- **The trap it hid:** the fix was never a `min-height` override. The inputs carried **no class at
+  all**, so no design-system input styling ever applied to them and DS 2.0.2's 44px control floor
+  went straight past them. A raised floor in `.auth-form` would have worked too and left the real
+  cause in place.
+- **It traded one gap for another** — see the boundary-contrast entry below.
+- **Originally decided:** 2026-08-11 (Slice 2a Plan 4), measured in Plan 4's Task 7 walk.
+
+### A styled auth input has a 1.34:1 boundary against the page
+
+- **Now:** with `class="input"` the field is a `--surface-2` fill inside a 1px `--border` edge on a
+  `--page-bg` page — **1.09:1** fill-vs-page and **1.34:1** border-vs-page, measured on the running
+  app. WCAG 2.2 SC 1.4.11 (AA) asks for 3:1 on the visual information needed to identify a control.
+  The browser default these fields had before was a 2px `#858585` inset border at **5.13:1**, which
+  the SC exempts precisely because it is user-agent styling the author has not touched.
+- **No existing border token clears the bar:** `--border` 1.34:1, `--border-strong` 1.69:1,
+  `--line` is a hairline overlay. `--text-faint` reaches 5.91:1 but is a text token.
+- **Recommendation (Claude's, not yet adjudicated):** fix it upstream in `workbench`'s design system
+  — a control-boundary token at ≥3:1 — the way the 42px floor was fixed and synced back as DS 2.0.2,
+  rather than as a local `app.css` override that would leave every other consumer wrong.
+  `design-system/` is vendored read-only here either way.
+- **What still identifies the field meanwhile:** its visible label, the hint text below it, 16.09:1
+  text contrast inside the field, and a 2px `--accent-strong` focus ring at 9.15:1.
+- **Revisit when:** Malin picks upstream-vs-local. It is a launch-relevant AA gap on the only
+  screens the public reaches, so it wants an answer before Plan 9.
+- **Raised:** 2026-08-21, while adding `class="input"`.

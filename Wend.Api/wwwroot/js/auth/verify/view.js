@@ -38,7 +38,7 @@ export function createVerifyView(root) {
   const RESEND_FORM = `
     <form class="auth-form" data-action="resend">
       <label for="verify-email">Email</label>
-      <input id="verify-email" name="email" type="email" autocomplete="email"
+      <input class="input" id="verify-email" name="email" type="email" autocomplete="email"
         maxlength="254" required />
       <button type="submit" class="btn btn-primary" data-role="resend">Send a new link</button>
     </form>

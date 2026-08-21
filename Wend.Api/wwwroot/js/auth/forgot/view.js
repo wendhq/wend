@@ -21,7 +21,7 @@ export function createForgotView(root) {
         </div>` : ""}
         <form class="auth-form" data-action="submit">
           <label for="forgot-email">Email</label>
-          <input id="forgot-email" name="email" type="email" autocomplete="email"
+          <input class="input" id="forgot-email" name="email" type="email" autocomplete="email"
             maxlength="254" required value="${escapeHtml(state.email ?? "")}"
             aria-describedby="hint-forgot-email" />
           <p class="field-hint" id="hint-forgot-email">The address you signed up with.</p>
