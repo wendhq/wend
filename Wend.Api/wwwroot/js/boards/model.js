@@ -1,4 +1,5 @@
 import { api } from "../api.js";
+import { capitaliseFirst } from "../text.js";
 
 export function createBoardsModel() {
   let boards = [];
@@ -15,11 +16,11 @@ export function createBoardsModel() {
       notify();
     },
     async create(title) {
-      await api("/api/boards", { method: "POST", body: JSON.stringify({ title }) });
+      await api("/api/boards", { method: "POST", body: JSON.stringify({ title: capitaliseFirst(title) }) });
       await this.load();
     },
     async rename(id, title) {
-      await api(`/api/boards/${id}`, { method: "PUT", body: JSON.stringify({ title }) });
+      await api(`/api/boards/${id}`, { method: "PUT", body: JSON.stringify({ title: capitaliseFirst(title) }) });
       await this.load();
     },
     async remove(id) {
