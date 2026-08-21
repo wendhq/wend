@@ -1,4 +1,5 @@
 import { api } from "../api.js";
+import { capitaliseFirst } from "../text.js";
 
 // State + data for a single board's lists. Re-fetches the board detail after each change
 // so positions always come straight from the server. No DOM. Subscribers notified on change.
@@ -17,11 +18,11 @@ export function createBoardModel(boardId) {
             notify();
         },
         async create(title) {
-            await api(`/api/boards/${boardId}/lists`, { method: "POST", body: JSON.stringify({ title }) });
+            await api(`/api/boards/${boardId}/lists`, { method: "POST", body: JSON.stringify({ title: capitaliseFirst(title) }) });
             await this.load();
         },
         async rename(id, title) {
-            await api(`/api/lists/${id}`, { method: "PUT", body: JSON.stringify({ title }) });
+            await api(`/api/lists/${id}`, { method: "PUT", body: JSON.stringify({ title: capitaliseFirst(title) }) });
             await this.load();
         },
         async remove(id) {
@@ -33,7 +34,7 @@ export function createBoardModel(boardId) {
             await this.load();
         },
         async createCard(listId, title) {
-            await api(`/api/lists/${listId}/cards`, { method: "POST", body: JSON.stringify({ title }) });
+            await api(`/api/lists/${listId}/cards`, { method: "POST", body: JSON.stringify({ title: capitaliseFirst(title) }) });
             await this.load();
         },
         async moveCard(id, listId, position) {
