@@ -183,12 +183,13 @@ Things we've consciously chosen to do *later*, each with the reason and the trig
   the SC exempts precisely because it is user-agent styling the author has not touched.
 - **No existing border token clears the bar:** `--border` 1.34:1, `--border-strong` 1.69:1,
   `--line` is a hairline overlay. `--text-faint` reaches 5.91:1 but is a text token.
-- **Recommendation (Claude's, not yet adjudicated):** fix it upstream in `workbench`'s design system
-  — a control-boundary token at ≥3:1 — the way the 42px floor was fixed and synced back as DS 2.0.2,
-  rather than as a local `app.css` override that would leave every other consumer wrong.
-  `design-system/` is vendored read-only here either way.
+- **Decided 2026-08-21 (Malin): fix it upstream in `workbench`'s design system** — a control-boundary
+  token at ≥3:1 — the way the 42px floor was fixed and synced back as DS 2.0.2. **No local
+  `app.css` override**: the point of a shared design system is that consumers stay in sync, and an
+  override here would fix Wend's auth screens while leaving every other consumer wrong and Wend
+  itself carrying a second source of truth for the same number. `design-system/` stays read-only.
 - **What still identifies the field meanwhile:** its visible label, the hint text below it, 16.09:1
   text contrast inside the field, and a 2px `--accent-strong` focus ring at 9.15:1.
-- **Revisit when:** Malin picks upstream-vs-local. It is a launch-relevant AA gap on the only
+- **Revisit when:** the workbench token lands and syncs into Wend. It is a launch-relevant AA gap on the only
   screens the public reaches, so it wants an answer before Plan 9.
 - **Raised:** 2026-08-21, while adding `class="input"`.
