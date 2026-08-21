@@ -2,9 +2,17 @@
 // each submit — the view never sees them.
 export function createResetController(model, view, announce, { userId, code, onDone } = {}) {
   let seenFirstRender = false;
+  let passwordVisible = false;
 
   view.bindActions({
     submit: ({ password }) => model.submit({ userId, code, password }),
+    // Announced rather than left to aria-pressed alone: the button's accessible name changes with
+    // the state, and a name change by itself is not something screen readers reliably speak.
+    reveal: () => {
+      passwordVisible = !passwordVisible;
+      view.setPasswordVisible(passwordVisible);
+      announce(passwordVisible ? "Password shown." : "Password hidden.");
+    },
   });
 
   // Settle the no-link case BEFORE subscribing, so that arrival renders and announces once instead
@@ -27,6 +35,8 @@ export function createResetController(model, view, announce, { userId, code, onD
 
     view.render(state);
     view.setBusy(false);
+    // render() rebuilt the screen, so the field is a fresh, hidden one again.
+    passwordVisible = false;
 
     // Unlike register and login, the FIRST render here is already a result — this screen is reached
     // by clicking a link in an email, and "nothing to reset" is an outcome the user must hear.

@@ -4,11 +4,19 @@ import { api } from "../../api.js";
 export function createRegisterController(model, view, announce) {
   let lastEmail = "";
   let seenFirstRender = false;
+  let passwordVisible = false;
 
   view.bindActions({
     submit: (fields) => {
       lastEmail = fields.email;
       model.submit(fields);
+    },
+    // Announced rather than left to aria-pressed alone: the button's accessible name changes with
+    // the state, and a name change by itself is not something screen readers reliably speak.
+    reveal: () => {
+      passwordVisible = !passwordVisible;
+      view.setPasswordVisible(passwordVisible);
+      announce(passwordVisible ? "Password shown." : "Password hidden.");
     },
     resend: async () => {
       try {
@@ -32,6 +40,8 @@ export function createRegisterController(model, view, announce) {
 
     view.render(state);
     view.setBusy(false);
+    // render() rebuilt the screen, so the field is a fresh, hidden one again.
+    passwordVisible = false;
 
     // The first render is the empty form on page load: announce nothing, and leave focus for the
     // skip link. Every later render is a submit result and gets both.
