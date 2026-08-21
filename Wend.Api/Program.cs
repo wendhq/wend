@@ -176,8 +176,19 @@ using (var scope = app.Services.CreateScope())
 app.UseExceptionHandler(b => b.Run(ctx => { ctx.Response.StatusCode = 500; return Task.CompletedTask; }));
 
 // Serve the vanilla-JS frontend (wwwroot) same-origin.
+//
+// Development adds Cache-Control: no-cache so every reload revalidates. Without it UseStaticFiles
+// sends no cache header at all, the browser falls back to its own heuristic, and a normal reload
+// keeps serving stale JS/CSS from an earlier :5174 session — two "bugs" in the 2026-07-08
+// accessibility sweep turned out to be cache ghosts. no-cache still stores the response, so a
+// revalidation that finds nothing changed answers 304 instead of resending the file. Production
+// keeps the default, where caching static assets is the point.
+var staticFiles = new StaticFileOptions();
+if (app.Environment.IsDevelopment())
+    staticFiles.OnPrepareResponse = ctx => ctx.Context.Response.Headers.CacheControl = "no-cache";
+
 app.UseDefaultFiles();
-app.UseStaticFiles();
+app.UseStaticFiles(staticFiles);
 
 app.UseAuthentication();
 app.UseAuthorization();
@@ -203,8 +214,10 @@ app.MapGroup("/api/auth").MapAuthEndpoints(publicBaseUrl);
 // segments outrank a catch-all, so every real endpoint above still matches first.
 app.Map("/api/{**path}", () => Results.NotFound());
 
-// Any non-API path renders the SPA shell; the client handles routing from there.
-app.MapFallbackToFile("index.html");
+// Any non-API path renders the SPA shell; the client handles routing from there. It takes the same
+// options because the fallback serves index.html through its own static-file pipeline rather than
+// the middleware above — without them the shell alone would still come back from cache.
+app.MapFallbackToFile("index.html", staticFiles);
 
 Console.WriteLine($"Wend → http://127.0.0.1:{port}");
 
