@@ -26,7 +26,8 @@ export function createVerifyView(root) {
       <p>We couldn't confirm your address just now. Request a new link below.</p>`,
     sent: `
       <h2 class="auth-heading" tabindex="-1">Check your email</h2>
-      <p>If that address needs confirming, we've sent a new link. It lasts 24 hours.</p>`,
+      <p>If that address needs confirming, we've sent a new link. It lasts 24 hours.</p>
+      <p class="auth-links"><a href="/login">Back to sign in</a>.</p>`,
   };
 
   // The register link is not decoration. An account left unconfirmed for a week is deleted, so the

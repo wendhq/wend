@@ -1,8 +1,18 @@
 // Wires the login view: submits, announces every outcome, moves focus deliberately.
 export function createLoginController(model, view, announce, { onSignedIn }) {
   let seenFirstRender = false;
+  let passwordVisible = false;
 
-  view.bindActions({ submit: (fields) => model.submit(fields) });
+  view.bindActions({
+    submit: (fields) => model.submit(fields),
+    // Announced rather than left to aria-pressed alone: the button's accessible name changes with
+    // the state, and a name change by itself is not something screen readers reliably speak.
+    reveal: () => {
+      passwordVisible = !passwordVisible;
+      view.setPasswordVisible(passwordVisible);
+      announce(passwordVisible ? "Password shown." : "Password hidden.");
+    },
+  });
 
   model.subscribe((state) => {
     if (state.status === "sending") {
@@ -19,6 +29,8 @@ export function createLoginController(model, view, announce, { onSignedIn }) {
 
     view.render(state);
     view.setBusy(false);
+    // render() rebuilt the form, so the field is a fresh, hidden one again.
+    passwordVisible = false;
 
     // The first render is the empty form: announce nothing, and leave focus where the caller put
     // it (the heading, with its own reason announced if there was one). Every later render is a

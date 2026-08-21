@@ -42,8 +42,12 @@ export function createResetView(root) {
           <!-- minlength mirrors the server's policy so the browser gives native, per-field,
                accessible feedback before the request goes out. -->
           <label for="reset-password">New password</label>
-          <input class="input" id="reset-password" name="password" type="password" autocomplete="new-password"
-            minlength="12" required aria-describedby="hint-reset-password" />
+          <div class="password-field">
+            <input class="input" id="reset-password" name="password" type="password" autocomplete="new-password"
+              minlength="12" required aria-describedby="hint-reset-password" />
+            <button type="button" class="btn btn-ghost" data-action="reveal"
+              aria-label="Show password" aria-controls="reset-password">Show</button>
+          </div>
           <p class="field-hint" id="hint-reset-password">At least 12 characters. A memorable phrase beats a short tangle of symbols.</p>
 
           <button type="submit" class="btn btn-primary" data-role="submit">Set the password</button>
@@ -52,6 +56,17 @@ export function createResetView(root) {
   }
 
   function focusHeading() { root.querySelector(".auth-heading")?.focus(); }
+
+  // Presentation only, and deliberately NOT model state: whether a password is on screen has no
+  // business surviving a re-render, and every re-render here follows a failed submit.
+  function setPasswordVisible(visible) {
+    const field = root.querySelector("#reset-password");
+    const button = root.querySelector('[data-action="reveal"]');
+    if (!field || !button) return;
+    field.type = visible ? "text" : "password";
+    button.textContent = visible ? "Hide" : "Show";
+    button.setAttribute("aria-label", visible ? "Hide password" : "Show password");
+  }
 
   // A server-side error belongs to no field, so focus goes to the summary. Per-field errors are
   // left to native validation, which focuses the offending input itself.
@@ -76,7 +91,10 @@ export function createResetView(root) {
       const data = new FormData(e.target);
       h.submit({ password: data.get("password") ?? "" });
     });
+    root.addEventListener("click", (e) => {
+      if (e.target.closest('[data-action="reveal"]')) h.reveal();
+    });
   }
 
-  return { render, focusHeading, focusFirstError, setBusy, bindActions };
+  return { render, focusHeading, focusFirstError, setBusy, setPasswordVisible, bindActions };
 }

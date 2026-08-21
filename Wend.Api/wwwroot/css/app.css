@@ -453,6 +453,21 @@
   margin-block-start: var(--space-4);
 }
 
+/* A password field and its reveal button. The button sits after the input rather than floating
+   inside it: it keeps a real 44x44 target of its own, and it never covers the text a password
+   manager filled in. min-width: 0 because a flex item will not shrink below its intrinsic width
+   without it, which would push the button off a 375px screen. */
+.password-field {
+  display: flex;
+  align-items: start;
+  gap: var(--space-2);
+}
+
+.password-field .input {
+  flex: 1;
+  min-width: 0;
+}
+
 /* Remember-me. The label wraps the box, so the whole row is the target: the box is 1.5rem, the
    same size the checklist rows use, and the row itself keeps the 2.75rem floor every other
    control in this form has. */
