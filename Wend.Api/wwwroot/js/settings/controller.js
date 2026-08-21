@@ -12,6 +12,14 @@ export function createSettingsController(model, view, announce, { onBack } = {})
       view.focusPref(key);      // return focus to the flipped checkbox
       announce(`${NAMES[key] ?? "Setting"} ${value ? "on" : "off"}.`);
     },
+    setTheme: (theme) => {
+      model.setTheme(theme);
+      // <html> sits above every view root, so no view owns it: the inline script in index.html
+      // sets it on load to avoid a flash of the wrong theme, and this sets it on change.
+      document.documentElement.dataset.theme = theme;
+      view.focusTheme();
+      announce(theme === "light" ? "Light theme." : "Dark theme.");
+    },
   });
   model.subscribe((prefs) => view.render(prefs));
 }

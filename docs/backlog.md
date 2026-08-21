@@ -53,11 +53,18 @@ Things we've consciously chosen to do *later*, each with the reason and the trig
 
 ### Dev static-file caching — a no-cache header for local development
 
-- **Now:** `UseStaticFiles` sends no `Cache-Control`, so a dev browser can serve stale JS/CSS from earlier `127.0.0.1:5174` sessions and a normal reload won't revalidate ES-module imports — two "bugs" in the 2026-07-08 a11y sweep were cache ghosts. Workaround: hard-reload / disable cache before every browser check.
-- **Later:** a dev-only middleware that sets `Cache-Control: no-cache` on static files (Development environment only), so reloads always revalidate.
-- **Why deferred:** out of Plan 8's frontend-only scope; the hard-reload habit is a working stopgap and this touches server startup config.
-- **Revisit when:** the next housekeeping pass, or if stale-cache ghosts keep biting acceptance runs.
-- **Decided:** 2026-07-08 (Malin, Plan 8).
+- **The trap:** `UseStaticFiles` sends no `Cache-Control` at all, so a dev browser served stale JS/CSS from earlier `127.0.0.1:5174` sessions and a normal reload would not revalidate ES-module imports — two "bugs" in the 2026-07-08 a11y sweep were cache ghosts. The standing workaround was to hard-reload / disable cache before every browser check.
+- **Resolved (2026-08-21):** Development sets `Cache-Control: no-cache` through
+  `StaticFileOptions.OnPrepareResponse` in [`Program.cs`](../Wend.Api/Program.cs). `no-cache` still
+  stores the response but revalidates, so an unchanged file costs a 304 rather than a resend.
+  Production keeps the default. `MapFallbackToFile` takes the same options because it serves
+  `index.html` through its own static-file pipeline — without them the shell alone would still come
+  back from cache. Guarded by `ApiSmokeTests.Static_files_are_no_cache_in_development` and
+  `The_shell_is_no_cache_in_development`, both verified red with the change reverted.
+- **The hard-reload habit is no longer required in Development**, and the same housekeeping pass
+  added `Wend.Api/Properties/launchSettings.json`, so `ASPNETCORE_ENVIRONMENT` no longer has to be
+  set by hand before `dotnet run`.
+- **Originally decided:** 2026-07-08 (Malin, Plan 8).
 
 ### Register leaks account existence through timing
 

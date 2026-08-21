@@ -21,6 +21,23 @@ export function setPref(key, value) {
   localStorage.setItem(KEY, JSON.stringify({ ...prefs, [key]: value === true }));
 }
 
+// Theme. Stored under the design system's own "theme" key rather than inside wend.prefs, because
+// the inline script in index.html reads it before any module loads - that script is what stops a
+// dark-mode user seeing a flash of light on first paint, and it cannot wait for an import.
+// Unknown or hand-edited values fall back to dark, which is this project's default.
+const THEME_KEY = "theme";
+const THEMES = ["dark", "light"];
+
+export function getTheme() {
+  const stored = localStorage.getItem(THEME_KEY);
+  return THEMES.includes(stored) ? stored : "dark";
+}
+
+export function setTheme(theme) {
+  if (!THEMES.includes(theme)) return; // unknown value -> ignore, same as setPref
+  localStorage.setItem(THEME_KEY, theme);
+}
+
 // Remembered "currently viewed" list per board (mobile single-list switcher). Stored as a
 // { boardId: listId } map under its own key. Reads validate to a number; anything else → null,
 // so the caller falls back to the first list.

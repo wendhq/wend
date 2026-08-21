@@ -47,6 +47,34 @@ public class ApiSmokeTests
     }
 
     [Test]
+    public async Task Static_files_are_no_cache_in_development()
+    {
+        await using var factory = new WendApiFactory();
+        using var client = factory.CreateClient();
+
+        var response = await client.GetAsync("/css/app.css");
+
+        // Without the header the browser applies its own heuristic and a normal reload keeps
+        // serving an earlier session's JS/CSS. Two "bugs" in the 2026-07-08 accessibility sweep
+        // were that, so the dev header is worth a guard.
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        Assert.That(response.Headers.CacheControl?.NoCache, Is.True);
+    }
+
+    [Test]
+    public async Task The_shell_is_no_cache_in_development()
+    {
+        await using var factory = new WendApiFactory();
+        using var client = factory.CreateClient();
+
+        // MapFallbackToFile serves index.html through its own static-file pipeline, so it takes the
+        // options separately — the middleware's copy never reaches it.
+        var response = await client.GetAsync("/boards/42");
+
+        Assert.That(response.Headers.CacheControl?.NoCache, Is.True);
+    }
+
+    [Test]
     public async Task An_unmatched_non_api_route_still_serves_the_shell()
     {
         await using var factory = new WendApiFactory();

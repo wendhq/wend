@@ -35,7 +35,7 @@ Design docs and build plans live in [`docs/`](docs).
   scaffolded Identity UI, so the frontend keeps its no-build-step, accessibility-first character
 - EF Core → PostgreSQL for storage, with EF migrations, behind per-entity repository seams
 - Vanilla-JavaScript MVC frontend, served from `wwwroot`
-- NUnit — 253 tests
+- NUnit — 255 tests
 
 ## Structure
 
@@ -61,15 +61,25 @@ dotnet user-secrets set "ConnectionStrings:WendDb" "Host=localhost;Port=5432;Dat
 
 Wend reads that secret only in the Development environment, and it **refuses to start outside it**
 until a real email provider is configured — an auth system that cannot send mail should not boot.
-There is no `launchSettings.json`, so set the environment explicitly:
+`Wend.Api/Properties/launchSettings.json` sets that environment for you, so running it is one command:
+
+```
+dotnet run --project Wend.Api
+```
+
+The profile sets no `applicationUrl` on purpose — Kestrel's address comes from `Wend:Port` in
+`Program.cs` and binds `127.0.0.1:5174`. Starting the app any other way (the built binary, your own
+profile) still needs the environment set by hand:
 
 ```
 $env:ASPNETCORE_ENVIRONMENT = "Development"   # PowerShell
-dotnet run --project Wend.Api
 ```
 
 Without it you get `ConnectionStrings:WendDb is not configured`, which looks like a missing secret and
 is really a missing environment variable.
+
+In Development, static files are served with `Cache-Control: no-cache`, so an ordinary reload picks up
+edited JavaScript and CSS — no hard-reload dance.
 
 Then open http://127.0.0.1:5174. You will land on the sign-in screen, because every board belongs to a
 user now.
