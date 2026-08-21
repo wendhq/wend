@@ -34,8 +34,22 @@ export function createLoginView(root) {
           <!-- current-password, not new-password: this is what tells a password manager to offer
                the saved credential rather than generate a fresh one. -->
           <label for="login-password">Password</label>
-          <input class="input" id="login-password" name="password" type="password" autocomplete="current-password"
-            required />
+          <!-- The reveal button sits after the field in the flow rather than floating inside it,
+               so it keeps its own 44x44 target and never covers what a password manager fills. -->
+          <div class="password-field">
+            <input class="input" id="login-password" name="password" type="password" autocomplete="current-password"
+              required />
+            <button type="button" class="btn btn-ghost" data-action="reveal"
+              aria-label="Show password" aria-controls="login-password">Show</button>
+          </div>
+
+          <!-- The label wraps the box, so the words are part of the target and no for/id pairing
+               is needed. Re-rendered from state: a failed sign-in must not quietly drop the choice
+               the user already made. -->
+          <label class="auth-remember">
+            <input id="login-remember" name="rememberMe" type="checkbox"${state.rememberMe ? " checked" : ""} />
+            Keep me signed in
+          </label>
 
           <!-- .btn carries the design system's min-height: 2.75rem, which is what keeps this
                control at the 44x44 minimum target size. A bare <button> here measures 28px high. -->
@@ -48,6 +62,17 @@ export function createLoginView(root) {
   }
 
   function focusHeading() { root.querySelector(".auth-heading")?.focus(); }
+
+  // Presentation only, and deliberately NOT model state: whether a password is on screen has no
+  // business surviving a re-render, and every re-render here follows a failed sign-in.
+  function setPasswordVisible(visible) {
+    const field = root.querySelector("#login-password");
+    const button = root.querySelector('[data-action="reveal"]');
+    if (!field || !button) return;
+    field.type = visible ? "text" : "password";
+    button.textContent = visible ? "Hide" : "Show";
+    button.setAttribute("aria-label", visible ? "Hide password" : "Show password");
+  }
 
   // A server-side 401 belongs to no field, so focus goes to the summary. Per-field errors are
   // left to native validation, which focuses the offending input itself — sending focus to the
@@ -75,9 +100,17 @@ export function createLoginView(root) {
       if (!e.target.closest('form[data-action="submit"]')) return;
       e.preventDefault();
       const data = new FormData(e.target);
-      h.submit({ email: data.get("email") ?? "", password: data.get("password") ?? "" });
+      h.submit({
+        email: data.get("email") ?? "",
+        password: data.get("password") ?? "",
+        // An unchecked box is absent from FormData entirely, which is the only signal there is.
+        rememberMe: data.get("rememberMe") !== null,
+      });
+    });
+    root.addEventListener("click", (e) => {
+      if (e.target.closest('[data-action="reveal"]')) h.reveal();
     });
   }
 
-  return { render, focusHeading, focusError, focusHelp, setBusy, bindActions };
+  return { render, focusHeading, focusError, focusHelp, setBusy, setPasswordVisible, bindActions };
 }

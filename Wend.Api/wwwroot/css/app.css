@@ -453,6 +453,36 @@
   margin-block-start: var(--space-4);
 }
 
+/* A password field and its reveal button. The button sits after the input rather than floating
+   inside it: it keeps a real 44x44 target of its own, and it never covers the text a password
+   manager filled in. min-width: 0 because a flex item will not shrink below its intrinsic width
+   without it, which would push the button off a 375px screen. */
+.password-field {
+  display: flex;
+  align-items: start;
+  gap: var(--space-2);
+}
+
+.password-field .input {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Remember-me. The label wraps the box, so the whole row is the target: the box is 1.5rem, the
+   same size the checklist rows use, and the row itself keeps the 2.75rem floor every other
+   control in this form has. */
+.auth-remember {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 2.75rem;
+}
+
+.auth-remember input[type="checkbox"] {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
 .field-hint {
   margin: 0;
   font-size: var(--text-sm);
@@ -480,6 +510,15 @@
 .auth-links {
   margin: 0;
   font-size: var(--text-sm);
+}
+
+/* These stay ordinary text links — native, and what anyone expects under a sign-in form. The
+   padding is only there to lift the clickable box to the 24px WCAG 2.5.8 (AA) minimum: a 14px
+   line of text measures 17px, and the links that sit alone in their own paragraph get no help
+   from the "inline in a sentence" exception. */
+.auth-links a {
+  display: inline-block;
+  padding-block: var(--space-1);
 }
 
 /* The [hidden] display guard that lived here moved upstream into the design system's reset
