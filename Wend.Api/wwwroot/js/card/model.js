@@ -1,4 +1,5 @@
 import { api } from "../api.js";
+import { capitaliseFirst } from "../text.js";
 
 // State for one card plus its board's label palette. Re-fetches after every change so the view
 // always shows server truth. No DOM. Subscribers get (card, palette).
@@ -18,8 +19,9 @@ export function createCardModel(cardId) {
       palette = await api(`/api/boards/${card.boardId}/labels`);
       notify();
     },
+    // description is left exactly as typed: notes are prose, and prose is the writer's business.
     async save({ title, description, dueDate }) {
-      await api(`/api/cards/${cardId}`, { method: "PUT", body: JSON.stringify({ title, description, dueDate }) });
+      await api(`/api/cards/${cardId}`, { method: "PUT", body: JSON.stringify({ title: capitaliseFirst(title), description, dueDate }) });
       await this.load();
     },
     async setDone(completed) {
@@ -27,7 +29,7 @@ export function createCardModel(cardId) {
       await this.load();
     },
     async addItem(text) {
-      await api(`/api/cards/${cardId}/checklist-items`, { method: "POST", body: JSON.stringify({ text }) });
+      await api(`/api/cards/${cardId}/checklist-items`, { method: "POST", body: JSON.stringify({ text: capitaliseFirst(text) }) });
       await this.load();
     },
     async checkItem(id, checked) {
@@ -35,7 +37,7 @@ export function createCardModel(cardId) {
       await this.load();
     },
     async renameItem(id, text) {
-      await api(`/api/checklist-items/${id}`, { method: "PUT", body: JSON.stringify({ text }) });
+      await api(`/api/checklist-items/${id}`, { method: "PUT", body: JSON.stringify({ text: capitaliseFirst(text) }) });
       await this.load();
     },
     async moveItem(id, position) {
@@ -58,12 +60,12 @@ export function createCardModel(cardId) {
       await this.load();
     },
     async createLabel(name, colour) {
-      const label = await api(`/api/boards/${card.boardId}/labels`, { method: "POST", body: JSON.stringify({ name, colour }) });
+      const label = await api(`/api/boards/${card.boardId}/labels`, { method: "POST", body: JSON.stringify({ name: capitaliseFirst(name), colour }) });
       await api(`/api/cards/${cardId}/labels`, { method: "POST", body: JSON.stringify({ labelId: label.id }) }); // auto-attach
       await this.load();
     },
     async editLabel(id, name, colour) {
-      await api(`/api/labels/${id}`, { method: "PUT", body: JSON.stringify({ name, colour }) });
+      await api(`/api/labels/${id}`, { method: "PUT", body: JSON.stringify({ name: capitaliseFirst(name), colour }) });
       await this.load();
     },
     async deleteLabel(id) {
