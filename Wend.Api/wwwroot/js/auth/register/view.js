@@ -26,12 +26,12 @@ export function createRegisterView(root) {
         </div>` : ""}
         <form class="auth-form" data-action="submit">
           <label for="reg-name">Display name</label>
-          <input id="reg-name" name="displayName" type="text" autocomplete="nickname"
+          <input class="input" id="reg-name" name="displayName" type="text" autocomplete="nickname"
             maxlength="100" required aria-describedby="hint-reg-name" />
           <p class="field-hint" id="hint-reg-name">What other people will see. You can change it later.</p>
 
           <label for="reg-email">Email</label>
-          <input id="reg-email" name="email" type="email" autocomplete="email"
+          <input class="input" id="reg-email" name="email" type="email" autocomplete="email"
             maxlength="254" required aria-describedby="hint-reg-email" />
           <p class="field-hint" id="hint-reg-email">You'll sign in with this, and we'll send a confirmation link to it.</p>
 
@@ -39,7 +39,7 @@ export function createRegisterView(root) {
                accessible feedback. The server's 400 is a lumped message with no field attribution,
                which is the one accessibility commitment this screen would otherwise miss. -->
           <label for="reg-password">Password</label>
-          <input id="reg-password" name="password" type="password" autocomplete="new-password"
+          <input class="input" id="reg-password" name="password" type="password" autocomplete="new-password"
             minlength="12" required aria-describedby="hint-reg-password" />
           <p class="field-hint" id="hint-reg-password">At least 12 characters. A memorable phrase beats a short tangle of symbols.</p>
 

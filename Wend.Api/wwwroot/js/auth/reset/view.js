@@ -42,7 +42,7 @@ export function createResetView(root) {
           <!-- minlength mirrors the server's policy so the browser gives native, per-field,
                accessible feedback before the request goes out. -->
           <label for="reset-password">New password</label>
-          <input id="reset-password" name="password" type="password" autocomplete="new-password"
+          <input class="input" id="reset-password" name="password" type="password" autocomplete="new-password"
             minlength="12" required aria-describedby="hint-reset-password" />
           <p class="field-hint" id="hint-reset-password">At least 12 characters. A memorable phrase beats a short tangle of symbols.</p>
 

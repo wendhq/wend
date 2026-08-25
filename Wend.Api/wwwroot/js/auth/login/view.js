@@ -28,13 +28,13 @@ export function createLoginView(root) {
         </div>` : ""}
         <form class="auth-form" data-action="submit">
           <label for="login-email">Email</label>
-          <input id="login-email" name="email" type="email" autocomplete="email"
+          <input class="input" id="login-email" name="email" type="email" autocomplete="email"
             maxlength="254" required />
 
           <!-- current-password, not new-password: this is what tells a password manager to offer
                the saved credential rather than generate a fresh one. -->
           <label for="login-password">Password</label>
-          <input id="login-password" name="password" type="password" autocomplete="current-password"
+          <input class="input" id="login-password" name="password" type="password" autocomplete="current-password"
             required />
 
           <!-- .btn carries the design system's min-height: 2.75rem, which is what keeps this
