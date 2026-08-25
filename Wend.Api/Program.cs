@@ -107,8 +107,10 @@ builder.Services.ConfigureApplicationCookie(options =>
         ? CookieSecurePolicy.SameAsRequest
         : CookieSecurePolicy.Always;
 
-    // Non-persistent: every login in this plan issues a session cookie that dies with the browser.
-    // Plan 6 adds remember-me as a deliberate opt-in. ExpireTimeSpan still bounds the ticket.
+    // ExpireTimeSpan bounds every ticket, remembered or not. What remember-me changes is only
+    // whether the cookie is written with an Expires date and so survives closing the browser;
+    // without it the cookie is a session cookie. Both slide, and both lapse after seven days of
+    // not being used.
     options.ExpireTimeSpan = TimeSpan.FromDays(7);
     options.SlidingExpiration = true;
 
