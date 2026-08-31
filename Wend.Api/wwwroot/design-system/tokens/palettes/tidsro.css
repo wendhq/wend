@@ -1,0 +1,54 @@
+/*
+ * Tidsro — the palette as shipped in the WPF app (2026-08-18), ported to the web tokens.
+ * Neutral near-black surfaces lifted just off pure black, with the icon's brass gold as the
+ * only saturated colour in the system. Opt in with <html data-palette="tidsro">.
+ *
+ * Two rules carried over from the app, both learned the hard way:
+ *   - surface-1 is #0a0a0a, NOT #000000. Tidsro's cards are separated by drop shadows, and a
+ *     black shadow on a black page darkens nothing — the whole depth model renders as flat.
+ *     Pure black stays available as surface-0 for overlays that do not cast.
+ *   - The surfaces carry no hue at all. Two earlier attempts tinted them warm (walnut brown)
+ *     and both read as muddy across a full window; the warmth belongs in the accent and the
+ *     text, which is why --text here is an ivory rather than a blue-white.
+ */
+[data-palette="tidsro"] {
+	/* surface-0 is reserved true black — overlays and menus that cast no shadow. */
+	--surface-0: #000000;
+
+	--surface-1: #0a0a0a;
+	--surface-2: #141414;
+	--surface-3: #1e1e1e;
+	--surface-4: #262626;
+	--surface-5: #303030;
+
+	--text: #f4f1ec;
+	--text-muted: #b0a9a0;
+	--text-faint: #938d85;
+
+	/* border-strong is the control affordance and carries WCAG 1.4.11's 3:1 — warm graphite,
+	   deliberately just above the gate rather than well over it. A mid-grey loud enough to see
+	   from across the window is what "washed out" looks like. */
+	--border: #3a3a3a;
+	--border-strong: #78726b;
+	--border-soft: #262626;
+
+	/* Control boundary (SC 1.4.11, see colors.css) — border-strong IS tidsro's
+	   control affordance (see above) and already clears the gate: 4.17:1 on the
+	   page, 3.88:1 on the --surface-2 field. */
+	--control-border: var(--border-strong);
+
+	/* Brass — the gold that already sits in Tidsro's pine-in-hourglass mark. The UI follows the
+	   icon, not the reverse; do not drift one without the other. */
+	--accent-rgb: 227 179 65;
+	--accent-strong-rgb: 240 197 92;
+	--danger-rgb: 217 115 106;
+}
+
+/* Light mode keeps the base light surfaces, but the brass has to come down hard: #e3b341 measures
+   1.95:1 on white and fails AA everywhere. This darker brass reads 5.21:1 on white and 4.89:1 on
+   surface-1, so accent text stays legible without changing hue. */
+[data-theme="light"][data-palette="tidsro"] {
+	--accent-rgb: 138 103 24;
+	--accent-strong-rgb: 111 82 14;
+	--danger-rgb: 155 61 51;
+}

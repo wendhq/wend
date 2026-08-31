@@ -1,0 +1,61 @@
+/*
+ * Kenaz — lantern light on a true-black ground.
+ * Cool blue-grey glow over cool near-black surfaces, Sora display over Figtree
+ * body (both inherited from :root — this palette sets no --font-display).
+ *
+ * These values are the identity of the Kenaz "Lantern" brand pack, and they are
+ * the same values the plain :root block in colors.css carries. That is not a
+ * coincidence and it is not redundancy: since 3.0.0 the "no palette chosen"
+ * state renders the warm amber-gold default instead, so Kenaz has to declare
+ * this ramp itself to keep rendering it. classic.css carries the same numbers
+ * for a different reason — it is a frozen compatibility pin for consumers who
+ * want the pre-3.0.0 default. This file is a living brand and may diverge from
+ * it; do not collapse the two.
+ *
+ * --border #232c35 measures 1.48:1 on --surface-1 and 1.38:1 on --surface-2 —
+ * inherited as-is from the pre-3.0.0 default, so this is the non-text contrast
+ * the library has always shipped for cool-ground palettes, not a regression
+ * introduced here. It sits just under the 1.5:1 WCAG 1.4.11 floor, which the
+ * warm palettes (kenaz's old amber ramp, hugin) were tuned to clear. Raise it
+ * rather than lower it, and prefer --border-strong (1.74:1 on --surface-2)
+ * wherever a boundary is the only thing carrying meaning.
+ *
+ * Opt in with <html data-palette="kenaz">.
+ */
+[data-palette="kenaz"] {
+	--surface-1: #000000;
+	--surface-2: #0a0d10;
+	--surface-3: #11161b;
+	--surface-4: #171d24;
+	--surface-5: #1d252d;
+
+	--text: #f4f7fa;
+	--text-muted: #b4bdc7;
+	--text-faint: #87919c;
+
+	--border: #232c35;
+	--border-strong: #313c48;
+	--border-soft: #1a2128;
+
+	/* Control boundary (SC 1.4.11, see colors.css) — same value as :root,
+	   declared here for the same reason as the rest of the ramp. */
+	--control-border: #516377;
+
+	/* Accent — single source; soft / ghost / focus derive from it. */
+	--accent-rgb: 124 154 179;
+	--accent-strong-rgb: 144 173 197;
+
+	/* The accent is light enough that the derive-from-accent formula in :root
+	   clears AA on its own — no hardcoded solid override, unlike the mid-tone
+	   accents in daily/ignite/hugin. */
+	--accent-solid: var(--accent);
+	--accent-solid-strong: var(--accent-strong);
+	--on-accent: #0a0d10;
+}
+
+/* Light mode keeps the base light surfaces; only the accent is re-tuned so it
+   holds contrast against them. */
+[data-theme="light"][data-palette="kenaz"] {
+	--accent-rgb: 95 120 144;
+	--accent-strong-rgb: 82 106 129;
+}

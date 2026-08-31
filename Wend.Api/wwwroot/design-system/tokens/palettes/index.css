@@ -8,6 +8,10 @@
 @import url("./wend.css");
 @import url("./daily.css");
 @import url("./ignite.css");
+@import url("./kenaz.css");
+@import url("./tidsro.css");
+@import url("./hugin.css");
+@import url("./classic.css");
 
 /* Type skins — opt-in via <html data-typeskin="NAME">; compose with any palette.
    Imported after palettes so a skin's type tokens win on specificity ties (order decides). */

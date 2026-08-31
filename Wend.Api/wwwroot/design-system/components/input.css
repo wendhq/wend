@@ -5,7 +5,9 @@
 	min-height: 2.75rem;
 	padding: 0.75rem 0.875rem;
 	border-radius: var(--radius-sm);
-	border: 1px solid var(--border);
+	/* --control-border, not --border: the edge is what identifies the field, so it
+	   carries SC 1.4.11's 3:1 against page and fill in every theme/palette (#16). */
+	border: 1px solid var(--control-border);
 	background: var(--surface-2);
 	color: var(--text);
 	transition:
@@ -24,7 +26,9 @@
 .input:hover,
 .textarea:hover,
 .select:hover {
-	border-color: var(--border-strong);
+	/* Hover strengthens toward the text ink — --border-strong sits BELOW
+	   --control-border now, so pointing hover at it would dim the edge. */
+	border-color: color-mix(in srgb, var(--control-border) 80%, var(--text));
 }
 .field {
 	display: flex;

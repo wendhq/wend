@@ -16,6 +16,13 @@
 	--border-soft: #1a2128;
 	--line: rgba(255, 255, 255, 0.06);
 
+	/* Control boundary — the edge that identifies an interactive control
+	   (.input/.textarea/.select and the bordered .btn variants). Must clear
+	   WCAG 2.2 SC 1.4.11's 3:1 against BOTH --page-bg and the field fill
+	   --surface-2 (#16); --border/--border-strong stay decorative and never
+	   carry a control on their own. 3.40:1 on page, 3.16:1 on field. */
+	--control-border: #516377;
+
 	/* Brand + semantic colors: the -rgb channel is the SINGLE SOURCE.
 	   The solid color and every translucent variant derive from it,
 	   so changing one channel cascades everywhere it is referenced. */
@@ -81,6 +88,11 @@ body.light {
 	--border-soft: #e8edf2;
 	--line: rgba(16, 22, 29, 0.08);
 
+	/* Control boundary (see the :root note) — 3.16:1 on page, 3.36:1 on the
+	   white field. Palettes keep the base light surfaces, so this one value
+	   carries every palette's light mode. */
+	--control-border: #858d95;
+
 	--accent-rgb: 95 120 144;
 	--accent-strong-rgb: 82 106 129;
 	--secondary-rgb: 141 121 95;
@@ -122,4 +134,90 @@ body.light {
 	--card-bg: var(--surface-2);
 	--elevated-bg: var(--surface-3);
 	--interactive-bg: var(--surface-4);
+}
+
+/*
+ * Default identity (3.0.0): the house amber-gold.
+ *
+ * Provenance note (3.1.0): this identity was authored in 3.0.0 by blending the
+ * Kenaz and Gold palettes, and the comments below still name those origins.
+ * Kenaz no longer looks like this — it carries the cool blue-grey Lantern
+ * brand identity now — so the warm ramp here is the library's own default
+ * rather than a mirror of any shipped palette. The values are unchanged;
+ * only what they are named after is.
+ *
+ * The :root block above is UNCHANGED — it stays the pre-3.0 true-black /
+ * cool-blue-grey identity, on purpose. gold, wend, tidsro never carry their
+ * own surfaces or --font-display, so they still derive Sora and the
+ * cool-blue-grey ramp from :root directly. If this block's values were
+ * written into :root itself, every one of those palettes would silently pick
+ * up these warm surfaces and/or a hardcoded solid-button ink for whichever
+ * channels they don't already override themselves.
+ *
+ * Instead this block carries the blend's surface + text + border + accent
+ * overrides under a selector that matches exactly the "no palette chosen"
+ * state and nothing else: "[data-palette="default"]" (what the init snippet
+ * writes when nothing is saved — see theme/theme-init-snippet.html) or
+ * "html:not([data-palette])" (the attribute genuinely absent — static
+ * markup, no JS). Both are mutually exclusive with every named palette
+ * selector by construction, so this can never fight [data-palette="kenaz"]
+ * etc. for specificity — it simply never matches the same element.
+ *
+ * Surfaces, text and borders came from Kenaz's original 3.0.0 amber ramp,
+ * unaltered (Gold is accent-only — it has no surface/text/border ramp to
+ * blend against). The accent is the arithmetic midpoint of that amber
+ * (217 154 78) and Gold's gold (227 179 65): 222 166 72. --on-accent is
+ * hardcoded rather than derived from --accent, same as the warm palettes: the blend
+ * accent is light enough that dark ink reads better than the :root formula's
+ * near-black default. Light mode only re-tunes --accent-rgb/
+ * --accent-strong-rgb/--accent-solid — the same shape the warm palettes use
+ * for their light blocks. No dark-mode --accent-solid/--accent-solid-strong
+ * override is needed: with a light amber accent and dark ink, the
+ * derive-from-accent formula in :root above already clears 4.5:1.
+ * Text/border/surface-0 live in _oled.css no longer — the blend now supplies
+ * its own values here instead of sharing that file's OLED foundation.
+ *
+ * The pre-3.0 identity this block used to replace isn't gone: it's preserved
+ * byte-for-byte as the opt-in classic.css, for any unpinned consumer that
+ * wants to keep the 2.x look. Daily is likewise unaffected: its own
+ * [data-palette="daily"] block in daily.css is load-bearing again, not a
+ * no-op — it's a standalone opt-in palette, no longer the default's source.
+ */
+[data-palette="default"],
+html:not([data-palette]) {
+	/* Warm ground — true-black page, warm near-black surfaces. */
+	--surface-0: #000000;
+	--surface-1: #000000;
+	--surface-2: #0b0a09;
+	--surface-3: #14110d;
+	--surface-4: #1d1811;
+	--surface-5: #262016;
+
+	/* Warm text + borders (#322b22 measures 1.50:1 on --surface-1, clearing the
+	   WCAG 1.4.11 non-text floor; 1.42:1 on --surface-2). */
+	--text: #f4efe6;
+	--text-muted: #b8ada0;
+	--text-faint: #8f8578;
+	--border: #322b22;
+	--border-strong: #3a3226;
+	--border-soft: #1c1813;
+
+	/* Control boundary — warm to match the ground (see the :root note).
+	   3.39:1 on the true-black page, 3.20:1 on the --surface-2 field. */
+	--control-border: #6e5f48;
+
+	/* Accent: midpoint of the 3.0.0 Kenaz amber (217 154 78) and Gold (227 179 65). */
+	--accent-rgb: 222 166 72;
+	--accent-strong-rgb: 234 186 98;
+
+	/* Amber is light enough for dark ink. */
+	--on-accent: #241704;
+}
+
+[data-theme="light"][data-palette="default"],
+html[data-theme="light"]:not([data-palette]) {
+	/* Midpoint of the 3.0.0 kenaz and gold light-mode accents. */
+	--accent-rgb: 163 112 26;
+	--accent-strong-rgb: 134 90 18;
+	--accent-solid: #8c6016;
 }

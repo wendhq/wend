@@ -17,6 +17,11 @@
 	--surface-4: #222c3c;
 	--surface-5: #2a3648;
 
+	/* Control boundary (SC 1.4.11, see colors.css) — the base value only reaches
+	   2.7:1 on this lifted ground, so wend carries its own: 3.44:1 on the page,
+	   3.15:1 on the --surface-2 field. */
+	--control-border: #536a8e;
+
 	/* Canonical brand constants + signature gradient (mode-independent). */
 	--wend-bg: #0d1117;
 	--wend-surface: #151b24;

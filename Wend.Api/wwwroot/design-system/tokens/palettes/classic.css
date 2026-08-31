@@ -1,0 +1,61 @@
+/*
+ * Classic — the pre-3.0.0 default identity, preserved as an opt-in.
+ * 3.0.0 changes what "no data-palette" renders to the house amber-gold (see the
+ * "Default identity" comment in tokens/colors.css), replacing the 2.x default.
+ * Before that, "no palette" meant this: true-black surfaces, cool blue-grey
+ * accent, Sora display over Figtree body. Nothing here is new — every value is
+ * copied byte-for-byte from the plain :root / :root[data-theme="light"] blocks
+ * in colors.css and typography.css, which are unchanged and still declare
+ * them; this file just gives an unpinned consumer that wants to keep the 2.x
+ * look a name to pin instead of freezing at design-system@2.x.
+ *
+ * kenaz.css carries these same values, and that duplication is deliberate.
+ * This file is frozen history — it must keep matching the plain :root blocks
+ * forever, and a test enforces that. Kenaz is a living brand that may move.
+ * Do not collapse one into the other.
+ * Opt in with <html data-palette="classic">.
+ */
+[data-palette="classic"] {
+	--surface-1: #000000;
+	--surface-2: #0a0d10;
+	--surface-3: #11161b;
+	--surface-4: #171d24;
+	--surface-5: #1d252d;
+
+	--text: #f4f7fa;
+	--text-muted: #b4bdc7;
+	--text-faint: #87919c;
+
+	--border: #232c35;
+	--border-strong: #313c48;
+	--border-soft: #1a2128;
+
+	/* Accent — single source; soft / ghost / focus derive from it. */
+	--accent-rgb: 124 154 179;
+	--accent-strong-rgb: 144 173 197;
+
+	/* Solid-button ink stays the derive-from-accent formula, same as the
+	   pre-3.0.0 :root — the old accent was light enough that dark ink passes
+	   AA on its own, no hardcoded override needed (unlike daily/ignite/hugin's
+	   mid-tone accents). */
+	--accent-solid: var(--accent);
+	--accent-solid-strong: var(--accent-strong);
+	--on-accent: #0a0d10;
+
+	--font-display: "Sora", "Figtree", sans-serif;
+}
+
+/* Headings opt into the display face only under this palette. */
+[data-palette="classic"] h1,
+[data-palette="classic"] h2,
+[data-palette="classic"] h3,
+[data-palette="classic"] h4 {
+	font-family: var(--font-display);
+}
+
+/* Light mode keeps the base light surfaces; the accent is tuned for contrast —
+   copied from the pre-3.0.0 :root[data-theme="light"] block. */
+[data-theme="light"][data-palette="classic"] {
+	--accent-rgb: 95 120 144;
+	--accent-strong-rgb: 82 106 129;
+}
