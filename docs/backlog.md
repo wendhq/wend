@@ -183,6 +183,20 @@ Things we've consciously chosen to do *later*, each with the reason and the trig
 
 ### A styled auth input has a 1.34:1 boundary against the page
 
+- **Resolved (2026-08-31):** [workbench#16](https://github.com/malinfossum/workbench/issues/16) landed
+  the control-boundary token upstream (DS 3.2.0), and `sync-design-system.ps1` brought it into Wend.
+  `.input`/`.textarea`/`.select` and the bordered `.btn` variants now take `--control-border` instead
+  of `--border`. Under Wend's own palette that is `#536a8e`: **3.44:1** against the `#0d1117` page and
+  **3.15:1** against the `#151b24` field fill, where the old `--border` `#232c35` gave 1.34:1 and
+  1.22:1. Light mode uses the base `#858d95`: **3.16:1** on the page, **3.36:1** on the white field.
+  All four clear SC 1.4.11's 3:1. Confirmed against the running app at `/login` after a
+  cache-busting reload: `--control-border` resolves to `#536a8e`, `#login-email` renders a 1px
+  `rgb(83, 106, 142)` edge on a `rgb(21, 27, 36)` fill over a `rgb(13, 17, 23)` page, and flipping
+  `data-theme` to `light` gives `rgb(133, 141, 149)` on white over `rgb(246, 248, 250)`. Input height
+  is unchanged at 51.59px. **A human eyeball pass is still owed** — the ratios are measured, the
+  judgement of whether it reads as a field is not.
+- **The upstream fix held the no-local-override line:** nothing was added to `app.css`, and
+  `design-system/` stayed read-only. Every other consumer gets the same fix from the same token.
 - **Now:** with `class="input"` the field is a `--surface-2` fill inside a 1px `--border` edge on a
   `--page-bg` page — **1.09:1** fill-vs-page and **1.34:1** border-vs-page, measured on the running
   app. WCAG 2.2 SC 1.4.11 (AA) asks for 3:1 on the visual information needed to identify a control.

@@ -1,0 +1,60 @@
+/*
+ * Hugin — hardened v2, Hugin's own identity (still ember-family).
+ * Deeper ground, wider surface steps, brighter text and stronger borders than
+ * the OLED foundation in _oled.css — background↔text separation over cozy
+ * blending (spec v3.1 item 1). Hugin isn't in _oled.css's selector list, so
+ * every value here — including --surface-0 — is its sole source, not an
+ * override. Opt in with <html data-palette="hugin">.
+ */
+[data-palette="hugin"] {
+	/* Deeper ground, wider steps — panels visibly lift off the page. */
+	--surface-0: #000000;
+	--surface-1: #0a0806;
+	--surface-2: #16100a;
+	--surface-3: #1e1610;
+	--surface-4: #2a1f14;
+	--surface-5: #362a1a;
+
+	/* Brighter text ramp than the OLED foundation — less blending. */
+	--text: #fbf7ef;
+	--text-muted: #cfc5b4;
+	--text-faint: #9a9080;
+
+	/* Stronger borders so cards/inputs read as edges, not smudges.
+	   --border nudged from #3a3126 (1.48:1 on --surface-2) to #3b3227
+	   (1.50:1) to clear the WCAG 1.4.11 non-text floor. */
+	--border: #3b3227;
+	--border-strong: #4a3f2e;
+	--border-soft: #241d15;
+
+	/* Control boundary (SC 1.4.11, see colors.css) — 3.35:1 on the page,
+	   3.16:1 on the --surface-2 field. */
+	--control-border: #726147;
+
+	/* Ember accent, turned up. */
+	--accent-rgb: 214 106 48;
+	--accent-strong-rgb: 232 128 64;
+
+	/* Type skin — Space Grotesk headings, Figtree body (both bundled). */
+	--font-sans: "Figtree", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+	--font-display: "Space Grotesk", "Figtree", sans-serif;
+
+	/* Solid-button ink — ember is mid-tone, deepen the fill for white text at AA. */
+	--on-accent: #ffffff;
+	--accent-solid: #a34014;
+	--accent-solid-strong: #b84d1c;
+}
+
+/* Headings opt into the display face only under this palette. */
+[data-palette="hugin"] h1,
+[data-palette="hugin"] h2,
+[data-palette="hugin"] h3,
+[data-palette="hugin"] h4 {
+	font-family: var(--font-display);
+}
+
+/* Light mode keeps the base light surfaces; ember tuned for contrast on white. */
+[data-theme="light"][data-palette="hugin"] {
+	--accent-rgb: 158 62 22;
+	--accent-strong-rgb: 132 50 16;
+}

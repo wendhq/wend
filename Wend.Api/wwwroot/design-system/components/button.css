@@ -5,7 +5,9 @@
 	min-height: 2.75rem;
 	padding-inline: var(--space-4);
 	border-radius: var(--radius-sm);
-	border: 1px solid var(--border);
+	/* --control-border, not --border: the fill (--interactive-bg) is ~1.2:1 against
+	   the page, so the edge is what identifies the button — SC 1.4.11 (#16). */
+	border: 1px solid var(--control-border);
 	background: var(--interactive-bg);
 	color: var(--text);
 	transition:
@@ -17,7 +19,8 @@
 }
 .btn:hover {
 	background: var(--surface-5);
-	border-color: var(--border-strong);
+	/* Strengthen toward the text ink; --border-strong would dim the edge now. */
+	border-color: color-mix(in srgb, var(--control-border) 80%, var(--text));
 }
 .btn:active {
 	transform: scale(0.985);
@@ -34,14 +37,17 @@
 }
 .btn-secondary {
 	background: var(--secondary-soft);
-	border-color: rgb(var(--secondary-rgb) / 24%);
+	/* Tinted, but floored: the hue rides on --control-border so the boundary
+	   keeps 3:1 everywhere — a bare 24% tint measured well under it. */
+	border-color: color-mix(in srgb, var(--secondary) 28%, var(--control-border));
 }
 .btn-ghost {
 	background: transparent;
 }
 .btn-danger {
 	background: var(--danger-soft);
-	border-color: rgb(var(--danger-rgb) / 24%);
+	/* Same floor as .btn-secondary — danger hue over the control boundary. */
+	border-color: color-mix(in srgb, var(--danger) 28%, var(--control-border));
 }
 .btn-full {
 	width: 100%;

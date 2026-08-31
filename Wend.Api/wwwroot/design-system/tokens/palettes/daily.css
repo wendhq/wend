@@ -1,5 +1,8 @@
 /*
  * Daily — general-purpose warm-charcoal OLED palette.
+ * Standalone opt-in palette (3.0.0: no longer the default identity's source —
+ * see the amber-gold default block in colors.css). Every value
+ * below is load-bearing, not a documented no-op.
  * Ember accent on a de-purpled warm ground; Space Grotesk headings + Figtree body
  * at the calm base scale. Shares the OLED foundation in _oled.css.
  * Opt in with <html data-palette="daily">.
