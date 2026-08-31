@@ -73,25 +73,29 @@
 body.light {
 	color-scheme: light;
 
-	--surface-1: #f6f8fa;
+	/* Near-neutral ground (3.4.0). The pre-3.4.0 ramp was visibly blue-tinted
+	   (--surface-5 was #e2e8ee, blue spread 12); under a warm display shift a
+	   blue grey bends pink, so the greys hold a blue spread of <=8 — cool cast,
+	   never enough tint to read as color. A test pins the direction. */
+	--surface-1: #f7f8f9;
 	--surface-2: #ffffff;
-	--surface-3: #f3f6f8;
-	--surface-4: #ebf0f4;
-	--surface-5: #e2e8ee;
+	--surface-3: #f1f3f5;
+	--surface-4: #e9ecef;
+	--surface-5: #dee2e6;
 
-	--text: #10161d;
-	--text-muted: #52606d;
-	--text-faint: #6f7b87;
+	--text: #12161b;
+	--text-muted: #4e565f;
+	--text-faint: #697079;
 
-	--border: #d8dee4;
-	--border-strong: #c5ced6;
-	--border-soft: #e8edf2;
-	--line: rgba(16, 22, 29, 0.08);
+	--border: #d5dade;
+	--border-strong: #c3c9d0;
+	--border-soft: #eceef1;
+	--line: rgba(18, 22, 27, 0.08);
 
-	/* Control boundary (see the :root note) — 3.16:1 on page, 3.36:1 on the
+	/* Control boundary (see the :root note) — 3.37:1 on page, 3.58:1 on the
 	   white field. Palettes keep the base light surfaces, so this one value
 	   carries every palette's light mode. */
-	--control-border: #858d95;
+	--control-border: #82888f;
 
 	--accent-rgb: 95 120 144;
 	--accent-strong-rgb: 82 106 129;
@@ -103,8 +107,15 @@ body.light {
 
 	--accent: rgb(var(--accent-rgb));
 	--accent-strong: rgb(var(--accent-strong-rgb));
-	--accent-soft: rgb(var(--accent-rgb) / 14%);
-	--accent-ghost: rgb(var(--accent-rgb) / 8%);
+
+	/* Washes are neutral-first in light mode (3.4.0). The dark formula — accent
+	   at low alpha — reads salmon over white for every warm accent (ember,
+	   amber, rust). A small accent share mixed into the grey ramp keeps the
+	   fill a warm-neutral grey with a whisper of brand instead; a test caps
+	   the R-B excess at 10. Opaque on purpose: every consumer paints these
+	   onto panel/page surfaces, and opaque mixes render the same everywhere. */
+	--accent-soft: color-mix(in srgb, rgb(var(--accent-rgb)) 8%, var(--surface-4));
+	--accent-ghost: color-mix(in srgb, rgb(var(--accent-rgb)) 5%, var(--surface-3));
 
 	/* Light accents are mid-tone: white on var(--accent) is only 4.59:1, so the
 	   solid fill steps down to the strong accent and hover mixes deeper still.
