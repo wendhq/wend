@@ -3,9 +3,9 @@
 
   Wend vendors a COPY of the design-system into Wend.Api/wwwroot/design-system so the app is
   self-contained: no build step, and it works on any clone without anyone re-running anything.
-  This script re-copies it from the canonical source whenever the design-system is updated.
+  This script re-copies it from the source of truth whenever the design-system is updated.
 
-  Only the person who owns the canonical design-system needs to run this (Malin) — everyone
+  Only the person who owns the source-of-truth design-system needs to run this (Malin) — everyone
   else just gets the committed copy via `git pull`. After running, review the diff and commit.
 
   Usage:
@@ -13,8 +13,8 @@
     ./sync-design-system.ps1 -Source 'D:\path\to\design-system'
 #>
 param(
-  # Canonical design-system folder (the single source of truth).
-  [string]$Source = 'C:\Users\Nugget\Documents\Development\workbench\libraries\design-system'
+  # The design-system source-of-truth folder.
+  [string]$Source = 'C:\Users\Nugget\Documents\Development\GitHub\repos\workbench\libraries\design-system'
 )
 
 $ErrorActionPreference = 'Stop'
