@@ -1,43 +1,49 @@
 /*
- * Hugin — hardened v2, Hugin's own identity (still ember-family).
- * Deeper ground, wider surface steps, brighter text and stronger borders than
- * the OLED foundation in _oled.css — background↔text separation over cozy
- * blending (spec v3.1 item 1). Hugin isn't in _oled.css's selector list, so
- * every value here — including --surface-0 — is its sole source, not an
- * override. Opt in with <html data-palette="hugin">.
+ * Hugin — v3 "ember on slate".
+ * The v2 warm ramp put surfaces, borders and accent in one hue family and
+ * everything blended. v3 keeps every grey at its v2 contrast ratio (the ratio
+ * is what the eye reads as crispness — Ember Black lesson) but flips the cast
+ * cool (R <= G <= B), so the ember accent is the only warm element on screen
+ * and pops by hue isolation. Ivory text stays — warm content on a cool frame.
+ * Hugin isn't in _oled.css's selector list, so every value here — including
+ * --surface-0 — is its sole source, not an override. Opt in with
+ * <html data-palette="hugin">.
  */
 [data-palette="hugin"] {
-	/* Deeper ground, wider steps — panels visibly lift off the page. */
+	/* Cool-slate ramp, each step re-found at its v2 ratio vs #000 (±0.001). */
 	--surface-0: #000000;
-	--surface-1: #0a0806;
-	--surface-2: #16100a;
-	--surface-3: #1e1610;
-	--surface-4: #2a1f14;
-	--surface-5: #362a1a;
+	--surface-1: #080909;
+	--surface-2: #0f1113;
+	--surface-3: #15181a;
+	--surface-4: #1e2225;
+	--surface-5: #282d31;
 
-	/* Brighter text ramp than the OLED foundation — less blending. */
+	/* Ivory lead text (brand); muted/faint desaturated to near-neutral so
+	   secondary text stops reading tan against the slate. */
 	--text: #fbf7ef;
-	--text-muted: #cfc5b4;
-	--text-faint: #9a9080;
+	--text-muted: #c7c7be;
+	--text-faint: #92928b;
 
-	/* Stronger borders so cards/inputs read as edges, not smudges.
-	   --border nudged from #3a3126 (1.48:1 on --surface-2) to #3b3227
-	   (1.50:1) to clear the WCAG 1.4.11 non-text floor. */
-	--border: #3b3227;
-	--border-strong: #4a3f2e;
-	--border-soft: #241d15;
+	/* Cool edges at the v2 ratios — --border holds 1.51:1 on --surface-2,
+	   clearing the WCAG 1.4.11 non-text floor. */
+	--border: #2f3439;
+	--border-strong: #3a4247;
+	--border-soft: #1b1f21;
 
-	/* Control boundary (SC 1.4.11, see colors.css) — 3.35:1 on the page,
-	   3.16:1 on the --surface-2 field. */
-	--control-border: #726147;
+	/* Control boundary (SC 1.4.11, see colors.css) — 3.34:1 on the page,
+	   3.17:1 on the --surface-2 field. */
+	--control-border: #5a656e;
 
-	/* Ember accent, turned up. */
+	/* Ember accent — brand-pinned, unchanged from v2. */
 	--accent-rgb: 214 106 48;
 	--accent-strong-rgb: 232 128 64;
 
-	/* Type skin — Space Grotesk headings, Figtree body (both bundled). */
+	/* Type skin — Space Grotesk headings, Figtree body (both bundled).
+	   Brand pack ships Space Grotesk 700 only; root's --weight-display 600
+	   would faux-bold, so the palette carries its own weight. */
 	--font-sans: "Figtree", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
 	--font-display: "Space Grotesk", "Figtree", sans-serif;
+	--weight-display: 700;
 
 	/* Solid-button ink — ember is mid-tone, deepen the fill for white text at AA. */
 	--on-accent: #ffffff;
@@ -51,6 +57,14 @@
 [data-palette="hugin"] h3,
 [data-palette="hugin"] h4 {
 	font-family: var(--font-display);
+}
+
+/* Figtree bundles 400/500/600 only — the browser default 700 for th/strong/b
+   has no face and renders synthesized-blurry, so pin to the real 600. */
+[data-palette="hugin"] th,
+[data-palette="hugin"] strong,
+[data-palette="hugin"] b {
+	font-weight: 600;
 }
 
 /* Light mode keeps the base light surfaces; ember tuned for contrast on white. */
