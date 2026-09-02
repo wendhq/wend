@@ -1,7 +1,7 @@
 # Wend — Slice 2a Plan 4 design: Login, session & the auth gate
 
 - **Date:** 2026-08-10
-- **Status:** Draft — brainstormed with Malin 2026-08-10; **stress-tested 2026-08-10 across
+- **Status:** Draft — brainstormed 2026-08-10; **stress-tested 2026-08-10 across
   security / privacy / accessibility / loopholes, 12 findings folded in**; pending review and
   sign-off by both owners
 - **Owners:** Malin & Henry (equal ownership)

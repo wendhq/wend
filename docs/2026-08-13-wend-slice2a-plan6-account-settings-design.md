@@ -1,7 +1,7 @@
 # Wend — Slice 2a Plan 6 design: Account settings
 
 - **Date:** 2026-08-13
-- **Status:** Draft — brainstormed with Malin 2026-08-13; **stress-tested the same day across
+- **Status:** Draft — brainstormed 2026-08-13; **stress-tested the same day across
   security / privacy / accessibility / loopholes — one critical finding, consciously deferred to Plan 8
   (see the footer and [`backlog.md`](backlog.md)); nine fixes folded in**; pending sign-off
 - **Owners:** Malin & Henry (equal ownership)
