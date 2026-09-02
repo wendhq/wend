@@ -1,7 +1,7 @@
 # Wend — Slice 2a Plan 5 design: Forgot & reset password
 
 - **Date:** 2026-08-11
-- **Status:** Draft — brainstormed with Malin 2026-08-11; **stress-tested the same day across
+- **Status:** Draft — brainstormed 2026-08-11; **stress-tested the same day across
   security / privacy / accessibility / loopholes, no critical findings, nine fixes folded in**;
   pending review and sign-off by both owners
 - **Owners:** Malin & Henry (equal ownership)
