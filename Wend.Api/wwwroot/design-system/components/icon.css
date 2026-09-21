@@ -1,0 +1,12 @@
+/* Inline SVG icons — the markup comes from components/icons.js.
+   The rule sits on the class the module emits, so a hand-written
+   <svg class="icon"> gets the same treatment.
+
+   display: block takes the icon out of the line box. An inline SVG sits on the
+   text baseline, so a line-height can shift it off the centre of the control
+   around it; as a block inside an inline-flex control, align-items centres it.
+   flex-shrink: 0 keeps a 20px icon 20px when the label beside it wraps. */
+.icon {
+	display: block;
+	flex-shrink: 0;
+}
