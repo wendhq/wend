@@ -225,9 +225,84 @@ public static class AuthEndpoints
             return Results.NoContent();
         });
 
-        // Anonymous, like the rest of this group bar /me and /logout. Every failure below answers
-        // with the same empty 401 — unknown address, wrong password, unconfirmed account and
-        // locked-out account alike. A response that distinguishes them enumerates the user table.
+        // Authenticated, and the first endpoint in this group that can afford to say what went
+        // wrong: the caller has already proved who they are, so there is no account existence left
+        // to leak. One code blames the new password, the other the current one.
+        group.MapPost("/change-password", async (ChangePasswordRequest req,
+            UserManager<WendUser> users, SignInManager<WendUser> signIn, ClaimsPrincipal principal,
+            ILoggerFactory loggerFactory) =>
+        {
+            var newPassword = req.NewPassword ?? "";
+
+            // A live cookie whose account no longer exists — ordinary once Plan 7 ships.
+            // GetUserAsync returns null rather than throwing (verified against release/10.0), so
+            // this is a 401 and not a 500.
+            if (await users.GetUserAsync(principal) is not { } user) return Results.Unauthorized();
+
+            // Policy on the NEW password, before the current one is checked and before any lockout
+            // accounting can fire. The ordering is the reverse of /reset-password's on purpose:
+            // that endpoint is anonymous and validates before the lookup so an early 400 cannot
+            // become an existence oracle. Here the caller is already known, so the user is resolved
+            // first and the validators are handed the REAL user — which is what a future policy
+            // like "your password may not contain your email address" would need.
+            // AuthChangePasswordTests guards this: a weak new password must not cost an attempt at
+            // the current one. Do not reorder.
+            foreach (var validator in users.PasswordValidators)
+            {
+                if (!(await validator.ValidateAsync(users, user, newPassword)).Succeeded)
+                    return Results.BadRequest(new { error = "password" });
+            }
+
+            // A locked account is locked for this too. Without it, lockout is trivially sidestepped
+            // by anyone holding a session: they stop guessing at /login and start guessing here.
+            if (await users.IsLockedOutAsync(user)) return Results.Unauthorized();
+
+            // ChangePasswordAsync verifies the current password and does NO lockout bookkeeping
+            // whatsoever (verified against release/10.0). Without the two calls around it, somebody
+            // holding a stolen cookie gets unlimited attempts at the current password — and a
+            // correct guess converts a session that dies on its own into a permanent takeover.
+            // Five attempts is the same budget login allows, applied to the same secret.
+            if (!(await users.ChangePasswordAsync(user, req.CurrentPassword ?? "", newPassword))
+                    .Succeeded)
+            {
+                await users.AccessFailedAsync(user);
+                return Results.BadRequest(new { error = "current" });
+            }
+
+            await users.ResetAccessFailedCountAsync(user);
+
+            // AFTER the change, so the rotated stamp lands in the reissued cookie. The password
+            // write rotates the security stamp, and at ValidationInterval.Zero that refuses every
+            // live cookie for this user on its next request — including the browser that just
+            // submitted the form. Every OTHER session dying is the point; this one dying is a bug
+            // the user experiences as being logged out for changing their password.
+            //
+            // RefreshSignInAsync returns no result, so the only failure it can report is an
+            // exception. Under the Test auth scheme it finds no application cookie and is a silent
+            // no-op, which is why the assertion that this works lives in RealCookieAccountTests.
+            try
+            {
+                await signIn.RefreshSignInAsync(user);
+            }
+            catch (Exception ex)
+            {
+                // Still 204: the password genuinely changed, and telling the user otherwise would
+                // send them round the loop for nothing. The degraded outcome is that their next
+                // request 401s and they sign in again with the new password, which works. Same rule
+                // /reset-password applies to a failed lockout clear. Type name only, never a
+                // message — an exception message can carry data.
+                loggerFactory.CreateLogger("Wend.Api.AuthEndpoints")
+                    .LogWarning("Password changed but the session was not refreshed: {Error}",
+                        ex.GetType().Name);
+            }
+
+            return Results.NoContent();
+        }).RequireAuthorization();
+
+        // Anonymous, like most of this group — the authenticated exceptions are /me, /logout,
+        // /change-password and /change-email. Every failure below answers with the same empty
+        // 401 — unknown address, wrong password, unconfirmed account and locked-out account
+        // alike. A response that distinguishes them enumerates the user table.
         group.MapPost("/login", async (LoginRequest req, SignInManager<WendUser> signIn,
             UserManager<WendUser> users, IPasswordHasher<WendUser> hasher, IAuthEmailSender email,
             HttpRequest http, HttpResponse response) =>
@@ -358,3 +433,5 @@ public record LoginRequest(string Email, string Password, bool RememberMe = fals
 public record ForgotPasswordRequest(string Email);
 
 public record ResetPasswordRequest(string UserId, string Code, string Password);
+
+public record ChangePasswordRequest(string CurrentPassword, string NewPassword);
