@@ -52,6 +52,22 @@
 	/* Same floor as .btn-secondary — danger hue over the control boundary. */
 	border-color: color-mix(in srgb, var(--danger) 28%, var(--control-border));
 }
+/* Toggle buttons (aria-pressed="true"): accent wash plus a doubled accent edge, so the
+   on state reads by shape as well as hue — SC 1.4.1. After the variants and :hover so a
+   pressed ghost or a hovered pressed button keeps the on look. */
+.btn[aria-pressed="true"] {
+	background: var(--accent-soft);
+	border-color: var(--accent);
+	box-shadow: inset 0 0 0 1px var(--accent);
+}
+@media (forced-colors: active) {
+	.btn[aria-pressed="true"] {
+		forced-color-adjust: none;
+		background: Highlight;
+		border-color: Highlight;
+		color: HighlightText;
+	}
+}
 .btn-full {
 	width: 100%;
 }
