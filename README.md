@@ -1,12 +1,12 @@
 <div align="center">
-  <img src="docs/brand/wend-readme-header.png" alt="Wend — open-source, accessible, dark-mode-first kanban" width="640">
+  <img src="docs/brand/wend-readme-header.png" alt="Wend: open-source, accessible, dark-mode-first kanban" width="640">
 </div>
 
 # Wend
 
 [![CI](https://github.com/wendhq/wend/actions/workflows/ci.yml/badge.svg)](https://github.com/wendhq/wend/actions/workflows/ci.yml)
 
-A free, open-source, accessible, dark-mode-first kanban board — a calm alternative to Trello. Built by
+A free, open-source, accessible, dark-mode-first kanban board. A calm alternative to Trello. Built by
 Malin Fossum and Henry Elendheim.
 
 ## Status
@@ -16,26 +16,26 @@ Malin Fossum and Henry Elendheim.
 Boards, lists, cards, labels and per-card checklists all work end to end, with undo-first deletes,
 keyboard operation and screen-reader announcements throughout. On top of that, Wend now has real
 accounts: register with an email address and a display name, confirm it from an emailed link, sign in,
-and every board belongs to you alone — a board you do not own answers 404, not 403. A forgotten
+and every board belongs to you alone. A board you do not own answers 404, not 403. A forgotten
 password is recoverable, and completing a reset signs out every live session for that account.
 
 Still to come in 2a: account settings, account deletion, security hardening, deployment. Then Slice
-2b — sharing, board membership and invitations.
+2b: sharing, board membership and invitations.
 
 > **Wend is localhost only and is not deployed.** `/api/auth/*` is not yet rate limited. That is a
-> deliberate, tracked gate — security hardening lands before Wend is ever exposed. See
+> deliberate, tracked gate. Security hardening lands before Wend is ever exposed. See
 > [`docs/backlog.md`](docs/backlog.md).
 
 Design docs and build plans live in [`docs/`](docs).
 
 ## Stack
 
-- ASP.NET Core (`net10.0`) — minimal API, localhost only
-- ASP.NET Core Identity with cookie sessions, behind hand-written `/api/auth/*` endpoints — no
+- ASP.NET Core (`net10.0`): minimal API, localhost only
+- ASP.NET Core Identity with cookie sessions, behind hand-written `/api/auth/*` endpoints. No
   scaffolded Identity UI, so the frontend keeps its no-build-step, accessibility-first character
 - EF Core → PostgreSQL for storage, with EF migrations, behind per-entity repository seams
 - Vanilla-JavaScript MVC frontend, served from `wwwroot`
-- NUnit — 255 tests
+- NUnit: 255 tests
 
 ## Structure
 
@@ -47,7 +47,7 @@ Design docs and build plans live in [`docs/`](docs).
 
 ## Run it
 
-Wend stores data in **PostgreSQL**. Install a local server once — a normal Windows service, no Docker:
+Wend stores data in **PostgreSQL**. Install a local server once (a normal Windows service, no Docker):
 
 ```
 winget install --exact --id PostgreSQL.PostgreSQL.17
@@ -60,14 +60,14 @@ dotnet user-secrets set "ConnectionStrings:WendDb" "Host=localhost;Port=5432;Dat
 ```
 
 Wend reads that secret only in the Development environment, and it **refuses to start outside it**
-until a real email provider is configured — an auth system that cannot send mail should not boot.
+until a real email provider is configured. An auth system that cannot send mail should not boot.
 `Wend.Api/Properties/launchSettings.json` sets that environment for you, so running it is one command:
 
 ```
 dotnet run --project Wend.Api
 ```
 
-The profile sets no `applicationUrl` on purpose — Kestrel's address comes from `Wend:Port` in
+The profile sets no `applicationUrl` on purpose. Kestrel's address comes from `Wend:Port` in
 `Program.cs` and binds `127.0.0.1:5174`. Starting the app any other way (the built binary, your own
 profile) still needs the environment set by hand:
 
@@ -79,7 +79,7 @@ Without it you get `ConnectionStrings:WendDb is not configured`, which looks lik
 is really a missing environment variable.
 
 In Development, static files are served with `Cache-Control: no-cache`, so an ordinary reload picks up
-edited JavaScript and CSS — no hard-reload dance.
+edited JavaScript and CSS. No hard-reload dance.
 
 Then open http://127.0.0.1:5174. You will land on the sign-in screen, because every board belongs to a
 user now.
@@ -93,7 +93,7 @@ There is no email provider in development. Wend writes every link it would have 
 ```
 
 Register at `/register`, open that file, and follow the newest `/verify?...` link to confirm the
-address — then sign in. `/forgot-password` works the same way. Confirmation links last 24 hours, reset
+address. Then sign in. `/forgot-password` works the same way. Confirmation links last 24 hours, reset
 links one hour.
 
 Once signed in you can create boards, manage a board's lists, add and move cards, and open a card for
@@ -103,7 +103,7 @@ Core migrations create and update the schema on startup.
 
 ## Tests
 
-The API integration tests need the local PostgreSQL server running — each creates a throwaway database
+The API integration tests need the local PostgreSQL server running. Each creates a throwaway database
 on it. The repository unit tests run on in-memory SQLite.
 
 ```
