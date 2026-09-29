@@ -351,6 +351,99 @@ public static class AuthEndpoints
             return Results.NoContent();
         }).RequireAuthorization();
 
+        // POST, not GET, even though this arrives from an emailed link — the same reasoning /verify
+        // carries, and it bites harder here. Corporate mail scanners and link-preview bots follow
+        // GET links automatically, so a GET that applied the change would be fired by a robot
+        // before the human ever clicked, silently repointing an account's login identity. The
+        // emailed link therefore points at the SPA shell, and the screen POSTs the values back.
+        //
+        // Anonymous, like /verify and /reset-password: the link lands in a mailbox the user may
+        // open in a different browser, possession of a token bound to (user, new address, stamp) is
+        // the proof, and the change completes even if the session expired in the meantime.
+        group.MapPost("/confirm-email-change", async (ConfirmEmailChangeRequest req,
+            UserManager<WendUser> users, IAuthEmailSender email, HttpResponse response,
+            ILoggerFactory loggerFactory) =>
+        {
+            if (req.UserId is not { Length: > 0 } id)
+                return Results.BadRequest(new { error = "token" });
+            if (await users.FindByIdAsync(id) is not { } user)
+                return Results.BadRequest(new { error = "token" });
+
+            var newEmail = req.NewEmail?.Trim() ?? "";
+            // Captured BEFORE the write, because the notice has to name the address that is losing
+            // the account and `user` is mutated in place two lines further down.
+            var oldEmail = user.Email!;
+
+            string token;
+            try
+            {
+                token = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(req.Code ?? ""));
+            }
+            catch (FormatException)
+            {
+                return Results.BadRequest(new { error = "token" });
+            }
+
+            // Verifies the token, writes Email and EmailConfirmed, rotates the security stamp, then
+            // runs UserValidator through UpdateUserAsync — which is where the parent spec's
+            // "uniqueness re-checked at confirm time" actually happens. All verified against
+            // release/10.0. It does NOT touch UserName; that is the next call's whole reason.
+            var changed = await users.ChangeEmailAsync(user, newEmail, token);
+            if (!changed.Succeeded)
+            {
+                // Two codes, not one. A dead token means "get a new link"; a taken address means
+                // "pick a different address". Collapsing them produces a screen that says the link
+                // expired when the link was fine and somebody took the address four minutes ago.
+                return changed.Errors.Any(e => e.Code == "DuplicateEmail")
+                    ? Results.Conflict(new { error = "taken" })
+                    : Results.BadRequest(new { error = "token" });
+            }
+
+            // The plan's correctness requirement, not tidiness. Wend sets UserName = Email at
+            // registration and ChangeEmailAsync leaves UserName holding the OLD address forever.
+            // Login keeps working — it resolves through NormalizedEmail — so the bug passes every
+            // obvious test. But RequireUniqueEmail switches on UserValidator's UserName uniqueness
+            // check too, so the abandoned address stays occupied, and the next registration to it
+            // fails DuplicateUserName, which /register answers with 204 and a log line. Silent,
+            // delayed, and it lands on a stranger.
+            //
+            // The SAME instance, not a reload: ChangeEmailAsync has just refreshed this user's
+            // concurrency stamp and reloading here would work from a stale one. Same two-call
+            // pattern as /reset-password's lockout clear. This call rotates the security stamp a
+            // second time (verified), which is harmless — every session died at the first rotation.
+            var renamed = await users.SetUserNameAsync(user, newEmail);
+            if (!renamed.Succeeded)
+            {
+                // The narrowest path in the plan, and it still needs its branch: /change-email
+                // checks both lookups precisely so an address free as one is free as the other, so
+                // what is left is a genuine race between two confirmations. The account is now
+                // half-changed, which is the state this endpoint exists to prevent, so it must not
+                // report success. A retry fails the token check because the stamp already rotated,
+                // which is what the screen tells the user. Error CODES only.
+                loggerFactory.CreateLogger("Wend.Api.AuthEndpoints")
+                    .LogWarning("Email changed but the user name was not: {Errors}",
+                        string.Join("; ", renamed.Errors.Select(e => e.Code)));
+                return Results.Conflict(new { error = "taken" });
+            }
+
+            // Off the response path, like login's nudge. Success only: a notice on a failed attempt
+            // would be an email bomb an attacker aims at the victim, from the victim's own account.
+            response.OnCompleted(async () =>
+                await email.SendEmailChangedNoticeAsync(oldEmail, newEmail));
+
+            // The only endpoint in /api/auth/* that returns a body, and it earns it. The success
+            // screen has to name the new address, and the only other sources are the query string —
+            // a caller-controlled value on an anonymous page, which is the reflected-XSS shape the
+            // frontend rule forbids — and nothing at all, which leaves the user trusting that what
+            // they typed ten minutes ago is what landed. Read off the user AFTER both writes.
+            //
+            // No RefreshSignInAsync, and there must not be one: this request is anonymous and may
+            // be arriving from a different browser than the one holding the session, so "refresh
+            // the acting session" has no meaning here. Every live session is refused on its next
+            // request and the user signs in with the new address.
+            return Results.Ok(new { email = user.Email });
+        });
+
         // Anonymous, like most of this group — the authenticated exceptions are /me, /logout,
         // /change-password and /change-email. Every failure below answers with the same empty
         // 401 — unknown address, wrong password, unconfirmed account and locked-out account
@@ -501,6 +594,8 @@ public record VerifyRequest(string UserId, string Code);
 public record ResendRequest(string Email);
 
 public record ChangeEmailRequest(string NewEmail);
+
+public record ConfirmEmailChangeRequest(string UserId, string NewEmail, string Code);
 
 // RememberMe defaults to false, so a client that omits it — every caller before this feature —
 // still gets a session cookie that dies with the browser. Opting in has to be explicit.
