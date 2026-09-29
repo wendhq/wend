@@ -14,4 +14,13 @@ public interface IAuthEmailSender
     Task SendEmailConfirmationAsync(string email, string link);
 
     Task SendPasswordResetAsync(string email, string link);
+
+    Task SendEmailChangeConfirmationAsync(string newEmail, string link);
+
+    /// <summary>
+    /// Tells the OLD address that the account's sign-in address was changed. Takes both addresses
+    /// because a notice that does not name what the address was changed to tells the owner
+    /// something happened without telling them enough to act on it.
+    /// </summary>
+    Task SendEmailChangedNoticeAsync(string oldEmail, string newEmail);
 }

@@ -74,6 +74,13 @@ builder.Services.AddIdentityCore<WendUser>(options =>
         options.Tokens.ProviderMap.Add("WendPasswordReset",
             new TokenProviderDescriptor(typeof(PasswordResetTokenProvider<WendUser>)));
         options.Tokens.PasswordResetTokenProvider = "WendPasswordReset";
+
+        // Third provider, same reason as the second. Identity's default ChangeEmailTokenProvider
+        // is the shared "Default" one, so without this line a lifespan set anywhere would govern
+        // all of them.
+        options.Tokens.ProviderMap.Add("WendChangeEmail",
+            new TokenProviderDescriptor(typeof(ChangeEmailTokenProvider<WendUser>)));
+        options.Tokens.ChangeEmailTokenProvider = "WendChangeEmail";
     })
     .AddEntityFrameworkStores<WendDbContext>()
     .AddSignInManager()
@@ -81,6 +88,7 @@ builder.Services.AddIdentityCore<WendUser>(options =>
 
 builder.Services.AddTransient<EmailConfirmationTokenProvider<WendUser>>();
 builder.Services.AddTransient<PasswordResetTokenProvider<WendUser>>();
+builder.Services.AddTransient<ChangeEmailTokenProvider<WendUser>>();
 
 // Cookie authentication. AddIdentityCookies supplies the application cookie that AddIdentityCore
 // deliberately left out in Plan 3; no login-redirect events are configured because .NET 10's cookie

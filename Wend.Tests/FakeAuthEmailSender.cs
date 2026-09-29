@@ -20,4 +20,19 @@ public sealed class FakeAuthEmailSender : IAuthEmailSender
         Sent.Add((email, link, "reset"));
         return Task.CompletedTask;
     }
+
+    public Task SendEmailChangeConfirmationAsync(string newEmail, string link)
+    {
+        Sent.Add((newEmail, link, "change-email"));
+        return Task.CompletedTask;
+    }
+
+    // The notice has no link, so Link carries the NEW address here — several tests turn on the
+    // notice naming what the address was changed to, and this keeps the tuple shape every other
+    // test in the suite already reads.
+    public Task SendEmailChangedNoticeAsync(string oldEmail, string newEmail)
+    {
+        Sent.Add((oldEmail, newEmail, "changed-notice"));
+        return Task.CompletedTask;
+    }
 }
