@@ -3,7 +3,10 @@
 .select {
 	width: 100%;
 	min-height: 2.75rem;
-	padding: 0.75rem 0.875rem;
+	/* No block padding: min-height alone sizes a single-line control, so it lands on the
+	   same 44px as .btn. Padding on top of the line box made inputs 51.6px and selects
+	   47px beside a 44px button (3.7.1). The textarea keeps its block padding below. */
+	padding: 0 0.875rem;
 	border-radius: var(--radius-sm);
 	/* --control-border, not --border: the edge is what identifies the field, so it
 	   carries SC 1.4.11's 3:1 against page and fill in every theme/palette (#16). */
@@ -17,6 +20,7 @@
 }
 .textarea {
 	min-height: 8rem;
+	padding-block: 0.75rem;
 	resize: vertical;
 }
 .input::placeholder,
