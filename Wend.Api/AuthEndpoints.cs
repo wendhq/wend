@@ -299,6 +299,58 @@ public static class AuthEndpoints
             return Results.NoContent();
         }).RequireAuthorization();
 
+        // Authenticated. One 204 covers four different outcomes — free, held by another account as
+        // an email, held by another account as a user name, and held by the caller themselves in
+        // the half-changed state — because an authenticated endpoint that names which addresses
+        // exist is a user-table oracle with a login in front of it. The one 400 with a code names a
+        // property of the caller's OWN account, which they already know.
+        group.MapPost("/change-email", async (ChangeEmailRequest req, UserManager<WendUser> users,
+            IAuthEmailSender email, HttpRequest http, ClaimsPrincipal principal) =>
+        {
+            var address = req.NewEmail?.Trim() ?? "";
+
+            // Input-only checks first, per the standing rule: refusing malformed input is safe, but
+            // it must happen BEFORE any existence lookup or the 400 becomes an oracle. The bare 400
+            // carries no code deliberately — the screen validates format client-side, so reaching
+            // it means a caller bypassing the form.
+            if (address.Length is 0 or > MaxEmailLength) return Results.BadRequest();
+            if (!new EmailAddressAttribute().IsValid(address)) return Results.BadRequest();
+
+            if (await users.GetUserAsync(principal) is not { } user) return Results.Unauthorized();
+
+            // Normalised, not a raw string compare: "MALIN@example.test" is the address they have.
+            // Naming this leaks nothing — the caller is authenticated and already knows their own
+            // address — and a silent 204 here would promise an inbox that never receives anything.
+            if (string.Equals(users.NormalizeEmail(address), user.NormalizedEmail,
+                    StringComparison.Ordinal))
+                return Results.BadRequest(new { error = "same" });
+
+            // BOTH lookups. An address can be occupied as a UserName while free as an Email — that
+            // is exactly the desync SetUserNameAsync exists to prevent — and minting a token for
+            // one of those would produce a confirmation link that fails at confirm time, sent to a
+            // real inbox.
+            //
+            // Self is excluded, and self is reachable: in the half-changed state Email is the new
+            // address while UserName is still the old one, so FindByNameAsync(old) returns the
+            // caller. Excluding self lets them re-request their old address and repair it; not
+            // excluding it hands them a silent 204 forever, on the one address they most want back.
+            var byEmail = await users.FindByEmailAsync(address);
+            var byName = await users.FindByNameAsync(address);
+            if ((byEmail is not null && byEmail.Id != user.Id)
+                || (byName is not null && byName.Id != user.Id))
+            {
+                return Results.NoContent();
+            }
+
+            // Nothing is written. The account keeps its old address until the link is clicked, so
+            // an abandoned request leaves no state to clean up and no pending-change indicator to
+            // render — the trade accepted by putting the pending address in the query string.
+            var link = await BuildChangeEmailLinkAsync(user, address, users, http, publicBaseUrl);
+            await email.SendEmailChangeConfirmationAsync(address, link);
+
+            return Results.NoContent();
+        }).RequireAuthorization();
+
         // Anonymous, like most of this group — the authenticated exceptions are /me, /logout,
         // /change-password and /change-email. Every failure below answers with the same empty
         // 401 — unknown address, wrong password, unconfirmed account and locked-out account
@@ -410,6 +462,28 @@ public static class AuthEndpoints
                $"?userId={Uri.EscapeDataString(user.Id)}&code={Uri.EscapeDataString(code)}";
     }
 
+    /// <summary>
+    /// Mints a change-email token and builds the link to the SPA's /confirm-email-change screen.
+    /// The token is bound to (user, new address, security stamp), so the address has to travel with
+    /// it — which is why this link carries a third parameter the other two do not.
+    ///
+    /// Same configured origin as the other two, and it matters more here: a link that repoints an
+    /// account's login identity is worth as much to an attacker as a reset link, so building the
+    /// origin from http.Host would let anyone who can set that header have Wend email a victim a
+    /// genuine-looking link pointing at their own server.
+    /// </summary>
+    private static async Task<string> BuildChangeEmailLinkAsync(WendUser user, string newEmail,
+        UserManager<WendUser> users, HttpRequest http, string? publicBaseUrl)
+    {
+        var token = await users.GenerateChangeEmailTokenAsync(user, newEmail);
+        var code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
+        var origin = publicBaseUrl?.TrimEnd('/') ?? $"{http.Scheme}://{http.Host}";
+        return $"{origin}/confirm-email-change" +
+               $"?userId={Uri.EscapeDataString(user.Id)}" +
+               $"&newEmail={Uri.EscapeDataString(newEmail)}" +
+               $"&code={Uri.EscapeDataString(code)}";
+    }
+
     /// <summary>Builds the link and sends it. Used by register and resend, which have no timing
     /// commitment to keep — register's side channel is Plan 8's, recorded in the backlog.</summary>
     private static async Task SendConfirmationAsync(WendUser user, UserManager<WendUser> users,
@@ -425,6 +499,8 @@ public record RegisterRequest(string Email, string Password, string DisplayName)
 public record VerifyRequest(string UserId, string Code);
 
 public record ResendRequest(string Email);
+
+public record ChangeEmailRequest(string NewEmail);
 
 // RememberMe defaults to false, so a client that omits it — every caller before this feature —
 // still gets a session cookie that dies with the browser. Opting in has to be explicit.
