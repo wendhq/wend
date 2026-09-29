@@ -316,6 +316,16 @@ public static class AuthEndpoints
             if (address.Length is 0 or > MaxEmailLength) return Results.BadRequest();
             if (!new EmailAddressAttribute().IsValid(address)) return Results.BadRequest();
 
+            // Wend keeps UserName equal to Email, and /confirm-email-change writes it with
+            // SetUserNameAsync, which refuses any character outside AllowedUserNameCharacters
+            // (empty means anything goes, as in Identity's own validator). EmailAddressAttribute is
+            // far more permissive — o'brien@ and føssum@ both pass it — so an address like that
+            // would mint a link that commits Email at confirm time and then fails on UserName,
+            // leaving a half-changed account. Refuse it here, on input alone, so it is not an oracle.
+            var allowed = users.Options.User.AllowedUserNameCharacters;
+            if (!string.IsNullOrEmpty(allowed) && address.Any(c => !allowed.Contains(c)))
+                return Results.BadRequest();
+
             if (await users.GetUserAsync(principal) is not { } user) return Results.Unauthorized();
 
             // Normalised, not a raw string compare: "MALIN@example.test" is the address they have.
@@ -401,8 +411,8 @@ public static class AuthEndpoints
 
             // The plan's correctness requirement, not tidiness. Wend sets UserName = Email at
             // registration and ChangeEmailAsync leaves UserName holding the OLD address forever.
-            // Login keeps working — it resolves through NormalizedEmail — so the bug passes every
-            // obvious test. But RequireUniqueEmail switches on UserValidator's UserName uniqueness
+            // Login keeps working — it resolves through NormalizedEmail — so the bug hides from
+            // every test that only signs in. But RequireUniqueEmail switches on UserValidator's UserName uniqueness
             // check too, so the abandoned address stays occupied, and the next registration to it
             // fails DuplicateUserName, which /register answers with 204 and a log line. Silent,
             // delayed, and it lands on a stranger.
@@ -415,11 +425,13 @@ public static class AuthEndpoints
             if (!renamed.Succeeded)
             {
                 // The narrowest path in the plan, and it still needs its branch: /change-email
-                // checks both lookups precisely so an address free as one is free as the other, so
-                // what is left is a genuine race between two confirmations. The account is now
-                // half-changed, which is the state this endpoint exists to prevent, so it must not
-                // report success. A retry fails the token check because the stamp already rotated,
-                // which is what the screen tells the user. Error CODES only.
+                // checks both lookups, and rejects characters UserName cannot hold, precisely so
+                // an address acceptable as an Email is acceptable as a UserName — so what is left
+                // is a genuine race between two confirmations. The account is now half-changed,
+                // which is the state this endpoint exists to prevent, so it must not report
+                // success. It answers "taken", not "token": the link was fine and somebody else
+                // got the address first. A retry with the same link then fails the token check,
+                // because the stamp already rotated. Error CODES only.
                 loggerFactory.CreateLogger("Wend.Api.AuthEndpoints")
                     .LogWarning("Email changed but the user name was not: {Errors}",
                         string.Join("; ", renamed.Errors.Select(e => e.Code)));

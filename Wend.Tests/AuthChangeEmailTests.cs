@@ -143,6 +143,30 @@ public class AuthChangeEmailTests
     }
 
     [Test]
+    public async Task An_address_with_a_character_a_user_name_cannot_hold_is_a_bare_400()
+    {
+        // EmailAddressAttribute accepts o'brien@example.test, but UserName is held to
+        // AllowedUserNameCharacters. Let it through and the confirm step commits Email, then fails
+        // SetUserNameAsync with InvalidUserName: a half-changed account and a false "taken".
+        var userId = await ArrangeSignedIn("malin@example.test");
+        _factory.Email.Sent.Clear();
+
+        var response = await Request("o'brien@example.test");
+
+        using var scope = _factory.Services.CreateScope();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<WendUser>>();
+        var user = (await users.FindByIdAsync(userId))!;
+        await Assert.MultipleAsync(async () =>
+        {
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadRequest));
+            Assert.That(await ErrorCode(response), Is.Null, "bare, like the format check");
+            Assert.That(_factory.Email.Sent, Is.Empty);
+            Assert.That(user.Email, Is.EqualTo("malin@example.test"), "Email");
+            Assert.That(user.UserName, Is.EqualTo("malin@example.test"), "UserName");
+        });
+    }
+
+    [Test]
     public async Task An_address_another_account_holds_gets_a_silent_204_with_no_mail()
     {
         await Seed("taken@example.test");
