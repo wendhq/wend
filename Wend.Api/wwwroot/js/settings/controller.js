@@ -4,9 +4,10 @@ const NAMES = {
   alwaysShowDeleteCard: "Always show Delete card",
 };
 
-export function createSettingsController(model, view, announce, { onBack } = {}) {
+export function createSettingsController(model, view, announce, { onBack, onAccount } = {}) {
   view.bindActions({
     back: () => onBack?.(),
+    account: () => onAccount?.(),
     toggle: (key, value) => {
       model.set(key, value);   // notify → view.render rebuilds the checkbox
       view.focusPref(key);      // return focus to the flipped checkbox

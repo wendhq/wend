@@ -28,6 +28,9 @@ import { createForgotController } from "./auth/forgot/controller.js";
 import { createResetModel } from "./auth/reset/model.js";
 import { createResetView } from "./auth/reset/view.js";
 import { createResetController } from "./auth/reset/controller.js";
+import { createAccountModel } from "./auth/account/model.js";
+import { createAccountView } from "./auth/account/view.js";
+import { createAccountController } from "./auth/account/controller.js";
 
 const announce = createAnnouncer(document.getElementById("status"));
 const toast = createToast(document.getElementById("toast-region"));
@@ -140,8 +143,25 @@ function showSettings() {
   mount((root) => {
     const model = createSettingsModel();
     const view = createSettingsView(root);
-    createSettingsController(model, view, announce, { onBack: () => showOverview(null, true) });
+    createSettingsController(model, view, announce, {
+      onBack: () => showOverview(null, true),
+      onAccount: showAccount,
+    });
     view.focusHeading(); // house pattern: mounting focuses the screen's heading
+  });
+}
+
+// No route, on purpose. Settings has none either, so this matches the one precedent that exists,
+// and it keeps every route in boot()'s switch anonymous, which is what stops the next person
+// adding an authenticated one to it by pattern-match and shipping a screen that renders for a
+// signed-out visitor and 401s on first use. The cost is no deep link, and a refresh landing on the
+// board overview: the same trade Settings already makes.
+function showAccount() {
+  mount((root) => {
+    const model = createAccountModel();
+    const view = createAccountView(root);
+    createAccountController(model, view, announce, { onBack: showSettings });
+    model.load().catch(reportLoadFailure);
   });
 }
 document.getElementById("settings-link").addEventListener("click", showSettings);
