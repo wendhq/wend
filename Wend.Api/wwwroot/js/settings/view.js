@@ -8,6 +8,11 @@ export function createSettingsView(root) {
       <div class="settings-view">
         <button class="back-link" data-action="back">← Boards</button>
         <h2 class="settings-heading" tabindex="-1">Settings</h2>
+        <!-- A button, not a link: the Account screen has no URL, exactly as this screen has none.
+             .btn carries the 44px floor a bare <button> does not. -->
+        <p class="setting-row">
+          <button type="button" class="btn btn-ghost" data-action="account">Account</button>
+        </p>
 
         <!-- A native <select> rather than a pair of radios or a fancy switch: two options today,
              more when a palette picker lands, and .select carries the 44px floor. -->
@@ -50,6 +55,7 @@ export function createSettingsView(root) {
     h = handlers;
     root.addEventListener("click", (e) => {
       if (e.target.closest('[data-action="back"]')) h.back();
+      if (e.target.closest('[data-action="account"]')) h.account();
     });
     root.addEventListener("change", (e) => {
       const cb = e.target.closest('input[data-action="toggle-pref"]');

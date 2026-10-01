@@ -1586,7 +1586,8 @@ git commit -m "Add POST /api/auth/confirm-email-change, keeping UserName in step
 **Interfaces:**
 - Consumes: all three endpoints from Tasks 2–4. Adds no production code.
 
-**Four new tests.** 287 → **291**.
+**Four new tests.** 290 → **294**. (Task 4 ended at 290, three over this plan's original 287: review
+added two spec-listed tests and Task 4's fix round added one. 294 is the number to check against.)
 
 **Why this task exists at all.** Three of the design's required assertions cannot run under the
 `Test` auth scheme, and a test-scheme version of any of them would pass while testing nothing:
@@ -1721,8 +1722,14 @@ public class RealCookieAccountTests
         // Both directions, because "always writes expires=" would satisfy the first alone. If the
         // reissued cookie loses its persistence, a remembered login silently becomes a session
         // cookie and the user is signed out a day later with nothing to blame.
+        //
+        // The two status checks keep this from passing on a failure. A refused request can carry
+        // a deletion cookie, and that one says expires=Thu, 01 Jan 1970, which satisfies the first
+        // cookie assertion while proving nothing.
         Assert.Multiple(() =>
         {
+            Assert.That(remembered.StatusCode, Is.EqualTo(HttpStatusCode.NoContent), "remembered change");
+            Assert.That(session.StatusCode, Is.EqualTo(HttpStatusCode.NoContent), "session change");
             Assert.That(SessionCookie(remembered), Does.Contain("expires=").IgnoreCase,
                 "remember-me must survive the reissue");
             Assert.That(SessionCookie(session), Does.Not.Contain("expires=").IgnoreCase,
@@ -1742,7 +1749,7 @@ public class RealCookieAccountTests
             new { newEmail = "newer@example.test" });
         var query = HttpUtility.ParseQueryString(new Uri(_factory.Email.Sent.Single().Link).Query);
 
-        // Confirmed from a THIRD client with no session, which is the realistic shape: the link
+        // Confirmed from a SECOND client with no session, which is the realistic shape: the link
         // lands in a mailbox that may be open in a different browser entirely.
         using var mailbox = _factory.CreateClient();
         var confirmed = await mailbox.PostAsJsonAsync("/api/auth/confirm-email-change",
@@ -1767,7 +1774,7 @@ public class RealCookieAccountTests
 
 Run: `dotnet test`
 
-Expected: PASS, **291 total**. These test code that already exists, so they should pass first time —
+Expected: PASS, **294 total**. These test code that already exists, so they should pass first time —
 if any of them fails, the failure is real and belongs to Task 2 or Task 4, not to this test file.
 
 - [ ] **Step 3: Prove `RefreshSignInAsync` is load-bearing**
@@ -1807,7 +1814,7 @@ git commit -m "Cover account settings on the real cookie scheme"
   `createSettingsController(model, view, announce, { onBack, onAccount })`.
 
 **No automated tests** — this repo has no JS test harness. Step 7 is a scripted manual walk, and
-every browser check hard-reloads. Total stays **291**.
+every browser check hard-reloads. Total stays **294**.
 
 **The three two-form rules, and how the code makes them structural.** Every auth screen so far has
 had exactly one form and one error region, so the announcer and the focus helpers have never had to
@@ -1902,10 +1909,12 @@ function passwordError(error) {
   // 401 is either a session that ended or an account locked by five wrong attempts, and the
   // endpoint deliberately does not say which. One message that is true of both, and no bounce to
   // the login screen: a locked-out user's cookie still works, so signing them out would be a lie
-  // that also loses whatever they had typed.
+  // that also loses whatever they had typed. The message names BOTH ways out. Lockout advice alone
+  // sends somebody whose session died (a password change on another device) round a
+  // wait-and-retry loop that can never succeed.
   if (error?.status === 401) {
-    return "We can't change your password right now. After five wrong attempts an account is "
-      + "locked for fifteen minutes — wait, then try again.";
+    return "We can't change your password right now. If you've had five wrong tries, wait fifteen "
+      + "minutes and try again. Otherwise, sign out and sign in again.";
   }
   return "Something went wrong. Please try again.";
 }
@@ -1913,8 +1922,16 @@ function passwordError(error) {
 function emailError(error) {
   const reason = error?.status === 400 ? error?.body?.error : null;
   if (reason === "same") return "That's already your sign-in address.";
-  if (error?.status === 400) return "That doesn't look like an email address.";
-  if (error?.status === 401) return "We can't change your address right now. Please sign in again.";
+  // The bare 400 also covers an address the browser accepts but Wend cannot hold: o'brien@ passes
+  // type="email", then fails the AllowedUserNameCharacters check /change-email runs. "That doesn't
+  // look like an email address" would be false for them, so the message names the rule instead.
+  if (error?.status === 400) {
+    return "We can't use that address. Check it for typos. Wend only accepts the letters a to z, "
+      + "digits and . _ - + @ in an address.";
+  }
+  if (error?.status === 401) {
+    return "We can't change your address right now. Sign out and sign in again.";
+  }
   return "Something went wrong. Please try again.";
 }
 ```
@@ -1941,7 +1958,7 @@ export function createAccountView(root) {
         <button class="back-link" data-action="back">← Settings</button>
         <h2 class="account-heading" tabindex="-1">Account</h2>
         ${state.email ? `
-        <p class="account-address">Signed in as <strong>${escapeHtml(state.email)}</strong></p>` : ""}
+        <p class="account-address address-wrap">Signed in as <strong>${escapeHtml(state.email)}</strong></p>` : ""}
 
         <section class="account-section" aria-labelledby="account-password-heading">
           <h3 class="account-section-heading" id="account-password-heading" tabindex="-1">Change password</h3>
@@ -1953,24 +1970,35 @@ export function createAccountView(root) {
           <div class="account-email-body"></div>
         </section>
       </div>`;
-    renderPassword(state.password);
+    renderPassword(state.password, state.email);
     renderEmail(state.emailChange);
   }
 
-  function renderPassword(password) {
+  // The password form is built on a whole-shell render and on success, and is otherwise left
+  // alone: a failed change repaints only the status region above it. Two reasons, both
+  // load-bearing. A browser's password manager reads "the form vanished after a fetch" as a
+  // successful change, so rebuilding the form on a failure gets the REJECTED new password offered
+  // for saving, and a generated one saved without asking. And the user keeps what they typed, so a
+  // mistyped current password costs one field, not two. Success does replace the form: that is
+  // what clears both fields, and it is the signal the password manager should get.
+  // Because the inputs now outlive the error, point their aria-describedby at a FIXED error id
+  // in the markup. A reference to an id that is not on the page is ignored until the error renders.
+  function renderPassword(password, email) {
     const body = root.querySelector(".account-password-body");
     if (!body) return;
-    const errors = password.errors ?? [];
+    const status = body.querySelector(".account-password-status");
+    if (status && password.status !== "done") {
+      status.innerHTML = passwordStatus(password);
+      return;
+    }
     body.innerHTML = `
-      ${password.status === "done" ? `
-      <div class="account-password-done alert alert-success" tabindex="-1">
-        <p>Your password has been changed. Your other devices have been signed out.</p>
-      </div>` : ""}
-      ${errors.length ? `
-      <div class="account-password-errors alert alert-danger" tabindex="-1">
-        <p>${escapeHtml(errors[0])}</p>
-      </div>` : ""}
+      <div class="account-password-status">${passwordStatus(password)}</div>
       <form class="auth-form" data-action="change-password">
+        <!-- Tells a password manager WHICH saved login this change belongs to. Hidden from
+             everyone and never sent: the submit handler reads only the two password fields. -->
+        <input type="email" name="username" autocomplete="username"
+          value="${escapeHtml(email ?? "")}" hidden readonly />
+
         <label for="account-current-password">Current password</label>
         <input class="input" id="account-current-password" name="currentPassword" type="password"
           autocomplete="current-password" required />
@@ -1986,6 +2014,19 @@ export function createAccountView(root) {
         <!-- .btn carries the design system's min-height: 2.75rem. A bare <button> is 28px. -->
         <button type="submit" class="btn btn-primary" data-role="change-password">Change password</button>
       </form>`;
+  }
+
+  function passwordStatus(password) {
+    const errors = password.errors ?? [];
+    return `
+      ${password.status === "done" ? `
+      <div class="account-password-done alert alert-success" tabindex="-1">
+        <p>Your password has been changed. Your other devices have been signed out.</p>
+      </div>` : ""}
+      ${errors.length ? `
+      <div class="account-password-errors alert alert-danger" tabindex="-1">
+        <p>${escapeHtml(errors[0])}</p>
+      </div>` : ""}`;
   }
 
   function renderEmail(emailChange) {
@@ -2110,8 +2151,9 @@ export function createAccountController(model, view, announce, { onBack } = {}) 
         return;
       }
       // Repaints the password section ONLY. Success clears both password fields, which is why
-      // this repaints at all — and why focus has to be placed deliberately afterwards.
-      view.renderPassword(state.password);
+      // this repaints at all — and why focus has to be placed deliberately afterwards. A failure
+      // repaints just the status region and keeps the form (see renderPassword).
+      view.renderPassword(state.password, state.email);
       view.setPasswordBusy(false);
       view.focusPasswordOutcome();
       if (state.password.status === "done") {
@@ -2233,6 +2275,13 @@ property is a real design-system token:
   color: var(--text-muted);
 }
 
+/* An email address is one unbroken word, and an ordinary long one is wider than a 320px screen.
+   Without this it pushes the page sideways (SC 1.4.10). Shared with the confirm screen's success
+   heading, which names the address too. */
+.address-wrap {
+  overflow-wrap: anywhere;
+}
+
 /* The rule is what tells a sighted user the two forms are separate things — the aria-labelledby
    on each <section> is what tells everyone else. --border, not --control-border: this is a
    decorative divider, and --control-border exists to carry the 3:1 boundary a CONTROL owes
@@ -2275,18 +2324,33 @@ reload serves stale ES modules.
 - [ ] **`minlength="12"` with real key events**, never a scripted `.value` assignment — `tooShort`
   only fires on a user-edited value, so a scripted check records a false pass. Type eleven
   characters and submit: the browser's own message, on the field.
-- [ ] **A successful change-password leaves you on the Account screen.** This is the one manual
-  check that catches a missing `RefreshSignInAsync`; if it is absent you are bounced to sign-in.
-  Both password fields are cleared, and focus is on the success message inside the password section.
+- [ ] **A failed change keeps what you typed.** Type a new password, mistype the current one, and
+  submit. The error shows, both fields still hold what you typed, and the browser does **not**
+  offer to save or update a password. Then fix the current password and submit: the change works
+  without retyping the new one.
+- [ ] **A successful change-password leaves you signed in.** The Account screen makes no request
+  after success, so staying on it proves nothing by itself: go Back to Settings, then Back again to
+  the board overview. It must load your boards, not the sign-in screen. This is the one manual check
+  that catches a missing `RefreshSignInAsync`. Before leaving, check that both password fields
+  were cleared, that focus landed inside the password section, and that the browser offered to
+  update the password for **your** address.
+- [ ] **An address Wend cannot hold gets a true message.** Submit `o'brien@example.test` (the
+  browser accepts it). The email section's error names the allowed characters. It must not say
+  the address doesn't look like one.
 - [ ] **Focus never lands on `<body>`** after any outcome. Check with the keyboard: after each
   submit, press Tab once and confirm you move to the next control *inside that form's section*.
 - [ ] **Each form is identifiable by screen reader** — two `<h3>`s, each `<section>` associated with
   its own via `aria-labelledby`.
 - [ ] **Every control is 44×44.** Both submit buttons, both text inputs, the Account button on
   Settings, and the back link.
-- [ ] **At ~375px wide**, nothing overflows horizontally and the two sections stack.
+- [ ] **At 320px wide and at 200 % text zoom**, nothing overflows horizontally and the two
+  sections stack. Sign in with a long address for this one (at least 40 characters, such as
+  `a.rather.long.address.for.testing@example.test`): the "Signed in as" line must wrap, not scroll.
 - [ ] **In light theme as well as dark** — the section rule uses `--border`, which is defined in
   both blocks of `tokens/colors.css`.
+- [ ] **Last, because it locks the account for fifteen minutes:** five wrong current passwords,
+  then a sixth. The 401 message shows in the password section, names both ways out, and you stay
+  on the screen.
 
 - [ ] **Step 8: Commit**
 
@@ -2311,7 +2375,7 @@ git commit -m "Add the Account screen with independent password and email forms"
   `createConfirmEmailController(model, view, announce, { userId, newEmail, code })`;
   `showConfirmEmailChange()` and the `/confirm-email-change` case in `boot()`.
 
-**No automated tests.** Total stays **291**.
+**No automated tests.** Total stays **294**.
 
 **The one security rule this screen must not break.** `newEmail` arrives from a query string on an
 anonymous page anybody can link to, and every view here renders through a template literal into
@@ -2392,10 +2456,14 @@ export function createConfirmEmailView(root) {
       <h2 class="auth-heading" tabindex="-1">Nothing to confirm</h2>
       <p>Open the link from your email to finish changing your address. Links last one hour.</p>
       <p class="auth-links"><a href="/login">Back to sign in</a>.</p>`,
+    // A used link answers exactly like an expired one (the first use rotated the stamp), so the
+    // most common way to land here is opening the link a second time after it WORKED. The copy
+    // says so, or that person starts a change that is already done.
     expired: `
       <h2 class="auth-heading" tabindex="-1">This link has expired or was already used</h2>
-      <p>Links last one hour and each one works once. Sign in and start the change again from
-        Settings → Account.</p>
+      <p>Links last one hour and each one works once. If you've opened this link before, your
+        address may already have changed: try signing in with the new one.</p>
+      <p>Otherwise, sign in and start the change again from Settings → Account.</p>
       <p class="auth-links"><a href="/login">Sign in</a>.</p>`,
     taken: `
       <h2 class="auth-heading" tabindex="-1">That address is now in use</h2>
@@ -2404,16 +2472,17 @@ export function createConfirmEmailView(root) {
       <p class="auth-links"><a href="/login">Sign in</a>.</p>`,
     failed: `
       <h2 class="auth-heading" tabindex="-1">Something went wrong</h2>
-      <p>We couldn't change your address just now. Sign in and try again from Settings → Account.</p>
+      <p>We couldn't change your address just now. Open the link from your email again; it works
+        for one hour. If it has run out, sign in and start again from Settings → Account.</p>
       <p class="auth-links"><a href="/login">Sign in</a>.</p>`,
   };
 
   function render(state) {
     const body = state.status === "done"
       ? `
-        <h2 class="auth-heading" tabindex="-1">Your sign-in address is now ${escapeHtml(state.email ?? "")}</h2>
-        <p>Use it the next time you sign in. Every session you had open has been signed out,
-          including this one.</p>
+        <h2 class="auth-heading address-wrap" tabindex="-1">Your sign-in address is now ${escapeHtml(state.email ?? "")}</h2>
+        <p>Use it the next time you sign in. Every device you were signed in on has been signed
+          out.</p>
         <p class="auth-links"><a href="/login">Sign in</a>.</p>`
       : BODIES[state.status] ?? BODIES.failed;
 
@@ -2443,9 +2512,10 @@ rule is here so nobody adds one later.
 const ANNOUNCEMENTS = {
   checking: "Confirming your new address.",
   nolink: "Nothing to confirm. Open the link from your email.",
-  expired: "This link has expired or was already used. Start the change again from Account settings.",
+  expired: "This link has expired or was already used. If you've opened it before, your address "
+    + "may already have changed.",
   taken: "That address is now in use. Try a different one from Account settings.",
-  failed: "We couldn't change your address. Try again from Account settings.",
+  failed: "We couldn't change your address. Open the link from your email again.",
 };
 
 // Wires the confirm-email-change screen. Owns userId, newEmail and code for the lifetime of the
@@ -2536,12 +2606,15 @@ newest link out of `%LOCALAPPDATA%\Wend\auth-emails.log`. **Hard-reload each tim
   mounts, and Back does not restore it.
 - [ ] **Reloading the page** renders the no-link state and sends **no request** (check the Network
   panel).
-- [ ] **The old link, opened a second time**, renders the expired state — never a raw error.
+- [ ] **The old link, opened a second time**, renders the expired state, never a raw error. Its
+  copy tells you the change may already have gone through.
 - [ ] **You are signed out.** Navigate to `/` afterwards: the gate must land you on sign-in, and
   signing in with the **new** address must work while the old one is refused.
 - [ ] **The header chrome is hidden** on this screen — no Settings, no Sign out, and neither is in
   the tab order. Tab from the top of the page and confirm the skip link comes first.
-- [ ] **~375px and light theme**, as on every other auth screen.
+- [ ] **320px wide, 200 % text zoom and light theme**, as on every other auth screen. Confirm a
+  change to a long address (40 characters or more) once: the success heading must wrap, not scroll
+  sideways. It uses `.address-wrap` from Task 6's CSS.
 
 - [ ] **Step 6: Commit**
 
@@ -2573,15 +2646,21 @@ dotnet test
 git status --short
 ```
 
-Expected: **291 passed**, and a clean tree apart from what the branch intends.
+Expected: **294 passed**, and a clean tree apart from what the branch intends.
 
 - [ ] **Step 2: Open the PR**
 
 Body must contain, in this order:
 
 1. **What it adds** — the three endpoints, the token provider, the two screens.
-2. **The nine deviations**, copied from *Deviations to record in the PR body* at the top of this
-   plan, each with its one-line reason.
+2. **The ten deviations**: the nine copied from *Deviations to record in the PR body* at the top of
+   this plan, each with its one-line reason, plus a tenth that came out of Task 4's review.
+   **`/change-email` refuses an address with any character outside `AllowedUserNameCharacters`**
+   (a bare 400, before any lookup), where the design checks only `EmailAddressAttribute`. Without
+   it, an address like `o'brien@` passes the request, commits `Email` at confirm time, fails
+   `SetUserNameAsync`, and leaves a half-changed account behind a false "taken". The cost is that
+   Wend cannot take such addresses, which `/register` already could not. A reviewer working from
+   the design would otherwise read this as unexplained behaviour.
 3. **The four load-bearing findings and the test that catches each**, so the reviewer can check them
    without re-deriving the design:
    - the `UserName` desync → `Registering_the_old_address_afterwards_still_works`;
@@ -2595,7 +2674,9 @@ Body must contain, in this order:
 4. **The manual walk**, stating which of Task 6 Step 7 and Task 7 Step 5 were actually done and
    which were not. Say it plainly either way — an unwalked check reported as walked is worse than
    an unwalked check.
-5. **Test count: 257 → 291.**
+5. **Test count: 257 → 294.** Three over the original plan: the two spec-listed tests review added
+   (a failing `RefreshSignInAsync` still answers 204, and no old-address notice on the 409) and the
+   `AllowedUserNameCharacters` test from Task 4's fix round.
 6. A pointer to
    [`docs/2026-08-13-wend-review-guide.md`](../2026-08-13-wend-review-guide.md) § *Plan 6 review
    checklist*.
@@ -2620,7 +2701,7 @@ refuses.
 
 ## Done when
 
-- [ ] `dotnet test` reports **291 passed**, 0 failed.
+- [ ] `dotnet test` reports **294 passed**, 0 failed.
 - [ ] Commenting out `SetUserNameAsync` in `/confirm-email-change` fails
       `Registering_the_old_address_afterwards_still_works` **and nothing else** (Task 4, Step 5).
 - [ ] Commenting out `RefreshSignInAsync` in `/change-password` fails
@@ -2636,9 +2717,10 @@ refuses.
       `/confirm-email-change` mounts, and reloading it sends no request.
 - [ ] Both Account forms' error regions are independent in both directions, and focus lands inside
       the submitting form on every outcome — never on `<body>`.
-- [ ] Every new control measures at least 44×44, at ~375px and at desktop width, in both themes.
+- [ ] Every new control measures at least 44×44, at 320px and at desktop width, in both themes,
+      and nothing scrolls sideways at 320px or 200 % text, even with a long address on screen.
 - [ ] `docs/backlog.md` is unchanged, and the stolen-session item is still open.
-- [ ] The PR body carries all nine deviations, the four findings with their tests, and an honest
+- [ ] The PR body carries all ten deviations, the four findings with their tests, and an honest
       account of which manual checks were walked.
 
 ---
@@ -2649,3 +2731,5 @@ verified against `dotnet/aspnetcore` `release/10.0` first. Three of those answer
 off the error code; `SetUserNameAsync` rotates the security stamp a second time, so the same-instance
 requirement is real; and `RefreshSignInAsync` returns no result and is a silent no-op under the Test
 auth scheme, which is why Task 5 exists as its own real-cookie suite rather than folding into Task 2.*
+
+> Stress-tested 2026-10-01 (skill 0b01b4c), Tasks 5-8 — 9 applied, 1 adapted, 0 decided by me.
