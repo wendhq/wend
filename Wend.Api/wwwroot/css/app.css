@@ -557,7 +557,8 @@
 }
 
 /* An email address is one unbroken word, and an ordinary long one is wider than a 320px screen.
-   Without this it pushes the page sideways (SC 1.4.10). */
+   Without this it pushes the page sideways (SC 1.4.10). Shared by the Account screen and the
+   confirm-email-change screen's success heading. */
 .address-wrap {
   overflow-wrap: anywhere;
 }

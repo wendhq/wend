@@ -31,6 +31,9 @@ import { createResetController } from "./auth/reset/controller.js";
 import { createAccountModel } from "./auth/account/model.js";
 import { createAccountView } from "./auth/account/view.js";
 import { createAccountController } from "./auth/account/controller.js";
+import { createConfirmEmailModel } from "./auth/confirm-email/model.js";
+import { createConfirmEmailView } from "./auth/confirm-email/view.js";
+import { createConfirmEmailController } from "./auth/confirm-email/controller.js";
 
 const announce = createAnnouncer(document.getElementById("status"));
 const toast = createToast(document.getElementById("toast-region"));
@@ -268,6 +271,27 @@ function showVerify() {
   });
 }
 
+function showConfirmEmailChange() {
+  hideAppChrome();
+  const params = new URLSearchParams(location.search);
+  const userId = params.get("userId") ?? "";
+  const newEmail = params.get("newEmail") ?? "";
+  const code = params.get("code") ?? "";
+
+  // Drop the live token AND the address out of the address bar and the history entry as soon as
+  // they are read. They still reach the server in the POST body, but they no longer sit in a URL a
+  // user might screenshot, bookmark, or paste into a support chat — and this URL carries personal
+  // data on top of a credential, which is one more reason than /verify has. A reload after this
+  // point has nothing, which is what the screen's no-link state is for.
+  history.replaceState(null, "", "/confirm-email-change");
+
+  mount((root) => {
+    const model = createConfirmEmailModel();
+    const view = createConfirmEmailView(root);
+    createConfirmEmailController(model, view, announce, { userId, newEmail, code });
+  });
+}
+
 // The server renders the SPA shell for every non-API path, so the client owns routing. Auth screens
 // are reached by URL because an emailed link has to land somewhere, and because /login has to be
 // linkable from the register and verify screens.
@@ -278,6 +302,7 @@ async function boot() {
     case "/login": showLogin(); return;
     case "/forgot-password": showForgot(); return;
     case "/reset-password": showReset(); return;
+    case "/confirm-email-change": showConfirmEmailChange(); return;
   }
 
   // The gate: one call decides between the app and the login screen. /me answering 401 here is an
