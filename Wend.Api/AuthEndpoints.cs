@@ -234,7 +234,7 @@ public static class AuthEndpoints
         {
             var newPassword = req.NewPassword ?? "";
 
-            // A live cookie whose account no longer exists — ordinary once Plan 7 ships.
+            // A live cookie whose account no longer exists. Ordinary once Plan 7 ships.
             // GetUserAsync returns null rather than throwing (verified against release/10.0), so
             // this is a 401 and not a 500.
             if (await users.GetUserAsync(principal) is not { } user) return Results.Unauthorized();
@@ -243,7 +243,7 @@ public static class AuthEndpoints
             // accounting can fire. The ordering is the reverse of /reset-password's on purpose:
             // that endpoint is anonymous and validates before the lookup so an early 400 cannot
             // become an existence oracle. Here the caller is already known, so the user is resolved
-            // first and the validators are handed the REAL user — which is what a future policy
+            // first and the validators are handed the REAL user, which is what a future policy
             // like "your password may not contain your email address" would need.
             // AuthChangePasswordTests guards this: a weak new password must not cost an attempt at
             // the current one. Do not reorder.
@@ -259,7 +259,7 @@ public static class AuthEndpoints
 
             // ChangePasswordAsync verifies the current password and does NO lockout bookkeeping
             // whatsoever (verified against release/10.0). Without the two calls around it, somebody
-            // holding a stolen cookie gets unlimited attempts at the current password — and a
+            // holding a stolen cookie gets unlimited attempts at the current password. A
             // correct guess converts a session that dies on its own into a permanent takeover.
             // Five attempts is the same budget login allows, applied to the same secret.
             if (!(await users.ChangePasswordAsync(user, req.CurrentPassword ?? "", newPassword))
@@ -273,7 +273,7 @@ public static class AuthEndpoints
 
             // AFTER the change, so the rotated stamp lands in the reissued cookie. The password
             // write rotates the security stamp, and at ValidationInterval.Zero that refuses every
-            // live cookie for this user on its next request — including the browser that just
+            // live cookie for this user on its next request, including the browser that just
             // submitted the form. Every OTHER session dying is the point; this one dying is a bug
             // the user experiences as being logged out for changing their password.
             //
@@ -290,7 +290,7 @@ public static class AuthEndpoints
                 // send them round the loop for nothing. The degraded outcome is that their next
                 // request 401s and they sign in again with the new password, which works. Same rule
                 // /reset-password applies to a failed lockout clear. Type name only, never a
-                // message — an exception message can carry data.
+            // message: an exception message can carry data.
                 loggerFactory.CreateLogger("Wend.Api.AuthEndpoints")
                     .LogWarning("Password changed but the session was not refreshed: {Error}",
                         ex.GetType().Name);
@@ -299,9 +299,9 @@ public static class AuthEndpoints
             return Results.NoContent();
         }).RequireAuthorization();
 
-        // Authenticated. One 204 covers four different outcomes — free, held by another account as
+        // Authenticated. One 204 covers four different outcomes: free, held by another account as
         // an email, held by another account as a user name, and held by the caller themselves in
-        // the half-changed state — because an authenticated endpoint that names which addresses
+        // the half-changed state, because an authenticated endpoint that names which addresses
         // exist is a user-table oracle with a login in front of it. The one 400 with a code names a
         // property of the caller's OWN account, which they already know.
         group.MapPost("/change-email", async (ChangeEmailRequest req, UserManager<WendUser> users,
@@ -311,7 +311,7 @@ public static class AuthEndpoints
 
             // Input-only checks first, per the standing rule: refusing malformed input is safe, but
             // it must happen BEFORE any existence lookup or the 400 becomes an oracle. The bare 400
-            // carries no code deliberately — the screen validates format client-side, so reaching
+            // carries no code deliberately. The screen validates format client-side, so reaching
             // it means a caller bypassing the form.
             if (address.Length is 0 or > MaxEmailLength) return Results.BadRequest();
             if (!new EmailAddressAttribute().IsValid(address)) return Results.BadRequest();
@@ -319,7 +319,7 @@ public static class AuthEndpoints
             // Wend keeps UserName equal to Email, and /confirm-email-change writes it with
             // SetUserNameAsync, which refuses any character outside AllowedUserNameCharacters
             // (empty means anything goes, as in Identity's own validator). EmailAddressAttribute is
-            // far more permissive — o'brien@ and føssum@ both pass it — so an address like that
+            // far more permissive (o'brien@ and føssum@ both pass it), so an address like that
             // would mint a link that commits Email at confirm time and then fails on UserName,
             // leaving a half-changed account. Refuse it here, on input alone, so it is not an oracle.
             var allowed = users.Options.User.AllowedUserNameCharacters;
@@ -329,14 +329,14 @@ public static class AuthEndpoints
             if (await users.GetUserAsync(principal) is not { } user) return Results.Unauthorized();
 
             // Normalised, not a raw string compare: "MALIN@example.test" is the address they have.
-            // Naming this leaks nothing — the caller is authenticated and already knows their own
-            // address — and a silent 204 here would promise an inbox that never receives anything.
+            // Naming this leaks nothing: the caller is authenticated and already knows their own
+            // address. A silent 204 here would promise an inbox that never receives anything.
             if (string.Equals(users.NormalizeEmail(address), user.NormalizedEmail,
                     StringComparison.Ordinal))
                 return Results.BadRequest(new { error = "same" });
 
-            // BOTH lookups. An address can be occupied as a UserName while free as an Email — that
-            // is exactly the desync SetUserNameAsync exists to prevent — and minting a token for
+            // BOTH lookups. An address can be occupied as a UserName while free as an Email. That
+            // is exactly the desync SetUserNameAsync exists to prevent, and minting a token for
             // one of those would produce a confirmation link that fails at confirm time, sent to a
             // real inbox.
             //
@@ -354,14 +354,14 @@ public static class AuthEndpoints
 
             // Nothing is written. The account keeps its old address until the link is clicked, so
             // an abandoned request leaves no state to clean up and no pending-change indicator to
-            // render — the trade accepted by putting the pending address in the query string.
+            // render. That trade is accepted by putting the pending address in the query string.
             var link = await BuildChangeEmailLinkAsync(user, address, users, http, publicBaseUrl);
             await email.SendEmailChangeConfirmationAsync(address, link);
 
             return Results.NoContent();
         }).RequireAuthorization();
 
-        // POST, not GET, even though this arrives from an emailed link — the same reasoning /verify
+        // POST, not GET, even though this arrives from an emailed link. The same reasoning /verify
         // carries, and it bites harder here. Corporate mail scanners and link-preview bots follow
         // GET links automatically, so a GET that applied the change would be fired by a robot
         // before the human ever clicked, silently repointing an account's login identity. The
@@ -395,7 +395,7 @@ public static class AuthEndpoints
             }
 
             // Verifies the token, writes Email and EmailConfirmed, rotates the security stamp, then
-            // runs UserValidator through UpdateUserAsync — which is where the parent spec's
+            // runs UserValidator through UpdateUserAsync, which is where the parent spec's
             // "uniqueness re-checked at confirm time" actually happens. All verified against
             // release/10.0. It does NOT touch UserName; that is the next call's whole reason.
             var changed = await users.ChangeEmailAsync(user, newEmail, token);
@@ -411,22 +411,22 @@ public static class AuthEndpoints
 
             // The plan's correctness requirement, not tidiness. Wend sets UserName = Email at
             // registration and ChangeEmailAsync leaves UserName holding the OLD address forever.
-            // Login keeps working — it resolves through NormalizedEmail — so the bug hides from
-            // every test that only signs in. But RequireUniqueEmail switches on UserValidator's UserName uniqueness
-            // check too, so the abandoned address stays occupied, and the next registration to it
-            // fails DuplicateUserName, which /register answers with 204 and a log line. Silent,
-            // delayed, and it lands on a stranger.
+            // Login keeps working because it resolves through NormalizedEmail, so the bug hides from
+            // every test that only signs in. But RequireUniqueEmail switches on UserValidator's
+            // UserName uniqueness check too, so the abandoned address stays occupied, and the next
+            // registration to it fails DuplicateUserName, which /register answers with 204 and a
+            // log line. Silent, delayed, and it lands on a stranger.
             //
             // The SAME instance, not a reload: ChangeEmailAsync has just refreshed this user's
             // concurrency stamp and reloading here would work from a stale one. Same two-call
             // pattern as /reset-password's lockout clear. This call rotates the security stamp a
-            // second time (verified), which is harmless — every session died at the first rotation.
+            // second time (verified), which is harmless: every session died at the first rotation.
             var renamed = await users.SetUserNameAsync(user, newEmail);
             if (!renamed.Succeeded)
             {
                 // The narrowest path in the plan, and it still needs its branch: /change-email
                 // checks both lookups, and rejects characters UserName cannot hold, precisely so
-                // an address acceptable as an Email is acceptable as a UserName — so what is left
+            // an address acceptable as an Email is acceptable as a UserName, so what is left
                 // is a genuine race between two confirmations. The account is now half-changed,
                 // which is the state this endpoint exists to prevent, so it must not report
                 // success. It answers "taken", not "token": the link was fine and somebody else
@@ -444,9 +444,9 @@ public static class AuthEndpoints
                 await email.SendEmailChangedNoticeAsync(oldEmail, newEmail));
 
             // The only endpoint in /api/auth/* that returns a body, and it earns it. The success
-            // screen has to name the new address, and the only other sources are the query string —
-            // a caller-controlled value on an anonymous page, which is the reflected-XSS shape the
-            // frontend rule forbids — and nothing at all, which leaves the user trusting that what
+            // screen has to name the new address. The only other sources are the query string
+            // (a caller-controlled value on an anonymous page, which is the reflected-XSS shape the
+            // frontend rule forbids) and nothing at all, which leaves the user trusting that what
             // they typed ten minutes ago is what landed. Read off the user AFTER both writes.
             //
             // No RefreshSignInAsync, and there must not be one: this request is anonymous and may
@@ -456,9 +456,9 @@ public static class AuthEndpoints
             return Results.Ok(new { email = user.Email });
         });
 
-        // Anonymous, like most of this group — the authenticated exceptions are /me, /logout,
+        // Anonymous, like most of this group. The authenticated exceptions are /me, /logout,
         // /change-password and /change-email. Every failure below answers with the same empty
-        // 401 — unknown address, wrong password, unconfirmed account and locked-out account
+        // 401: unknown address, wrong password, unconfirmed account and locked-out account
         // alike. A response that distinguishes them enumerates the user table.
         group.MapPost("/login", async (LoginRequest req, SignInManager<WendUser> signIn,
             UserManager<WendUser> users, IPasswordHasher<WendUser> hasher, IAuthEmailSender email,
@@ -570,7 +570,7 @@ public static class AuthEndpoints
     /// <summary>
     /// Mints a change-email token and builds the link to the SPA's /confirm-email-change screen.
     /// The token is bound to (user, new address, security stamp), so the address has to travel with
-    /// it — which is why this link carries a third parameter the other two do not.
+    /// it. That is why this link carries a third parameter the other two do not.
     ///
     /// Same configured origin as the other two, and it matters more here: a link that repoints an
     /// account's login identity is worth as much to an attacker as a reset link, so building the

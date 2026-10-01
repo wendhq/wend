@@ -8,7 +8,7 @@ using Wend.Core;
 namespace Wend.Tests;
 
 /// <summary>
-/// /api/auth/confirm-email-change — the half that applies the change. Anonymous, because the link
+/// /api/auth/confirm-email-change: the half that applies the change. Anonymous, because the link
 /// lands in a mailbox that may be open in a different browser and possession of a token bound to
 /// (user, new address, stamp) is the proof.
 ///
@@ -112,7 +112,7 @@ public class AuthConfirmEmailChangeTests
     {
         // THE regression test. ChangeEmailAsync does not touch UserName (verified against
         // release/10.0), and RequireUniqueEmail switches on UserValidator's UserName uniqueness
-        // check as well as the email one — so without SetUserNameAsync the abandoned address stays
+        // check as well as the email one, so without SetUserNameAsync the abandoned address stays
         // occupied. A later registration to it then fails DuplicateUserName, which /register
         // answers with 204 and a code-only log line. The caller sees success, no mail is ever sent,
         // and the failure lands on a stranger months later.
@@ -129,7 +129,7 @@ public class AuthConfirmEmailChangeTests
             new { email = "malin@example.test", password = GoodPassword, displayName = "Someone" });
 
         Assert.That(_factory.Email.Sent.Where(s => s.Kind == "confirm"), Is.Not.Empty,
-            "the old address is squatted as a UserName — SetUserNameAsync is missing");
+            "the old address is squatted as a UserName: SetUserNameAsync is missing");
     }
 
     [Test]
@@ -271,7 +271,7 @@ public class AuthConfirmEmailChangeTests
         Assert.Multiple(() =>
         {
             Assert.That(afterSuccess, Has.Count.EqualTo(1));
-            // Sent to the OLD address, naming the new one — the only mechanism by which an owner
+            // Sent to the OLD address, naming the new one: the only mechanism by which an owner
             // learns that somebody with a live session repointed their account.
             Assert.That(afterSuccess[0].Email, Is.EqualTo("malin@example.test"), "recipient");
             Assert.That(afterSuccess[0].Link, Is.EqualTo("newer@example.test"), "names the new one");

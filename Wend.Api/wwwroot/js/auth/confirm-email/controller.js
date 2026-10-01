@@ -8,7 +8,7 @@ const ANNOUNCEMENTS = {
 };
 
 // Wires the confirm-email-change screen. Owns userId, newEmail and code for the lifetime of the
-// screen and passes them to the one request — the view never sees them.
+// screen and passes them to the one request. The view never sees them.
 export function createConfirmEmailController(model, view, announce,
   { userId, newEmail, code } = {}) {
   // Settle the no-link case BEFORE subscribing, so arrival renders and announces once instead of
@@ -17,7 +17,7 @@ export function createConfirmEmailController(model, view, announce,
 
   model.subscribe((state) => {
     view.render(state);
-    // EVERY state moves focus to its heading and says what happened — including "checking". This
+    // EVERY state moves focus to its heading and says what happened, including "checking". This
     // screen is reached by clicking a link in an email specifically to receive an async result, so
     // the house "first paint does not force focus" rule is wrong here: without this a
     // screen-reader user gets silence, with focus nowhere, until the request settles.

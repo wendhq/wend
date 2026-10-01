@@ -7,7 +7,7 @@ namespace Wend.Tests;
 /// <summary>
 /// Account settings on the genuine cookie scheme, no test auth anywhere: which sessions survive a
 /// password change, which die, and whether a remembered cookie stays remembered. Every assertion
-/// here is one the Test scheme cannot make — see the note in the plan.
+/// here is one the Test scheme cannot make (see the note in the plan).
 /// </summary>
 public class RealCookieAccountTests
 {
@@ -36,7 +36,7 @@ public class RealCookieAccountTests
     {
         // The canary, and deliberately the first test in the file. The factory seeds a default user
         // and points CurrentUser at it on every CreateClient(), so a suite that forgot
-        // useTestAuth: false is authenticated before it does anything — and every assertion below
+        // useTestAuth: false is authenticated before it does anything, and every assertion below
         // would pass while testing nothing. This repo has been bitten by that shape twice.
         var response = await _client.GetAsync("/api/auth/me");
 
@@ -64,7 +64,7 @@ public class RealCookieAccountTests
             new { currentPassword = GoodPassword, newPassword });
 
     // Last(), not Single(): a change-password response can carry more than one wend.session
-    // Set-Cookie — RefreshSignInAsync writes one, and SlidingExpiration's renewal can write another.
+    // Set-Cookie: RefreshSignInAsync writes one, and SlidingExpiration's renewal can write another.
     // The last one is the cookie the browser ends up holding.
     private static string SessionCookie(HttpResponseMessage response) =>
         response.Headers.GetValues("Set-Cookie").Last(c => c.StartsWith("wend.session="));

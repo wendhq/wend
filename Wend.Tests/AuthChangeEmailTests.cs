@@ -11,11 +11,11 @@ using Wend.Core;
 namespace Wend.Tests;
 
 /// <summary>
-/// /api/auth/change-email — the request half. Four different outcomes fall out of the same 204,
-/// and which of them is which is invisible from outside on purpose: this endpoint is authenticated
-/// and feels private, which is exactly why a 409 for a taken address looks reasonable here. It
-/// would let any account holder walk the user table one address at a time from their own settings
-/// screen.
+/// /api/auth/change-email: the request half. Four different outcomes fall out of the same 204,
+/// and which of them is which is indistinguishable by status and body, on purpose. This
+/// endpoint is authenticated and feels private, which is exactly why a 409 for a taken address
+/// looks reasonable here. It would let any account holder walk the user table one address at a
+/// time from their own settings screen.
 /// </summary>
 public class AuthChangeEmailTests
 {
@@ -52,7 +52,7 @@ public class AuthChangeEmailTests
     }
 
     /// <summary>
-    /// Seeds an account and acts as it. NOTE: never call CreateClient() after this —
+    /// Seeds an account and acts as it. NOTE: never call CreateClient() after this, because
     /// ConfigureClient resets CurrentUser to the factory's default user.
     /// </summary>
     private async Task<string> ArrangeSignedIn(string email)
@@ -194,7 +194,7 @@ public class AuthChangeEmailTests
         var response = await Request("stranded@example.test");
 
         // FindByEmailAsync alone would call this free and mint a token for an address that then
-        // fails DuplicateUserName at confirm time — a link that cannot work, sent to a real inbox.
+        // fails DuplicateUserName at confirm time: a link that cannot work, sent to a real inbox.
         Assert.Multiple(() =>
         {
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
@@ -207,7 +207,7 @@ public class AuthChangeEmailTests
     {
         // The 409 half-changed state, arranged directly: Email is the new address, UserName is
         // still the old one. Re-requesting the OLD address is the repair path out of it, and
-        // excluding self from the lookup is the only thing that makes it reachable — without it
+        // excluding self from the lookup is the only thing that makes it reachable. Without it
         // the user gets a silent 204 forever, on the one address they most want back.
         var id = await ArrangeSignedIn("malin@example.test");
         await MoveEmailOnly(id, "moved@example.test");
@@ -293,8 +293,8 @@ public class AuthChangeEmailTests
     }
 
     /// <summary>
-    /// Writes Email straight through the context, leaving UserName behind — the half-changed state
-    /// /confirm-email-change's 409 branch produces. Deliberately corrupt, and deliberately not
+    /// Writes Email straight through the context, leaving UserName behind (the half-changed state
+    /// /confirm-email-change's 409 branch produces). Deliberately corrupt, and deliberately not
     /// built through UserManager, which would keep the two in step.
     /// </summary>
     private async Task MoveEmailOnly(string userId, string email)

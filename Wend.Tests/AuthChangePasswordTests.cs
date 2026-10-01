@@ -15,7 +15,7 @@ namespace Wend.Tests;
 /// branches on them: one blames the new password, the other the current one, and swapping them
 /// produces a screen that tells the user to fix the field they got right.
 ///
-/// The Test auth scheme is deliberate here — this file is about the handler's logic. What the
+/// The Test auth scheme is deliberate here: this file is about the handler's logic. What the
 /// scheme cannot show (the acting session surviving, other sessions dying, persistence carrying
 /// across) is in RealCookieAccountTests, because RefreshSignInAsync is a silent no-op without a
 /// real cookie and SecurityStampValidator never runs at all.
@@ -44,7 +44,7 @@ public class AuthChangePasswordTests
 
     /// <summary>
     /// Registers and confirms an account, then points the Test scheme at it. Everything after this
-    /// call acts as that user. NOTE: never call CreateClient() again afterwards — ConfigureClient
+    /// call acts as that user. NOTE: never call CreateClient() again afterwards, because
     /// resets CurrentUser to the factory's default user.
     /// </summary>
     private Task<string> ArrangeSignedIn(string email) => ArrangeSignedIn(_factory, _client, email);
@@ -260,7 +260,7 @@ public class AuthChangePasswordTests
         });
     }
 
-    /// <summary>A SignInManager whose RefreshSignInAsync throws — the only way that method fails.</summary>
+    /// <summary>A SignInManager whose RefreshSignInAsync throws, the only way that method fails.</summary>
     private sealed class ThrowingRefreshSignInManager(
         UserManager<WendUser> userManager,
         IHttpContextAccessor contextAccessor,

@@ -280,7 +280,7 @@ function showConfirmEmailChange() {
 
   // Drop the live token AND the address out of the address bar and the history entry as soon as
   // they are read. They still reach the server in the POST body, but they no longer sit in a URL a
-  // user might screenshot, bookmark, or paste into a support chat — and this URL carries personal
+  // user might screenshot, bookmark, or paste into a support chat, and this URL carries personal
   // data on top of a credential, which is one more reason than /verify has. A reload after this
   // point has nothing, which is what the screen's no-link state is for.
   history.replaceState(null, "", "/confirm-email-change");

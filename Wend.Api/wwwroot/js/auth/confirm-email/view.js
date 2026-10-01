@@ -1,6 +1,6 @@
 import { escapeHtml } from "../../escape.js";
 
-// Renders the five states. Every one is a real screen with a heading — never a raw error.
+// Renders the five states. Every one is a real screen with a heading, never a raw error.
 //
 // This view is never given userId, newEmail or code, and must never be: they come off the query
 // string of an anonymous page anybody can link to, and everything here goes through a template
@@ -11,7 +11,7 @@ export function createConfirmEmailView(root) {
     checking: `
       <h2 class="auth-heading" tabindex="-1">Confirming your new address…</h2>
       <p>One moment.</p>`,
-    // A link with no parameters is not a broken one — most often it is a reload after confirming.
+    // A link with no parameters is not a broken one. Most often it is a reload after confirming.
     nolink: `
       <h2 class="auth-heading" tabindex="-1">Nothing to confirm</h2>
       <p>Open the link from your email to finish changing your address. Links last one hour.</p>

@@ -1,7 +1,7 @@
 import { api } from "../../api.js";
 
 // Maps the endpoint's three status codes onto the states the screen renders. The token trio is NOT
-// held here — the controller owns it and passes it on the one submit, so it can never reach the
+// held here. The controller owns it and passes it on the one submit, so it can never reach the
 // view and never reach the DOM.
 export function createConfirmEmailModel() {
   let state = { status: "checking" };
@@ -13,7 +13,7 @@ export function createConfirmEmailModel() {
       subscribers.push(fn);
       fn(state);
     },
-    // Arrived with nothing to confirm — a reload, a bookmark, or a back-navigation after
+    // Arrived with nothing to confirm: a reload, a bookmark, or a back-navigation after
     // replaceState stripped the query string. Deliberately NOT routed through confirm(), which
     // would post empty values, collect a 400, and tell the user their link expired when they never
     // presented one.
