@@ -544,6 +544,12 @@
   padding: var(--space-4);
 }
 
+/* The shared .back-link carries margin-bottom: 1rem, which suits screens with no flex gap. Here the
+   container's gap already supplies the 1rem, so the margin would double it to 2rem. */
+.account-view .back-link {
+  margin-bottom: 0;
+}
+
 .account-address {
   margin: 0;
   font-size: var(--text-sm);
