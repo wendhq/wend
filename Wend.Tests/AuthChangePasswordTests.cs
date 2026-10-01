@@ -194,13 +194,21 @@ public class AuthChangePasswordTests
         for (var attempt = 0; attempt < 5; attempt++)
             await Change("wrong wrong wrong wrong", NewPassword);
 
-        // The CORRECT current password, while locked. 401, and nothing changes — otherwise anyone
+        // The CORRECT current password, while locked. 401, and nothing changes: otherwise anyone
         // holding a stolen session sidesteps lockout by guessing here instead of at /login.
         var response = await Change(GoodPassword, NewPassword);
+
+        // A WRONG current password, while locked, must get the same 401 and no code. A handler
+        // that checked the password first would answer 400 "current" here and 401 only for the
+        // right one, which tells a stolen session when it has guessed correctly.
+        var wrongResponse = await Change("wrong wrong wrong wrong", NewPassword);
 
         await Assert.MultipleAsync(async () =>
         {
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized));
+            Assert.That(wrongResponse.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized),
+                "a wrong password while locked is refused the same way as a right one");
+            Assert.That(await ErrorCode(wrongResponse), Is.Null, "and carries no code");
             Assert.That(await PasswordWorks("guessed@example.test", GoodPassword), Is.True);
             Assert.That(await PasswordWorks("guessed@example.test", NewPassword), Is.False);
         });
