@@ -73,9 +73,8 @@ public class AuthChangePasswordTests
 
     private static async Task<string?> ErrorCode(HttpResponseMessage response)
     {
-        // The length guard is load-bearing: /change-email's malformed-address branch answers a
-        // BARE 400 with no body at all, and ReadFromJsonAsync throws on empty content rather than
-        // returning null.
+        // The length guard is load-bearing: some 400s carry no body at all, and
+        // ReadFromJsonAsync throws on empty content rather than returning null.
         if (response.Content.Headers.ContentLength is null or 0) return null;
         var body = await response.Content.ReadFromJsonAsync<Dictionary<string, string>>();
         return body?.GetValueOrDefault("error");
