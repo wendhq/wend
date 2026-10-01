@@ -258,6 +258,7 @@ public class AuthChangeEmailTests
         await Request("newer@example.test");
         var first = ReadLink(_factory.Email.Sent.Single().Link);
         await Request("newer@example.test");
+        Assert.That(_factory.Email.Sent, Has.Count.EqualTo(2), "the second request minted a link too");
 
         using var scope = _factory.Services.CreateScope();
         var users = scope.ServiceProvider.GetRequiredService<UserManager<WendUser>>();
