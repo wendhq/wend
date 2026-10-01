@@ -252,6 +252,7 @@ public class AuthChangePasswordTests
     {
         // The password write has committed by the time the session is refreshed, so a refresh that
         // throws must not turn a real change into an error the user retries.
+        ThrowingRefreshSignInManager.WasCalled = false;
         using var factory = new WendApiFactory(configureServices: services =>
             services.AddScoped<SignInManager<WendUser>, ThrowingRefreshSignInManager>());
         using var client = factory.CreateClient();
@@ -264,6 +265,8 @@ public class AuthChangePasswordTests
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NoContent));
             Assert.That(await PasswordWorks(factory, "refresh@example.test", NewPassword), Is.True,
                 "the change persisted");
+            Assert.That(ThrowingRefreshSignInManager.WasCalled, Is.True,
+                "the throwing override was the one resolved, so the catch was actually exercised");
         });
     }
 
@@ -279,7 +282,14 @@ public class AuthChangePasswordTests
         : SignInManager<WendUser>(userManager, contextAccessor, claimsFactory, optionsAccessor,
             logger, schemes, confirmation)
     {
-        public override Task RefreshSignInAsync(WendUser user) =>
+        // Static because the manager is built per request inside the app, out of the test's reach.
+        // Only the one test above reads it, and it resets it first.
+        public static bool WasCalled { get; set; }
+
+        public override Task RefreshSignInAsync(WendUser user)
+        {
+            WasCalled = true;
             throw new InvalidOperationException("simulated refresh failure");
+        }
     }
 }
