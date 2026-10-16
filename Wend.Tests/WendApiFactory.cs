@@ -22,8 +22,17 @@ public sealed class WendApiFactory : WebApplicationFactory<Program>
 {
     private readonly string _dbName = $"wend_test_{Guid.NewGuid():N}";
     private readonly bool _useTestAuth;
+    private readonly Action<IServiceCollection>? _configureServices;
 
-    public WendApiFactory(bool useTestAuth = true) => _useTestAuth = useTestAuth;
+    /// <param name="configureServices">Service replacements applied after everything else here, so
+    /// they win. Used instead of WithWebHostBuilder, which re-runs ConfigureWebHost and would try to
+    /// create this instance's database a second time.</param>
+    public WendApiFactory(bool useTestAuth = true,
+        Action<IServiceCollection>? configureServices = null)
+    {
+        _useTestAuth = useTestAuth;
+        _configureServices = configureServices;
+    }
 
     /// <summary>The user every API test acts as by default. Boards created over HTTP belong to it.</summary>
     public string DefaultUserId { get; } = Guid.NewGuid().ToString();
@@ -60,14 +69,17 @@ public sealed class WendApiFactory : WebApplicationFactory<Program>
             // The file-writing dev sender, swapped for one that records in memory.
             services.AddSingleton<IAuthEmailSender>(Email);
 
-            if (!_useTestAuth) return;
+            if (_useTestAuth)
+            {
+                // AddAuthentication(scheme) sets DefaultScheme through a Configure action, and
+                // ConfigureTestServices runs after the app's own registration, so this one wins.
+                services.AddSingleton(CurrentUser);
+                services.AddAuthentication(TestAuthHandler.SchemeName)
+                    .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(
+                        TestAuthHandler.SchemeName, _ => { });
+            }
 
-            // AddAuthentication(scheme) sets DefaultScheme through a Configure action, and
-            // ConfigureTestServices runs after the app's own registration, so this one wins.
-            services.AddSingleton(CurrentUser);
-            services.AddAuthentication(TestAuthHandler.SchemeName)
-                .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(
-                    TestAuthHandler.SchemeName, _ => { });
+            _configureServices?.Invoke(services);
         });
     }
 
