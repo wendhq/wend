@@ -81,20 +81,24 @@ public class AuthConfigurationTests
     }
 
     [Test]
-    public void Reset_tokens_last_an_hour_and_confirmation_tokens_still_last_a_day()
+    public void Change_email_and_reset_tokens_last_an_hour_and_confirmation_still_lasts_a_day()
     {
         var identity = _factory.Services.GetRequiredService<IOptions<IdentityOptions>>().Value;
         var confirmation = _factory.Services
             .GetRequiredService<IOptions<EmailConfirmationTokenProviderOptions>>().Value;
         var reset = _factory.Services
             .GetRequiredService<IOptions<PasswordResetTokenProviderOptions>>().Value;
+        var changeEmail = _factory.Services
+            .GetRequiredService<IOptions<ChangeEmailTokenProviderOptions>>().Value;
 
         Assert.Multiple(() =>
         {
+            Assert.That(changeEmail.TokenLifespan, Is.EqualTo(TimeSpan.FromHours(1)));
             Assert.That(reset.TokenLifespan, Is.EqualTo(TimeSpan.FromHours(1)));
-            // Both, in one test, on purpose: the failure this pairing exists to prevent is a
-            // change to either lifespan silently dragging the other with it.
+            // All three, in one test, on purpose: the failure this grouping exists to prevent is a
+            // change to any one lifespan silently dragging the others with it.
             Assert.That(confirmation.TokenLifespan, Is.EqualTo(TimeSpan.FromHours(24)));
+            Assert.That(identity.Tokens.ChangeEmailTokenProvider, Is.EqualTo("WendChangeEmail"));
             Assert.That(identity.Tokens.PasswordResetTokenProvider, Is.EqualTo("WendPasswordReset"));
             Assert.That(identity.Tokens.EmailConfirmationTokenProvider,
                 Is.EqualTo("WendEmailConfirmation"));

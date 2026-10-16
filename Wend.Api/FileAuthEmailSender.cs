@@ -22,4 +22,18 @@ public sealed class FileAuthEmailSender(string path) : IAuthEmailSender
         await File.AppendAllTextAsync(path, entry);
         Console.WriteLine(entry);
     }
+
+    public async Task SendEmailChangeConfirmationAsync(string newEmail, string link)
+    {
+        var entry = $"[{DateTime.UtcNow:u}] change-email {newEmail}{Environment.NewLine}  {link}{Environment.NewLine}";
+        await File.AppendAllTextAsync(path, entry);
+        Console.WriteLine(entry);
+    }
+
+    public async Task SendEmailChangedNoticeAsync(string oldEmail, string newEmail)
+    {
+        var entry = $"[{DateTime.UtcNow:u}] email-changed {oldEmail} -> {newEmail}{Environment.NewLine}";
+        await File.AppendAllTextAsync(path, entry);
+        Console.WriteLine(entry);
+    }
 }
